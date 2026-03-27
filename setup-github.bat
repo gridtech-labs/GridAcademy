@@ -10,8 +10,8 @@ REM     ▸ Do NOT add README / .gitignore (we have our own)
 REM  2. Replace YOUR_GITHUB_USERNAME below with your actual username
 REM ═══════════════════════════════════════════════════════════════════
 
-set GITHUB_USER=YOUR_GITHUB_USERNAME
-set REPO_NAME=gridacademy-api
+set GITHUB_USER=gridtech-labs
+set REPO_NAME=GridAcademy
 
 cd /d D:\Bkp\GRID\GridAcademy
 

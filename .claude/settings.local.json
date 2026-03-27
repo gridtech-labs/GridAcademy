@@ -216,7 +216,8 @@
       "Bash(cmd /c \"git --version\")",
       "Bash(cmd /c \"where git\")",
       "Bash(cmd /c \"echo %PATH%\")",
-      "Bash(powershell -NoProfile -Command \":*)"
+      "Bash(powershell -NoProfile -Command \":*)",
+      "Bash(powershell -NoProfile -Command \"cd ''D:\\\\Bkp\\\\GRID\\\\GridAcademy''; git add .gitattributes; git commit -m ''Initial commit: GridAcademy API + Admin Panel with Railway deployment config''; git log --oneline -3\")"
     ]
   }
 }
