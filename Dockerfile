@@ -23,7 +23,10 @@ RUN mkdir -p /app/wwwroot/uploads
 
 COPY --from=build /app/publish .
 
-# Railway injects PORT at runtime; the app reads it via Environment.GetEnvironmentVariable("PORT")
+# Railway injects PORT env var at runtime (default 8080).
+# The app reads PORT and calls serverOptions.ListenAnyIP(port) in Program.cs.
 EXPOSE 8080
+
+ENV ASPNETCORE_ENVIRONMENT=Production
 
 ENTRYPOINT ["dotnet", "GridAcademy.dll"]

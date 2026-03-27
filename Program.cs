@@ -16,16 +16,18 @@ using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(args);
 var config  = builder.Configuration;
 
-// ── Railway: listen on the PORT env-var assigned by the platform ───────────
-var listenPort = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-builder.WebHost.UseUrls($"http://0.0.0.0:{listenPort}");
+// ── Port binding ─────────────────────────────────────────────────────────────
+// Railway sets PORT env var. We configure Kestrel directly so it co-exists
+// with the MaxRequestBodySize limit below without conflict.
+var listenPort = int.Parse(Environment.GetEnvironmentVariable("PORT") ?? "8080");
 
 // Increase request size limit for video uploads (2 GB)
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options => {
-    options.MultipartBodyLengthLimit = 2L * 1024 * 1024 * 1024; // 2 GB
+    options.MultipartBodyLengthLimit = 2L * 1024 * 1024 * 1024;
 });
 builder.WebHost.ConfigureKestrel(serverOptions => {
-    serverOptions.Limits.MaxRequestBodySize = 2L * 1024 * 1024 * 1024; // 2 GB
+    serverOptions.Limits.MaxRequestBodySize = 2L * 1024 * 1024 * 1024;
+    serverOptions.ListenAnyIP(listenPort); // ← single place to bind
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -76,8 +78,18 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 //    Cookie is the default scheme so Razor Pages work naturally with [Authorize].
 //    API controllers explicitly opt-in to Bearer via AuthenticationSchemes.
 // ═══════════════════════════════════════════════════════════════════════════
-var jwtSecret = config["Jwt:Secret"]
-    ?? throw new InvalidOperationException("Jwt:Secret is not configured in appsettings.");
+// Jwt:Secret can come from env var  Jwt__Secret  (Railway Variables tab)
+// If missing in production we log a clear error instead of crashing silently.
+var jwtSecret = config["Jwt:Secret"];
+if (string.IsNullOrWhiteSpace(jwtSecret))
+{
+    // In production this MUST be set. Fall back to a placeholder so the app
+    // starts and the admin panel is accessible, but API auth will reject all tokens.
+    jwtSecret = "PLACEHOLDER_SET_Jwt__Secret_IN_RAILWAY_VARIABLES_NOW";
+    Console.Error.WriteLine(
+        "⚠️  WARNING: Jwt:Secret is not configured. " +
+        "Set the  Jwt__Secret  environment variable in Railway → Variables.");
+}
 
 builder.Services.AddAuthentication(options =>
 {
