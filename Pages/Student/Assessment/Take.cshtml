@@ -1,0 +1,829 @@
+@page
+@model GridAcademy.Pages.Student.TakeModel
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@{
+    ViewData["Title"] = Model.Exam!.TestTitle;
+    ViewData["ExamMode"] = true;
+    ViewData["ExamTitle"] = Model.Exam.TestTitle;
+
+    var jsonOptions = new JsonSerializerOptions
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new JsonStringEnumConverter() }
+    };
+    var examJson = JsonSerializer.Serialize(Model.Exam, jsonOptions);
+}
+
+<!-- Hidden antiforgery token for AJAX -->
+@Html.AntiForgeryToken()
+
+<!-- Exam Shell -->
+<div class="exam-shell">
+
+    <!-- LEFT: Question Area -->
+    <div class="exam-question-area" id="questionArea">
+        <div class="question-card" id="questionCard">
+
+            <!-- Question Meta -->
+            <div class="question-meta">
+                <span class="question-number-badge" id="qNumber">Q1</span>
+                <span class="question-section-badge" id="qSectionLabel"></span>
+                <span class="question-marks-badge ms-auto" id="qMarks"></span>
+            </div>
+
+            <!-- Question Text -->
+            <div class="question-text" id="questionText"></div>
+
+            <!-- MCQ Options -->
+            <ul class="options-list" id="mcqOptions"></ul>
+
+            <!-- NAT Input -->
+            <div class="nat-input-wrapper" id="natWrapper" style="display:none;">
+                <label class="nat-input-label" for="natValue">Enter your numerical answer:</label>
+                <input type="number" step="any" id="natValue" class="nat-input" placeholder="0.00" autocomplete="off" />
+                <small class="text-muted" style="font-size:.78rem;">
+                    Enter the exact numerical value. Fractions and decimals are accepted.
+                </small>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- RIGHT: Navigation Panel -->
+    <div class="exam-nav-panel">
+        <div class="nav-panel-header">
+            <i class="bi bi-grid-3x3-gap me-1"></i>Question Navigator
+        </div>
+        <div class="nav-panel-scroll" id="navPanelScroll">
+            <div id="sectionGrids"></div>
+        </div>
+        <div class="nav-legend" id="navLegend">
+            <div class="legend-title">Legend</div>
+            <div class="legend-item"><div class="legend-box state-answered"></div> Answered</div>
+            <div class="legend-item"><div class="legend-box state-not-answered"></div> Not Answered</div>
+            <div class="legend-item"><div class="legend-box state-marked"></div> Marked for Review</div>
+            <div class="legend-item"><div class="legend-box state-answered-marked"></div> Answered + Marked</div>
+            <div class="legend-item"><div class="legend-box state-not-visited"></div> Not Visited</div>
+        </div>
+        <div id="navSummary" class="px-3 py-2 border-top" style="font-size:.78rem; color:var(--gray-600);"></div>
+    </div>
+
+</div>
+
+<!-- Action Bar -->
+<div class="exam-action-bar">
+    <button class="btn-action btn-action-prev" id="btnPrev">
+        <i class="bi bi-chevron-left"></i> Previous
+    </button>
+    <button class="btn-action btn-action-mark" id="btnMark">
+        <i class="bi bi-bookmark me-1"></i>Mark &amp; Next
+    </button>
+    <button class="btn-action btn-action-clear" id="btnClear">
+        <i class="bi bi-x-lg me-1"></i>Clear
+    </button>
+    <span class="action-bar-spacer"></span>
+    <button class="btn-action btn-action-save" id="btnSaveNext">
+        Save &amp; Next <i class="bi bi-chevron-right"></i>
+    </button>
+</div>
+
+<!-- Submit Confirmation Modal -->
+<div class="modal fade" id="submitConfirmModal" tabindex="-1" aria-labelledby="submitModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+
+            <div class="modal-header border-bottom-0 pb-1">
+                <h5 class="modal-title fw-bold" id="submitModalLabel">
+                    <i class="bi bi-clipboard-check text-primary me-2"></i>Submit Exam
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body pt-2">
+
+                <!-- Progress bar -->
+                <div class="mb-3 px-1">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-muted fw-semibold">Completion Progress</small>
+                        <small id="submitProgressLabel" class="fw-bold text-primary">0%</small>
+                    </div>
+                    <div class="progress" style="height:10px; border-radius:6px;">
+                        <div id="submitProgressBar" class="progress-bar bg-primary"
+                             role="progressbar" style="width:0%; transition:width .4s ease;"></div>
+                    </div>
+                </div>
+
+                <!-- Section tabs -->
+                <ul class="nav nav-tabs" id="submitSectionTabs" role="tablist" style="font-size:.85rem;">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="stab-all"
+                                data-bs-toggle="tab" data-bs-target="#spane-all"
+                                type="button" role="tab">
+                            All Questions
+                        </button>
+                    </li>
+                    <!-- Dynamic section tabs injected by JS -->
+                </ul>
+
+                <div class="tab-content border border-top-0 rounded-bottom" id="submitTabContent">
+
+                    <!-- All-questions pane -->
+                    <div class="tab-pane fade show active p-2" id="spane-all" role="tabpanel">
+                        <div id="stats-all"></div>
+                    </div>
+                    <!-- Dynamic section panes injected by JS -->
+
+                </div>
+
+                <div class="alert alert-warning py-2 mt-3 mb-0" style="font-size:.82rem;">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    Once submitted, you <strong>cannot change</strong> your answers.
+                </div>
+            </div>
+
+            <div class="modal-footer border-top-0 pt-1">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-arrow-left me-1"></i>Resume Exam
+                </button>
+                <button type="button" class="btn btn-danger" id="btnConfirmSubmit">
+                    <span id="submitBtnText"><i class="bi bi-check2-circle me-1"></i>Submit Now</span>
+                    <span id="submitBtnSpinner" style="display:none;">
+                        <span class="spinner-border spinner-border-sm me-1"></span>Submitting…
+                    </span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Fullscreen Overlay -->
+<div class="fullscreen-overlay hidden" id="fullscreenOverlay">
+    <div class="fullscreen-overlay-card">
+        <i class="bi bi-fullscreen fs-1 text-warning mb-3 d-block"></i>
+        <h3>You exited fullscreen!</h3>
+        <p>Please return to fullscreen to continue the exam. This violation has been recorded.</p>
+        <button class="btn-enter-fullscreen" id="btnReenterFullscreen">
+            <i class="bi bi-fullscreen me-1"></i>Re-enter Fullscreen
+        </button>
+    </div>
+</div>
+
+<!-- Violation Toast Container -->
+<div class="violation-toast-container" id="violationToastContainer"></div>
+
+@section Scripts {
+<script>
+(function () {
+    'use strict';
+
+    // ── 1. Exam data from server ───────────────────────────────────────────
+    const EXAM = @Html.Raw(examJson);
+    const ATTEMPT_ID = EXAM.attemptId;
+    const BASE_URL = window.location.pathname; // /Student/Assessment/Take
+
+    // Antiforgery token
+    function getAntiforgeryToken() {
+        const el = document.querySelector('input[name="__RequestVerificationToken"]');
+        return el ? el.value : '';
+    }
+
+    // Question types enum mapping (from server JSON — string enum)
+    const QType = { MCQ: 'MCQ', MSQ: 'MSQ', NAT: 'NAT' };
+
+    // ── 2. Build state ──────────────────────────────────────────────────────
+    // Map savedAnswers by questionId for fast lookup
+    const savedMap = {};
+    for (const sa of (EXAM.savedAnswers || [])) {
+        savedMap[sa.questionId] = sa;
+    }
+
+    const state = {
+        attemptId: ATTEMPT_ID,
+        questions: [],
+        currentIndex: 0,
+        durationSeconds: EXAM.durationSeconds,
+        secondsElapsed: EXAM.secondsElapsed,
+        timerInterval: null,
+        natDebounce: null,
+        saveDebounce: null,
+        submitting: false
+    };
+
+    // Build flat question array merged with saved answers
+    for (const q of (EXAM.questions || [])) {
+        const sa = savedMap[q.questionId] || {};
+        state.questions.push({
+            // From AttemptQuestionDto
+            attemptQuestionId: q.attemptQuestionId,
+            questionId: q.questionId,
+            sectionIndex: q.sectionIndex,
+            sectionName: q.sectionName,
+            displayOrder: q.displayOrder,
+            displayOrderInSection: q.displayOrderInSection,
+            text: q.text,
+            questionType: q.questionType,
+            options: q.options || [],
+            isVisited: sa.isVisited || q.isVisited || false,
+            isMarkedForReview: sa.isMarkedForReview || q.isMarkedForReview || false,
+            marksForCorrect: q.marksForCorrect,
+            negativeMarks: q.negativeMarks,
+            // Answer state
+            selectedOptionIds: (sa.selectedOptionIds && sa.selectedOptionIds.length > 0) ? [...sa.selectedOptionIds] : [],
+            numericalValue: (sa.numericalValue !== undefined && sa.numericalValue !== null) ? sa.numericalValue : null,
+            isClear: sa.isClear || false
+        });
+    }
+
+    // ── 3. Nav state ────────────────────────────────────────────────────────
+    // Returns CSS class for a question button
+    function getNavStateClass(q, isCurrent) {
+        const hasAnswer = q.questionType === QType.NAT
+            ? (q.numericalValue !== null && q.numericalValue !== '' && !q.isClear)
+            : (q.selectedOptionIds.length > 0 && !q.isClear);
+
+        let cls;
+        if (!q.isVisited && !hasAnswer && !q.isMarkedForReview) {
+            cls = 'state-not-visited';
+        } else if (hasAnswer && q.isMarkedForReview) {
+            cls = 'state-answered-marked';
+        } else if (hasAnswer) {
+            cls = 'state-answered';
+        } else if (q.isMarkedForReview) {
+            cls = 'state-marked';
+        } else {
+            cls = 'state-not-answered'; // visited but not answered
+        }
+
+        return isCurrent ? cls + ' state-current' : cls;
+    }
+
+    // ── 4. Render question ──────────────────────────────────────────────────
+    function renderQuestion(index) {
+        const q = state.questions[index];
+        if (!q) return;
+
+        // Meta
+        document.getElementById('qNumber').textContent = `Q${q.displayOrder}`;
+        document.getElementById('qSectionLabel').textContent = q.sectionName;
+        document.getElementById('qMarks').innerHTML =
+            `<span class="marks-correct">+${q.marksForCorrect}</span>` +
+            (q.negativeMarks > 0 ? ` / <span class="marks-negative">-${q.negativeMarks}</span>` : '');
+
+        // Question text
+        const qtEl = document.getElementById('questionText');
+        qtEl.innerHTML = q.text;
+
+        // Re-render KaTeX in the question text
+        if (window.renderMathInElement) {
+            renderMathInElement(qtEl, {
+                delimiters: [
+                    { left: '$$', right: '$$', display: true },
+                    { left: '$', right: '$', display: false },
+                    { left: '\\(', right: '\\)', display: false },
+                    { left: '\\[', right: '\\]', display: true }
+                ],
+                throwOnError: false
+            });
+        }
+
+        const mcqEl = document.getElementById('mcqOptions');
+        const natWrapperEl = document.getElementById('natWrapper');
+        const natEl = document.getElementById('natValue');
+
+        if (q.questionType === QType.NAT) {
+            mcqEl.innerHTML = '';
+            mcqEl.style.display = 'none';
+            natWrapperEl.style.display = 'flex';
+            natEl.value = (q.numericalValue !== null && q.numericalValue !== '') ? q.numericalValue : '';
+        } else {
+            natWrapperEl.style.display = 'none';
+            mcqEl.style.display = 'flex';
+            mcqEl.innerHTML = '';
+
+            for (const opt of q.options) {
+                const isSelected = q.selectedOptionIds.includes(opt.id) && !q.isClear;
+                const li = document.createElement('li');
+                li.className = 'option-row' + (isSelected ? ' selected' : '');
+                li.dataset.optionId = opt.id;
+                li.innerHTML = `
+                    <span class="option-label">${opt.label}</span>
+                    <span class="option-text">${opt.text}</span>
+                `;
+                li.addEventListener('click', () => handleOptionClick(opt.id));
+                mcqEl.appendChild(li);
+            }
+        }
+    }
+
+    // ── 5. Render nav panel ──────────────────────────────────────────────────
+    function renderNavPanel() {
+        const container = document.getElementById('sectionGrids');
+        container.innerHTML = '';
+
+        // Group questions by section
+        const sections = [];
+        const sectionMap = {};
+        for (const q of state.questions) {
+            if (!sectionMap[q.sectionIndex]) {
+                sectionMap[q.sectionIndex] = { name: q.sectionName, questions: [] };
+                sections.push(sectionMap[q.sectionIndex]);
+            }
+            sectionMap[q.sectionIndex].questions.push(q);
+        }
+
+        for (const sec of sections) {
+            const labelEl = document.createElement('div');
+            labelEl.className = 'nav-section-label';
+            labelEl.textContent = sec.name;
+            container.appendChild(labelEl);
+
+            const gridEl = document.createElement('div');
+            gridEl.className = 'nav-question-grid';
+
+            for (const q of sec.questions) {
+                const isCurrent = state.questions.indexOf(q) === state.currentIndex;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'q-btn ' + getNavStateClass(q, isCurrent);
+                btn.textContent = q.displayOrder;
+                btn.title = `Q${q.displayOrder} — ${q.sectionName}`;
+                btn.addEventListener('click', () => {
+                    navigateTo(state.questions.indexOf(q));
+                });
+                gridEl.appendChild(btn);
+            }
+            container.appendChild(gridEl);
+        }
+
+        // Summary
+        let answered = 0, marked = 0, notVisited = 0, notAnswered = 0;
+        for (const q of state.questions) {
+            const hasAnswer = q.questionType === QType.NAT
+                ? (q.numericalValue !== null && q.numericalValue !== '' && !q.isClear)
+                : (q.selectedOptionIds.length > 0 && !q.isClear);
+            if (!q.isVisited && !hasAnswer && !q.isMarkedForReview) notVisited++;
+            else if (hasAnswer) answered++;
+            else if (q.isMarkedForReview) marked++;
+            else notAnswered++;
+        }
+
+        document.getElementById('navSummary').innerHTML =
+            `<span class="text-success fw-semibold">${answered} Answered</span> &nbsp;|&nbsp; ` +
+            `<span class="text-danger fw-semibold">${notAnswered} Not Answered</span><br>` +
+            `<span style="color:var(--purple); font-weight:600;">${marked} Marked</span> &nbsp;|&nbsp; ` +
+            `<span class="text-muted">${notVisited} Not Visited</span>`;
+    }
+
+    // ── 6. Navigation ────────────────────────────────────────────────────────
+    function navigateTo(index) {
+        if (index < 0 || index >= state.questions.length) return;
+
+        // Mark current as visited before leaving
+        const prev = state.questions[state.currentIndex];
+        if (!prev.isVisited) {
+            prev.isVisited = true;
+            apiVisit(prev.questionId);
+        }
+
+        state.currentIndex = index;
+        const next = state.questions[index];
+        if (!next.isVisited) {
+            next.isVisited = true;
+            apiVisit(next.questionId);
+        }
+
+        renderQuestion(index);
+        renderNavPanel();
+
+        // Scroll the active button into view
+        const navScroll = document.getElementById('navPanelScroll');
+        const activeBtn = navScroll.querySelectorAll('.q-btn')[index];
+        if (activeBtn) activeBtn.scrollIntoView({ block: 'nearest' });
+    }
+
+    function goNext() {
+        if (state.currentIndex < state.questions.length - 1) {
+            navigateTo(state.currentIndex + 1);
+        }
+    }
+
+    function goPrev() {
+        if (state.currentIndex > 0) {
+            navigateTo(state.currentIndex - 1);
+        }
+    }
+
+    // ── 7. Option click handler ──────────────────────────────────────────────
+    function handleOptionClick(optionId) {
+        const q = state.questions[state.currentIndex];
+        if (!q) return;
+
+        q.isClear = false;
+
+        if (q.questionType === QType.MSQ) {
+            // Toggle for multi-select
+            const idx = q.selectedOptionIds.indexOf(optionId);
+            if (idx >= 0) {
+                q.selectedOptionIds.splice(idx, 1);
+            } else {
+                q.selectedOptionIds.push(optionId);
+            }
+        } else {
+            // Single select (MCQ)
+            q.selectedOptionIds = [optionId];
+        }
+
+        renderQuestion(state.currentIndex);
+        renderNavPanel();
+        scheduleSaveAnswer(q);
+    }
+
+    // ── 8. NAT input handler ─────────────────────────────────────────────────
+    document.getElementById('natValue').addEventListener('input', function () {
+        const q = state.questions[state.currentIndex];
+        if (!q) return;
+
+        const val = this.value.trim();
+        q.numericalValue = val === '' ? null : parseFloat(val);
+        q.isClear = (val === '');
+
+        renderNavPanel();
+
+        clearTimeout(state.natDebounce);
+        state.natDebounce = setTimeout(() => scheduleSaveAnswer(q), 800);
+    });
+
+    // ── 9. Action bar buttons ────────────────────────────────────────────────
+    document.getElementById('btnPrev').addEventListener('click', goPrev);
+
+    document.getElementById('btnSaveNext').addEventListener('click', function () {
+        // Trigger save immediately (flush any pending debounce)
+        clearTimeout(state.saveDebounce);
+        const q = state.questions[state.currentIndex];
+        if (q) apiSaveAnswer(q);
+        goNext();
+    });
+
+    document.getElementById('btnMark').addEventListener('click', function () {
+        const q = state.questions[state.currentIndex];
+        if (!q) return;
+        q.isMarkedForReview = !q.isMarkedForReview;
+        apiToggleMark(q.questionId);
+        renderNavPanel();
+        goNext();
+    });
+
+    document.getElementById('btnClear').addEventListener('click', function () {
+        const q = state.questions[state.currentIndex];
+        if (!q) return;
+        q.selectedOptionIds = [];
+        q.numericalValue = null;
+        q.isClear = true;
+        renderQuestion(state.currentIndex);
+        renderNavPanel();
+        scheduleSaveAnswer(q);
+    });
+
+    // ── 10. Submit ───────────────────────────────────────────────────────────
+
+    // Helper: calculate answer stats for a list of questions
+    function calcStats(questions) {
+        let answered = 0, answeredMarked = 0, notAnswered = 0, marked = 0, notVisited = 0;
+        for (const q of questions) {
+            const hasAnswer = q.questionType === QType.NAT
+                ? (q.numericalValue !== null && q.numericalValue !== '' && !q.isClear)
+                : (q.selectedOptionIds.length > 0 && !q.isClear);
+            if (!q.isVisited && !hasAnswer && !q.isMarkedForReview) notVisited++;
+            else if (hasAnswer && q.isMarkedForReview)              answeredMarked++;
+            else if (hasAnswer)                                      answered++;
+            else if (q.isMarkedForReview)                           marked++;
+            else                                                     notAnswered++;
+        }
+        return { answered, answeredMarked, notAnswered, marked, notVisited, total: questions.length };
+    }
+
+    // Helper: render coloured stat rows for a stats object
+    function buildStatsHtml(s) {
+        const rows = [
+            { label: 'Answered',                        count: s.answered,        color: '#16a34a', bg: '#f0fdf4' },
+            { label: 'Answered &amp; Marked for Review',count: s.answeredMarked,  color: '#2563eb', bg: '#eff6ff' },
+            { label: 'Not Answered',                    count: s.notAnswered,      color: '#dc2626', bg: '#fef2f2' },
+            { label: 'Marked for Review',               count: s.marked,          color: '#7c3aed', bg: '#f5f3ff' },
+            { label: 'Not Visited',                     count: s.notVisited,      color: '#6b7280', bg: '#f9fafb' },
+        ];
+        return `<table class="table table-sm mb-0" style="font-size:.88rem;">
+            <tbody>${rows.map(r => `
+                <tr>
+                    <td style="background:${r.bg}; padding:.45rem .8rem; border:none;">
+                        <span style="display:inline-block;width:11px;height:11px;border-radius:2px;
+                                     background:${r.color};margin-right:.45rem;vertical-align:middle;"></span>
+                        <span style="color:${r.color}; font-weight:600;">${r.label}</span>
+                    </td>
+                    <td style="background:${r.bg}; text-align:right; font-weight:700;
+                                color:${r.color}; padding:.45rem .8rem; border:none; white-space:nowrap;">
+                        ${r.count} / ${s.total}
+                    </td>
+                </tr>`).join('')}
+            </tbody></table>`;
+    }
+
+    // Populate modal content when it is about to open
+    const submitModalEl = document.getElementById('submitConfirmModal');
+    if (submitModalEl) submitModalEl.addEventListener('show.bs.modal', function () {
+
+        // Build section groups
+        const sections = [];
+        const sectionMap = {};
+        for (const q of state.questions) {
+            if (!sectionMap[q.sectionIndex]) {
+                sectionMap[q.sectionIndex] = { index: q.sectionIndex, name: q.sectionName, questions: [] };
+                sections.push(sectionMap[q.sectionIndex]);
+            }
+            sectionMap[q.sectionIndex].questions.push(q);
+        }
+
+        // Progress bar (answered + answeredMarked counts as "done")
+        const allStats = calcStats(state.questions);
+        const donePct  = state.questions.length > 0
+            ? Math.round((allStats.answered + allStats.answeredMarked) / state.questions.length * 100)
+            : 0;
+        document.getElementById('submitProgressBar').style.width = donePct + '%';
+        document.getElementById('submitProgressLabel').textContent = donePct + '% Completed';
+
+        // Populate "All Questions" pane
+        document.getElementById('stats-all').innerHTML = buildStatsHtml(allStats);
+
+        // Rebuild dynamic section tabs (remove old ones first)
+        const tabsEl    = document.getElementById('submitSectionTabs');
+        const contentEl = document.getElementById('submitTabContent');
+        tabsEl.querySelectorAll('[data-dyn]').forEach(el => el.remove());
+        contentEl.querySelectorAll('[data-dyn]').forEach(el => el.remove());
+
+        // Reset "All" tab to active
+        document.getElementById('stab-all').classList.add('active');
+        document.getElementById('spane-all').classList.add('show', 'active');
+
+        // Add one tab per section
+        for (const sec of sections) {
+            const secStats = calcStats(sec.questions);
+            const tabId    = `stab-s${sec.index}`;
+            const paneId   = `spane-s${sec.index}`;
+
+            const li = document.createElement('li');
+            li.className = 'nav-item';
+            li.role = 'presentation';
+            li.dataset.dyn = '1';
+            li.innerHTML = `
+                <button class="nav-link" id="${tabId}"
+                        data-bs-toggle="tab" data-bs-target="#${paneId}"
+                        type="button" role="tab" style="font-size:.85rem;">
+                    ${sec.name}
+                    <span class="badge ms-1"
+                          style="font-size:.7rem; background:${secStats.answered + secStats.answeredMarked === secStats.total ? '#16a34a' : '#6b7280'};">
+                        ${secStats.answered + secStats.answeredMarked}/${secStats.total}
+                    </span>
+                </button>`;
+            tabsEl.appendChild(li);
+
+            const pane = document.createElement('div');
+            pane.className = 'tab-pane fade p-2';
+            pane.id = paneId;
+            pane.role = 'tabpanel';
+            pane.dataset.dyn = '1';
+            pane.innerHTML = buildStatsHtml(secStats);
+            contentEl.appendChild(pane);
+        }
+    });
+
+    document.getElementById('btnConfirmSubmit').addEventListener('click', async function () {
+        if (state.submitting) return;
+        state.submitting = true;
+        document.getElementById('submitBtnText').style.display = 'none';
+        document.getElementById('submitBtnSpinner').style.display = 'inline-flex';
+        this.disabled = true;
+        await submitExam();
+    });
+
+    // ── 11. API calls ────────────────────────────────────────────────────────
+
+    function scheduleSaveAnswer(q) {
+        clearTimeout(state.saveDebounce);
+        state.saveDebounce = setTimeout(() => apiSaveAnswer(q), 1500);
+    }
+
+    async function apiSaveAnswer(q) {
+        try {
+            const payload = {
+                questionId: q.questionId,
+                selectedOptionIds: q.selectedOptionIds,
+                numericalValue: q.numericalValue,
+                isClear: q.isClear
+            };
+            const res = await fetch(
+                `${BASE_URL}?handler=SaveAnswer&AttemptId=${ATTEMPT_ID}`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': getAntiforgeryToken()
+                    },
+                    body: JSON.stringify(payload)
+                }
+            );
+            const data = await res.json();
+            if (data.timedOut) {
+                showViolationToast('Time expired — submitting exam…');
+                setTimeout(() => { window.location.href = data.redirectUrl; }, 1500);
+            }
+        } catch (e) {
+            console.warn('Save answer failed:', e);
+        }
+    }
+
+    async function apiToggleMark(questionId) {
+        try {
+            await fetch(
+                `${BASE_URL}?handler=ToggleMark&AttemptId=${ATTEMPT_ID}&questionId=${questionId}`,
+                {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': getAntiforgeryToken() }
+                }
+            );
+        } catch (e) {
+            console.warn('Toggle mark failed:', e);
+        }
+    }
+
+    async function apiVisit(questionId) {
+        try {
+            await fetch(
+                `${BASE_URL}?handler=Visit&AttemptId=${ATTEMPT_ID}&questionId=${questionId}`,
+                {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': getAntiforgeryToken() }
+                }
+            );
+        } catch (e) {
+            console.warn('Mark visited failed:', e);
+        }
+    }
+
+    async function apiLogViolation(violationType) {
+        try {
+            await fetch(
+                `${BASE_URL}?handler=Violation&AttemptId=${ATTEMPT_ID}`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': getAntiforgeryToken()
+                    },
+                    body: JSON.stringify({ violationType })
+                }
+            );
+        } catch (e) {
+            // Best-effort; ignore
+        }
+    }
+
+    async function submitExam() {
+        try {
+            const res = await fetch(
+                `${BASE_URL}?handler=Submit&AttemptId=${ATTEMPT_ID}`,
+                {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': getAntiforgeryToken() }
+                }
+            );
+            const data = await res.json();
+            if (data.ok && data.redirectUrl) {
+                window.location.href = data.redirectUrl;
+            } else {
+                alert('Submission failed: ' + (data.error || 'Unknown error. Please try again.'));
+                document.getElementById('btnConfirmSubmit').disabled = false;
+                document.getElementById('submitBtnText').style.display = 'inline-flex';
+                document.getElementById('submitBtnSpinner').style.display = 'none';
+                state.submitting = false;
+            }
+        } catch (e) {
+            alert('Network error while submitting. Please check your connection and try again.');
+            document.getElementById('btnConfirmSubmit').disabled = false;
+            document.getElementById('submitBtnText').style.display = 'inline-flex';
+            document.getElementById('submitBtnSpinner').style.display = 'none';
+            state.submitting = false;
+        }
+    }
+
+    // ── 12. Timer ────────────────────────────────────────────────────────────
+    function formatTime(seconds) {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function updateTimerDisplay() {
+        const remaining = Math.max(0, state.durationSeconds - state.secondsElapsed);
+        const timerEl = document.getElementById('examTimer');
+        if (!timerEl) return;
+
+        timerEl.textContent = formatTime(remaining);
+
+        // Color class based on remaining time
+        timerEl.classList.remove('timer-safe', 'timer-warning', 'timer-danger');
+        if (remaining > 300) {
+            timerEl.classList.add('timer-safe');
+        } else if (remaining > 60) {
+            timerEl.classList.add('timer-warning');
+        } else {
+            timerEl.classList.add('timer-danger');
+        }
+
+        if (remaining <= 0) {
+            clearInterval(state.timerInterval);
+            showViolationToast('Time is up! Submitting your exam automatically…');
+            setTimeout(() => submitExam(), 2000);
+        }
+    }
+
+    function startTimer() {
+        updateTimerDisplay();
+        state.timerInterval = setInterval(() => {
+            state.secondsElapsed++;
+            updateTimerDisplay();
+        }, 1000);
+    }
+
+    // ── 13. Fullscreen ───────────────────────────────────────────────────────
+    function enterFullscreen() {
+        const el = document.documentElement;
+        if (el.requestFullscreen) el.requestFullscreen();
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+        else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+    }
+
+    document.addEventListener('fullscreenchange', function () {
+        const overlay = document.getElementById('fullscreenOverlay');
+        if (!document.fullscreenElement) {
+            overlay.classList.remove('hidden');
+            apiLogViolation('fullscreen_exit');
+            showViolationToast('Fullscreen exit recorded as a violation.');
+        } else {
+            overlay.classList.add('hidden');
+        }
+    });
+
+    document.getElementById('btnReenterFullscreen').addEventListener('click', function () {
+        enterFullscreen();
+    });
+
+    // ── 14. Tab switch / visibility change ───────────────────────────────────
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+            apiLogViolation('tab_switch');
+            showViolationToast('Tab switch detected and recorded as a violation.');
+        }
+    });
+
+    // ── 15. Violation Toast ──────────────────────────────────────────────────
+    function showViolationToast(message) {
+        const container = document.getElementById('violationToastContainer');
+        const toast = document.createElement('div');
+        toast.className = 'violation-toast';
+        toast.innerHTML = `<strong><i class="bi bi-exclamation-triangle-fill me-1"></i>Warning:</strong> ${message}`;
+        container.appendChild(toast);
+        // Remove after animation completes (~4s)
+        setTimeout(() => {
+            if (toast.parentNode) toast.parentNode.removeChild(toast);
+        }, 4200);
+    }
+
+    // ── 16. Init ─────────────────────────────────────────────────────────────
+    function init() {
+        if (state.questions.length === 0) {
+            document.getElementById('questionCard').innerHTML =
+                '<p class="text-muted text-center py-5">No questions found in this exam.</p>';
+            return;
+        }
+
+        // Mark first question as visited
+        state.questions[0].isVisited = true;
+        apiVisit(state.questions[0].questionId);
+
+        renderQuestion(0);
+        renderNavPanel();
+        startTimer();
+
+        // Request fullscreen after brief delay (must be user-gesture driven — we rely on page load)
+        setTimeout(() => {
+            try { enterFullscreen(); } catch (e) { /* Fullscreen not supported or denied */ }
+        }, 500);
+    }
+
+    init();
+
+})();
+</script>
+}

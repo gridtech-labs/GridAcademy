@@ -1,0 +1,555 @@
+@page
+@model GridAcademy.Pages.Admin.Content.Questions.IndexModel
+@using GridAcademy.Data.Entities.Content
+@using System.Text.RegularExpressions
+@{
+    ViewData["Title"] = "Questions";
+    int totalPages = (int)Math.Ceiling((double)(Model.Questions.TotalCount) / IndexModel.PageSize);
+
+    // Strip HTML tags for the short list preview (question text may contain Quill HTML)
+    string StripHtml(string? html) =>
+        Regex.Replace(html ?? "", "<[^>]+>", " ").Replace("  ", " ").Trim();
+
+    string TextPreview(string? text, int max = 130)
+    {
+        var plain = StripHtml(text);
+        return plain.Length > max ? plain[..max] + "…" : plain;
+    }
+
+    // Detect PDF font-encoding artifacts — characters that PdfPig cannot map to proper
+    // Unicode because the source PDF uses an embedded mathematical font without a
+    // ToUnicode table (common in JEE/NEET papers).
+    bool HasGarbledMath(string? html)
+    {
+        if (string.IsNullOrEmpty(html)) return false;
+        var plain = Regex.Replace(html, "<[^>]+>", "");
+        int bad = plain.Count(c =>
+            c == '\uFFFD' ||                            // replacement character
+            (c >= '\uE000' && c <= '\uF8FF') ||         // Unicode Private Use Area
+            (c >= '\u2B00' && c <= '\u2BFF') ||         // Misc. Math Symbols-B  (e.g. ⬧ U+2B27)
+            c == '\u25A0' || c == '\u25A1' ||           // ■ □  Black / White Square
+            c == '\u25C6' || c == '\u25C7' ||           // ◆ ◇  Black / White Diamond
+            c == '\u2666' || c == '\u2662');             // ♦ ♢  Card-suit Diamonds
+        return bad > 2;
+    }
+}
+
+@section Styles {
+    <!-- KaTeX for math rendering in question preview -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+    <!-- Quill Snow CSS — needed so ql-formula spans render correctly in preview -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" />
+    <style>
+        /* ── Exam-paper preview ─────────────────────────────────────── */
+        .exam-paper {
+            font-family: Georgia, 'Times New Roman', Times, serif;
+            font-size: 1.02rem;
+            line-height: 1.95;
+            color: #1a1a1a;
+        }
+        /* Question body text box */
+        .exam-q-body {
+            padding: 1rem 1.25rem;
+            border: 1px solid #dee2e6;
+            border-radius: .4rem;
+            background: #fff;
+            margin-bottom: 1.25rem;
+        }
+        /* Quill formula spans — inline math */
+        .exam-paper .ql-formula { display: inline-block; vertical-align: middle; }
+        /* KaTeX display override: never block-level inside exam text */
+        .exam-paper .katex-display { display: inline !important; margin: 0 !important; }
+        /* Diagrams / figures embedded in question text */
+        .exam-paper img {
+            max-width: 100%;
+            max-height: 350px;
+            object-fit: contain;
+            display: block;
+            margin: .75rem auto;
+            border-radius: .3rem;
+            border: 1px solid #dee2e6;
+            background: #f8f9fa;
+        }
+
+        /* Options row — (A) … (B) … style */
+        .opt-row        { display:flex; align-items:flex-start; gap:.9rem; padding:.35rem .5rem;
+                          border-radius:.3rem; margin-bottom:.3rem; }
+        .opt-row.correct { background: #d1fae5; }
+        .opt-lbl        { font-weight:700; min-width:1.8rem; color:#374151; font-family:inherit; }
+        .opt-row.correct .opt-lbl { color:#065f46; }
+        .opt-body       { flex:1; font-family:inherit; }
+        .opt-row.correct .opt-body { font-weight:600; color:#065f46; }
+
+        /* Divider between question and options */
+        .opts-heading   { font-size:.8rem; font-weight:600; color:#6b7280;
+                          text-transform:uppercase; letter-spacing:.05em; margin-bottom:.4rem; }
+
+        /* NAT answer pill */
+        .nat-answer     { display:inline-flex; align-items:center; gap:.5rem;
+                          background:#f1f5f9; border:1px solid #cbd5e1;
+                          border-radius:.375rem; padding:.35rem .75rem;
+                          font-family: 'Courier New', monospace; font-size:.95rem; }
+    </style>
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-patch-question me-2 text-primary"></i>Questions</h4>
+        <p class="text-muted small mb-0">@Model.Questions.TotalCount question(s) total</p>
+    </div>
+    <a asp-page="/Admin/Content/Questions/Create" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>Add Question
+    </a>
+</div>
+
+<!-- ── Filter bar ────────────────────────────────────────────────────────── -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <input asp-for="Search" class="form-control form-control-sm" placeholder="Search question text…" />
+            </div>
+            <div class="col-6 col-md-2">
+                <select asp-for="SubjectId" class="form-select form-select-sm">
+                    <option value="">All Subjects</option>
+                    @foreach (var s in Model.Subjects)
+                    { <option value="@s.Id" selected="@(Model.SubjectId == s.Id)">@s.Name</option> }
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <select asp-for="TopicId" class="form-select form-select-sm">
+                    <option value="">All Topics</option>
+                    @foreach (var t in Model.Topics)
+                    { <option value="@t.Id" selected="@(Model.TopicId == t.Id)">@t.Name</option> }
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <select asp-for="DifficultyLevelId" class="form-select form-select-sm">
+                    <option value="">All Difficulties</option>
+                    @foreach (var d in Model.DifficultyLevels)
+                    { <option value="@d.Id" selected="@(Model.DifficultyLevelId == d.Id)">@d.Name</option> }
+                </select>
+            </div>
+            <div class="col-6 col-md-1">
+                <select asp-for="Status" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    <option value="1" selected="@(Model.Status == QuestionStatus.Draft)">Draft</option>
+                    <option value="2" selected="@(Model.Status == QuestionStatus.Published)">Published</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-1">
+                <select asp-for="QuestionType" class="form-select form-select-sm">
+                    <option value="">All Types</option>
+                    <option value="1" selected="@(Model.QuestionType == QuestionType.MCQ)">MCQ</option>
+                    <option value="2" selected="@(Model.QuestionType == QuestionType.MSQ)">MSQ</option>
+                    <option value="3" selected="@(Model.QuestionType == QuestionType.NAT)">NAT</option>
+                    <option value="4" selected="@(Model.QuestionType == QuestionType.FillInBlanks)">Fill Blanks</option>
+                    <option value="5" selected="@(Model.QuestionType == QuestionType.TrueFalse)">True/False</option>
+                    <option value="6" selected="@(Model.QuestionType == QuestionType.MatchTheFollowing)">Match</option>
+                    <option value="7" selected="@(Model.QuestionType == QuestionType.AssertionReason)">Assert/Reason</option>
+                    <option value="8" selected="@(Model.QuestionType == QuestionType.PassageBased)">Passage</option>
+                    <option value="9" selected="@(Model.QuestionType == QuestionType.MatrixMatch)">Matrix</option>
+                </select>
+            </div>
+            <div class="col-auto d-flex gap-1">
+                <button class="btn btn-sm btn-primary"><i class="bi bi-search"></i></button>
+                <a asp-page="/Admin/Content/Questions/Index" class="btn btn-sm btn-outline-secondary" title="Clear filters">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ── Questions table ───────────────────────────────────────────────────── -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        @if (!Model.Questions.Items.Any())
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-inbox text-muted" style="font-size:2.5rem;opacity:0.4"></i>
+                <p class="text-muted mt-2 mb-0">No questions found. Try adjusting the filters or add a new question.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:40%">Question</th>
+                            <th>Subject / Topic</th>
+                            <th>Type</th>
+                            <th>Difficulty</th>
+                            <th>Marks</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var q in Model.Questions.Items)
+                    {
+                        <tr>
+                            <td>
+                                <div class="fw-semibold small" style="max-width:360px">
+                                    @TextPreview(q.Text)
+                                </div>
+                                @if (HasGarbledMath(q.Text) || q.Options.Any(o => HasGarbledMath(o.Text)))
+                                {
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle mt-1"
+                                          style="font-size:.65rem"
+                                          title="PDF math symbols could not be decoded. Open the editor to fix with LaTeX.">
+                                        <i class="bi bi-exclamation-triangle me-1"></i>Math Needs Review
+                                    </span>
+                                }
+                                @if (q.Tags.Any())
+                                {
+                                    foreach (var tag in q.Tags.Take(3))
+                                    {
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle me-1" style="font-size:0.65rem">@tag.Name</span>
+                                    }
+                                }
+                            </td>
+                            <td class="small">
+                                <div>@q.SubjectName</div>
+                                <div class="text-muted">@q.TopicName</div>
+                            </td>
+                            <td>
+                                @{
+                                    var (typeBadge, typeLabel) = q.QuestionType switch {
+                                        QuestionType.MCQ               => ("bg-primary-subtle text-primary border-primary-subtle",      "MCQ"),
+                                        QuestionType.MSQ               => ("bg-warning-subtle text-warning border-warning-subtle",      "MSQ"),
+                                        QuestionType.NAT               => ("bg-secondary-subtle text-secondary border-secondary-subtle","NAT"),
+                                        QuestionType.FillInBlanks      => ("bg-info-subtle text-info border-info-subtle",               "FIB"),
+                                        QuestionType.TrueFalse         => ("bg-success-subtle text-success border-success-subtle",      "T/F"),
+                                        QuestionType.MatchTheFollowing => ("bg-light text-purple border-secondary",                    "MTF"),
+                                        QuestionType.AssertionReason   => ("bg-danger-subtle text-danger border-danger-subtle",         "ANR"),
+                                        QuestionType.PassageBased      => ("bg-light text-teal border-secondary",                      "PBQ"),
+                                        QuestionType.MatrixMatch       => ("bg-light text-dark border-secondary",                      "MMQ"),
+                                        _                              => ("bg-light text-dark border-secondary",                      "?")
+                                    };
+                                }
+                                <span class="badge border @typeBadge small">@typeLabel</span>
+                            </td>
+                            <td class="small text-muted">@q.DifficultyLevel</td>
+                            <td class="small">
+                                <span class="text-success fw-semibold">+@q.Marks</span>
+                                @if (q.NegativeMarks != 0)
+                                { <span class="text-danger ms-1">@q.NegativeMarks</span> }
+                            </td>
+                            <td>
+                                @if (q.Status == QuestionStatus.Published)
+                                { <span class="badge bg-success-subtle text-success border border-success-subtle">Published</span> }
+                                else
+                                { <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Draft</span> }
+                            </td>
+                            <td class="text-end">
+                                <div class="d-flex gap-1 justify-content-end">
+                                    <!-- Preview button — opens rendered question in modal -->
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary preview-btn"
+                                            data-qid="@q.Id"
+                                            title="Preview Question"
+                                            data-bs-toggle="modal" data-bs-target="#previewModal">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <a asp-page="/Admin/Content/Questions/Create" asp-route-id="@q.Id"
+                                       class="btn btn-sm btn-outline-secondary" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    @if (q.Status == QuestionStatus.Draft)
+                                    {
+                                        <form method="post" asp-page-handler="Publish">
+                                            <input type="hidden" name="id" value="@q.Id" />
+                                            <button class="btn btn-sm btn-outline-success" title="Publish">
+                                                <i class="bi bi-check-circle"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <form method="post" asp-page-handler="Unpublish">
+                                            <input type="hidden" name="id" value="@q.Id" />
+                                            <button class="btn btn-sm btn-outline-warning" title="Unpublish">
+                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                    @if (User.IsInRole("Admin"))
+                                    {
+                                        <form method="post" asp-page-handler="Delete"
+                                              onsubmit="return confirm('Delete this question? This cannot be undone.')">
+                                            <input type="hidden" name="id" value="@q.Id" />
+                                            <button class="btn btn-sm btn-outline-danger" title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    @if (totalPages > 1)
+    {
+        <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+            <small class="text-muted">
+                Showing @((Model.CurrentPage - 1) * IndexModel.PageSize + 1)–@(Math.Min(Model.CurrentPage * IndexModel.PageSize, Model.Questions.TotalCount))
+                of @Model.Questions.TotalCount
+            </small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item @(Model.CurrentPage <= 1 ? "disabled" : "")">
+                        <a class="page-link" asp-page="/Admin/Content/Questions/Index"
+                           asp-all-route-data="@(new Dictionary<string,string?> { ["Search"]=Model.Search, ["SubjectId"]=Model.SubjectId?.ToString(), ["TopicId"]=Model.TopicId?.ToString(), ["DifficultyLevelId"]=Model.DifficultyLevelId?.ToString(), ["ExamTypeId"]=Model.ExamTypeId?.ToString(), ["Status"]=((int?)Model.Status)?.ToString(), ["QuestionType"]=((int?)Model.QuestionType)?.ToString(), ["CurrentPage"]=(Model.CurrentPage-1).ToString() })">
+                            &laquo;
+                        </a>
+                    </li>
+                    @for (int p = Math.Max(1, Model.CurrentPage - 2); p <= Math.Min(totalPages, Model.CurrentPage + 2); p++)
+                    {
+                        <li class="page-item @(p == Model.CurrentPage ? "active" : "")">
+                            <a class="page-link" asp-page="/Admin/Content/Questions/Index"
+                               asp-all-route-data="@(new Dictionary<string,string?> { ["Search"]=Model.Search, ["SubjectId"]=Model.SubjectId?.ToString(), ["TopicId"]=Model.TopicId?.ToString(), ["DifficultyLevelId"]=Model.DifficultyLevelId?.ToString(), ["ExamTypeId"]=Model.ExamTypeId?.ToString(), ["Status"]=((int?)Model.Status)?.ToString(), ["QuestionType"]=((int?)Model.QuestionType)?.ToString(), ["CurrentPage"]=p.ToString() })">
+                                @p
+                            </a>
+                        </li>
+                    }
+                    <li class="page-item @(Model.CurrentPage >= totalPages ? "disabled" : "")">
+                        <a class="page-link" asp-page="/Admin/Content/Questions/Index"
+                           asp-all-route-data="@(new Dictionary<string,string?> { ["Search"]=Model.Search, ["SubjectId"]=Model.SubjectId?.ToString(), ["TopicId"]=Model.TopicId?.ToString(), ["DifficultyLevelId"]=Model.DifficultyLevelId?.ToString(), ["ExamTypeId"]=Model.ExamTypeId?.ToString(), ["Status"]=((int?)Model.Status)?.ToString(), ["QuestionType"]=((int?)Model.QuestionType)?.ToString(), ["CurrentPage"]=(Model.CurrentPage+1).ToString() })">
+                            &raquo;
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    }
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     Question Preview Modal
+     ════════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <div>
+                    <h5 class="modal-title fw-bold mb-0" id="previewModalLabel">
+                        <i class="bi bi-patch-question text-primary me-2"></i>Question Preview
+                    </h5>
+                    <div id="previewMeta" class="d-flex gap-2 flex-wrap mt-1"></div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-2 exam-paper">
+                <!-- PDF math encoding warning (shown only when garbled chars are detected) -->
+                <div id="previewWarning" class="alert alert-warning d-none py-2 px-3 mb-3" role="alert">
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="bi bi-exclamation-triangle-fill fs-5 flex-shrink-0 mt-1"></i>
+                        <div>
+                            <strong>Math symbols could not be decoded from the PDF.</strong><br>
+                            <span class="small">
+                                The PDF uses embedded mathematical fonts without a Unicode map.
+                                Garbled characters (◆&nbsp;□&nbsp;⬧) need to be replaced with LaTeX.<br>
+                                Click <strong>Edit this Question</strong> → use the <kbd>ƒ</kbd> formula button
+                                → type LaTeX like <code>\vec{B}</code>, <code>\frac{\mu_0 I}{4\pi}</code>.
+                                Use the <strong>LaTeX Quick Reference</strong> panel in the editor for common symbols.
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Question text rendered as exam paper -->
+                <div id="previewBody" class="exam-q-body"></div>
+
+                <!-- MCQ Options -->
+                <div id="previewOptions"></div>
+
+                <!-- NAT answer -->
+                <div id="previewAnswer" class="mt-2"></div>
+            </div>
+            <div class="modal-footer border-0 pt-0 d-flex justify-content-between">
+                <a id="previewEditLink" href="#" class="btn btn-primary btn-sm">
+                    <i class="bi bi-pencil me-1"></i>Edit this Question
+                </a>
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<!-- KaTeX JS — render math formulas in preview -->
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+(function () {
+    'use strict';
+
+    // ── Question data: id → { text, options, type, numericalAnswer } ──────────
+    // Embedded from server so the preview modal has everything it needs without AJAX.
+    const qs = {
+        @foreach (var q in Model.Questions.Items)
+        {
+            @: '@q.Id': {
+            @:     text: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(q.Text ?? "")),
+            @:     type: @((int)q.QuestionType),
+            @:     numAnswer: @Html.Raw(q.NumericalAnswer.HasValue ? q.NumericalAnswer.Value.ToString() : "null"),
+            @:     subject: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(q.SubjectName ?? "")),
+            @:     topic:   @Html.Raw(System.Text.Json.JsonSerializer.Serialize(q.TopicName ?? "")),
+            @:     marks:   '@q.Marks',
+            @:     negMarks:'@q.NegativeMarks',
+            @:     diff:    @Html.Raw(System.Text.Json.JsonSerializer.Serialize(q.DifficultyLevel ?? "")),
+            @:     status:  @((int)q.Status),
+            @:     options: [
+            @foreach (var opt in q.Options.OrderBy(o => o.Label))
+            {
+                @:         { label: '@opt.Label', text: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(opt.Text ?? "")), correct: @opt.IsCorrect.ToString().ToLower() },
+            }
+            @:     ]
+            @: },
+        }
+    };
+
+    // ── Detect PDF font-encoding artifacts ───────────────────────────────────
+    // Characters that appear when PdfPig cannot map a glyph to Unicode because
+    // the PDF's embedded mathematical font has no ToUnicode table.
+    function hasGarbledMath(htmlText) {
+        const plain = (htmlText || '').replace(/<[^>]+>/g, '');
+        let bad = 0;
+        for (const ch of plain) {
+            const cp = ch.codePointAt(0);
+            if (cp === 0xFFFD || cp === 0xFFFF ||
+                (cp >= 0xE000 && cp <= 0xF8FF) ||   // Private Use Area
+                (cp >= 0x2B00 && cp <= 0x2BFF) ||   // Misc. Math Symbols-B (⬧ etc.)
+                cp === 0x25A0 || cp === 0x25A1 ||   // ■ □
+                cp === 0x25C6 || cp === 0x25C7 ||   // ◆ ◇
+                cp === 0x2666 || cp === 0x2662) {    // ♦ ♢
+                if (++bad > 2) return true;
+            }
+        }
+        return false;
+    }
+
+    // ── Render any Quill formula spans in a container ─────────────────────────
+    // Quill stores: <span class="ql-formula" data-value="latex">...</span>
+    // We re-render with KaTeX in case the stored HTML was stripped.
+    function renderFormulas(el) {
+        el.querySelectorAll('.ql-formula').forEach(function (span) {
+            const latex = span.dataset.value;
+            if (!latex) return;
+            try { katex.render(latex, span, { throwOnError: false, displayMode: false }); }
+            catch (e) { /* keep original text */ }
+        });
+    }
+
+    // ── Type label helper ─────────────────────────────────────────────────────
+    const typeLabels = { 1:'MCQ', 2:'MSQ', 3:'NAT', 4:'FIB', 5:'T/F', 6:'MTF', 7:'ANR', 8:'PBQ', 9:'MMQ' };
+    const typeBadge  = { 1:'bg-primary', 2:'bg-warning text-dark', 3:'bg-secondary',
+                         4:'bg-info text-dark', 5:'bg-success', 6:'bg-light text-dark border',
+                         7:'bg-danger', 8:'bg-light text-dark border', 9:'bg-light text-dark border' };
+
+    // ── Build preview HTML ────────────────────────────────────────────────────
+    function buildPreview(qid) {
+        const q  = qs[qid];
+        if (!q) return;
+
+        // Edit link
+        document.getElementById('previewEditLink').href = '/Admin/Content/Questions/Create?id=' + qid;
+
+        // Meta badges
+        const meta = document.getElementById('previewMeta');
+        meta.innerHTML =
+            `<span class="badge ${typeBadge[q.type] || 'bg-secondary'}">${typeLabels[q.type] || '?'}</span>` +
+            `<span class="badge bg-light text-dark border">${q.subject}</span>` +
+            `<span class="badge bg-light text-dark border">${q.topic}</span>` +
+            `<span class="badge bg-success-subtle text-success border border-success-subtle">+${q.marks}</span>` +
+            (q.negMarks && q.negMarks !== '0' ?
+                `<span class="badge bg-danger-subtle text-danger border border-danger-subtle">${q.negMarks}</span>` : '') +
+            `<span class="badge bg-light text-secondary border">${q.diff}</span>` +
+            (q.status === 2 ?
+                '<span class="badge bg-success">Published</span>' :
+                '<span class="badge bg-warning text-dark">Draft</span>');
+
+        // Show / hide garbled-math warning
+        const allContent = [q.text, ...q.options.map(o => o.text)].join(' ');
+        document.getElementById('previewWarning')
+                .classList.toggle('d-none', !hasGarbledMath(allContent));
+
+        // ── Question body (exam-paper style) ─────────────────────────────────
+        const body = document.getElementById('previewBody');
+        // Unwrap Quill's outer <p> wrapper when there's only one paragraph so the
+        // text flows naturally inside our exam-q-body box
+        body.innerHTML = q.text
+            ? q.text.replace(/^<p>([\s\S]*)<\/p>$/, '$1')
+            : '<em style="color:#6b7280">No question text entered.</em>';
+        renderFormulas(body);
+
+        // ── Options (A) (B) (C) (D) ───────────────────────────────────────────
+        const optsEl = document.getElementById('previewOptions');
+        optsEl.innerHTML = '';
+        if (q.options && q.options.length > 0) {
+            const hdg = document.createElement('div');
+            hdg.className = 'opts-heading';
+            hdg.textContent = 'Options';
+            optsEl.appendChild(hdg);
+
+            q.options.forEach(function (opt) {
+                const row = document.createElement('div');
+                row.className = 'opt-row' + (opt.correct ? ' correct' : '');
+
+                // Label cell: (A)
+                const lbl = document.createElement('span');
+                lbl.className = 'opt-lbl';
+                lbl.textContent = '(' + opt.label + ')';
+
+                // Text cell
+                const txt = document.createElement('div');
+                txt.className = 'opt-body';
+                txt.innerHTML = opt.text
+                    ? opt.text.replace(/^<p>([\s\S]*)<\/p>$/, '$1')
+                    : '<em style="color:#9ca3af">—</em>';
+
+                // Tick for correct
+                if (opt.correct) {
+                    const tick = document.createElement('i');
+                    tick.className = 'bi bi-check-circle-fill align-self-center';
+                    tick.style.color = '#059669';
+                    row.append(lbl, txt, tick);
+                } else {
+                    row.append(lbl, txt);
+                }
+
+                optsEl.appendChild(row);
+                renderFormulas(row);
+            });
+        }
+
+        // ── NAT answer (shown to admin/instructor only) ───────────────────────
+        const ansEl = document.getElementById('previewAnswer');
+        if (q.numAnswer !== null && q.numAnswer !== undefined) {
+            ansEl.innerHTML =
+                `<div class="nat-answer mt-2">
+                    <i class="bi bi-calculator text-secondary"></i>
+                    <span class="text-muted small fw-semibold">Answer:</span>
+                    <span class="fw-bold">${q.numAnswer}</span>
+                    <span class="text-muted" style="font-size:.75rem">(visible to instructors only)</span>
+                </div>`;
+        } else {
+            ansEl.innerHTML = '';
+        }
+    }
+
+    // ── Wire up Preview buttons ───────────────────────────────────────────────
+    document.querySelectorAll('.preview-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            buildPreview(btn.dataset.qid);
+        });
+    });
+})();
+</script>
+}

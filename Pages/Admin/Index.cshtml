@@ -1,0 +1,160 @@
+@page
+@model GridAcademy.Pages.Admin.IndexModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<!-- ══════════════════════════════════════════════════════════ ADMIN VIEW -->
+@if (User.IsInRole("Admin"))
+{
+    <!-- Stat cards row -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-2">
+            <div class="card stat-card stat-card-total h-100 shadow-sm">
+                <div class="card-body py-3">
+                    <div class="text-muted small mb-1">Total Users</div>
+                    <div class="fw-bold fs-3 text-primary">@Model.TotalUsers</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-2">
+            <div class="card stat-card stat-card-admin h-100 shadow-sm">
+                <div class="card-body py-3">
+                    <div class="text-muted small mb-1">Admins</div>
+                    <div class="fw-bold fs-3 text-danger">@Model.AdminCount</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-2">
+            <div class="card stat-card stat-card-instructor h-100 shadow-sm">
+                <div class="card-body py-3">
+                    <div class="text-muted small mb-1">Instructors</div>
+                    <div class="fw-bold fs-3" style="color:#f59e0b">@Model.InstructorCount</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-2">
+            <div class="card stat-card stat-card-student h-100 shadow-sm">
+                <div class="card-body py-3">
+                    <div class="text-muted small mb-1">Students</div>
+                    <div class="fw-bold fs-3 text-success">@Model.StudentCount</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-2">
+            <div class="card stat-card stat-card-active h-100 shadow-sm">
+                <div class="card-body py-3">
+                    <div class="text-muted small mb-1">Active</div>
+                    <div class="fw-bold fs-3 text-info">@Model.ActiveCount</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-2">
+            <div class="card stat-card stat-card-inactive h-100 shadow-sm">
+                <div class="card-body py-3">
+                    <div class="text-muted small mb-1">Inactive</div>
+                    <div class="fw-bold fs-3 text-secondary">@Model.InactiveCount</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent users -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+            <h6 class="mb-0 fw-semibold"><i class="bi bi-clock-history me-2 text-primary"></i>Recently Added Users</h6>
+            <a asp-page="/Admin/Users/Index" class="btn btn-sm btn-outline-primary">
+                View All <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+        </div>
+        <div class="card-body p-0">
+            @if (Model.RecentUsers.Count == 0)
+            {
+                <p class="text-muted text-center py-4 mb-0">No users yet.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Joined</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var u in Model.RecentUsers)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@u.FullName</td>
+                                    <td class="text-muted small">@u.Email</td>
+                                    <td>
+                                        @{
+                                            var roleClass = u.Role switch
+                                            {
+                                                "Admin"      => "badge-admin",
+                                                "Instructor" => "badge-instructor",
+                                                _            => "badge-user"
+                                            };
+                                        }
+                                        <span class="badge @roleClass">@u.Role</span>
+                                    </td>
+                                    <td>
+                                        @if (u.IsActive)
+                                        {
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Inactive</span>
+                                        }
+                                    </td>
+                                    <td class="text-muted small">@u.CreatedAt.ToString("MMM d, yyyy")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<!-- ══════════════════════════════════════════════════════ INSTRUCTOR VIEW -->
+@if (User.IsInRole("Instructor"))
+{
+    <div class="row g-3">
+        <div class="col-12 col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <div class="bg-primary bg-opacity-10 rounded p-3">
+                            <i class="bi bi-person-badge text-primary fs-4"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-0">Welcome, @User.Identity?.Name</h5>
+                            <p class="text-muted small mb-0">Instructor Account</p>
+                        </div>
+                    </div>
+                    <p class="text-muted mb-0">
+                        You are signed in as an Instructor. Course management tools will be available soon.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body p-4 d-flex flex-column align-items-center justify-content-center text-center">
+                    <i class="bi bi-book text-muted mb-3" style="font-size:2.5rem; opacity:0.4"></i>
+                    <h6 class="text-muted">My Courses</h6>
+                    <p class="text-muted small mb-3">Course management is coming in the next phase.</p>
+                    <span class="badge bg-warning text-dark">Coming Soon</span>
+                </div>
+            </div>
+        </div>
+    </div>
+}

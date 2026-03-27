@@ -1,0 +1,86 @@
+@page "{id:guid}"
+@model GridAcademy.Pages.Admin.Users.EditModel
+@{
+    ViewData["Title"] = "Edit User";
+}
+
+<div class="d-flex align-items-center gap-2 mb-4">
+    <a asp-page="./Index" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <h5 class="fw-bold mb-0">Edit User — @Model.FullName</h5>
+</div>
+
+<div class="row">
+    <div class="col-12 col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <form method="post">
+                    <input type="hidden" asp-for="Input.Id" />
+
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+
+                    <div class="row g-3">
+                        <!-- Email — read-only -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Email Address</label>
+                            <input type="email" value="@Model.Email" class="form-control bg-light"
+                                   disabled readonly />
+                            <div class="form-text">Email cannot be changed after account creation.</div>
+                        </div>
+
+                        <div class="col-6">
+                            <label asp-for="Input.FirstName" class="form-label fw-semibold">First Name</label>
+                            <input asp-for="Input.FirstName" class="form-control" />
+                            <span asp-validation-for="Input.FirstName" class="text-danger small"></span>
+                        </div>
+                        <div class="col-6">
+                            <label asp-for="Input.LastName" class="form-label fw-semibold">Last Name</label>
+                            <input asp-for="Input.LastName" class="form-control" />
+                            <span asp-validation-for="Input.LastName" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-6">
+                            <label asp-for="Input.Role" class="form-label fw-semibold">Role</label>
+                            <select asp-for="Input.Role" class="form-select">
+                                <option value="User">Student</option>
+                                <option value="Instructor">Instructor</option>
+                                <option value="Admin">Admin</option>
+                            </select>
+                        </div>
+                        <div class="col-6 d-flex align-items-end pb-1">
+                            <div class="form-check form-switch">
+                                <input asp-for="Input.IsActive" class="form-check-input" type="checkbox" role="switch" />
+                                <label asp-for="Input.IsActive" class="form-check-label fw-semibold">Active</label>
+                            </div>
+                        </div>
+
+                        <!-- Optional password change -->
+                        <div class="col-12">
+                            <hr class="my-1" />
+                            <label asp-for="Input.NewPassword" class="form-label fw-semibold">
+                                New Password <span class="text-muted fw-normal">(leave blank to keep current)</span>
+                            </label>
+                            <input asp-for="Input.NewPassword" type="password" class="form-control"
+                                   placeholder="••••••••" autocomplete="new-password" />
+                            <span asp-validation-for="Input.NewPassword" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <hr class="my-4" />
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-1"></i>Save Changes
+                        </button>
+                        <a asp-page="./Index" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

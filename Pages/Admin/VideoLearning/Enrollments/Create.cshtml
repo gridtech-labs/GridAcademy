@@ -1,0 +1,74 @@
+@page
+@model CreateModel
+@{
+    ViewData["Title"] = "Enroll User";
+}
+
+<div class="d-flex align-items-center mb-4 gap-2">
+    <a asp-page="Index" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
+    <h4 class="mb-0">Enroll User</h4>
+</div>
+
+<div class="card shadow-sm" style="max-width:620px;">
+    <div class="card-body">
+        <form method="post">
+            @Html.AntiForgeryToken()
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">User ID (GUID) <span class="text-danger">*</span></label>
+                <input asp-for="UserId" class="form-control font-monospace" required placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Program <span class="text-danger">*</span></label>
+                <select asp-for="ProgramId" class="form-select" required>
+                    <option value="">-- Select Program --</option>
+                    @foreach (var p in Model.Programs)
+                    {
+                        <option value="@p.Id">@p.Title (@p.DomainName)</option>
+                    }
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Pricing Plan ID <span class="text-danger">*</span></label>
+                <input asp-for="PricingPlanId" type="number" class="form-control" required min="1" />
+                <div class="form-text">Enter the numeric ID of the pricing plan for the selected program.</div>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-sm-6">
+                    <label class="form-label fw-semibold">Amount Paid INR <span class="text-danger">*</span></label>
+                    <input asp-for="AmountPaidInr" type="number" step="0.01" min="0" class="form-control" required />
+                </div>
+                <div class="col-sm-6">
+                    <label class="form-label fw-semibold">Amount Paid USD</label>
+                    <input asp-for="AmountPaidUsd" type="number" step="0.01" min="0" class="form-control" />
+                </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-sm-6">
+                    <label class="form-label fw-semibold">Coupon Code</label>
+                    <input asp-for="CouponCode" class="form-control text-uppercase font-monospace" maxlength="50" />
+                </div>
+                <div class="col-sm-6">
+                    <label class="form-label fw-semibold">Discount Applied</label>
+                    <input asp-for="DiscountApplied" type="number" step="0.01" min="0" class="form-control" />
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Expiry Date (leave blank for lifetime)</label>
+                <input asp-for="ExpiresAt" type="date" class="form-control" />
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-person-plus me-1"></i> Enroll
+                </button>
+                <a asp-page="Index" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,229 @@
+@page
+@model GridAcademy.Pages.Admin.Content.Import.IndexModel
+@{
+    ViewData["Title"] = "Import Questions";
+    var src = Model.ActiveSource ?? "csv";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-cloud-upload me-2 text-primary"></i>Import Questions</h4>
+        <p class="text-muted small mb-0">Bulk-upload questions from CSV, Excel, or PDF files</p>
+    </div>
+    <a href="/api/import/template/csv" class="btn btn-sm btn-outline-success" download>
+        <i class="bi bi-download me-1"></i>Download CSV Template
+    </a>
+</div>
+
+<!-- ── Source tabs ────────────────────────────────────────────────────────── -->
+<ul class="nav nav-tabs mb-3" id="importTabs">
+    @foreach (var (id, label, icon, accept) in new[] {
+        ("csv",   "CSV",   "bi-filetype-csv",  ".csv,text/csv"),
+        ("excel", "Excel", "bi-file-earmark-spreadsheet", ".xlsx,.xls"),
+        ("pdf",   "PDF",   "bi-file-earmark-pdf", ".pdf"),
+    })
+    {
+        <li class="nav-item">
+            <button class="nav-link @(src == id ? "active" : "")"
+                    data-bs-toggle="tab" data-bs-target="#tab-@id" type="button">
+                <i class="bi @icon me-1"></i>@label
+            </button>
+        </li>
+    }
+    <!-- OCR tab — always shown; badge indicates configured / not configured -->
+    <li class="nav-item">
+        <button class="nav-link @(src == "ocr" ? "active" : "")"
+                data-bs-toggle="tab" data-bs-target="#tab-ocr" type="button">
+            <i class="bi bi-cpu me-1"></i>PDF (OCR)
+            @if (Model.MathpixConfigured)
+            {
+                <span class="badge bg-success ms-1" style="font-size:.65rem">Ready</span>
+            }
+            else
+            {
+                <span class="badge bg-warning text-dark ms-1" style="font-size:.65rem">Setup needed</span>
+            }
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content">
+
+    @foreach (var (id, label, handler, accept, hint) in new[] {
+        ("csv",   "CSV File",   "Csv",   ".csv,text/csv",
+         "Each row = one question. Download the template above for the correct column order."),
+        ("excel", "Excel File", "Excel", ".xlsx,.xls",
+         "Same column layout as the CSV template but in .xlsx format. Row 1 must be headers."),
+        ("pdf",   "PDF File",  "Pdf",   ".pdf",
+         "Questions must follow the pattern: Q1. <text> (A) <opt> (B) <opt> … Answer: A. Works best with text-based (not scanned) PDFs."),
+    })
+    {
+        <div class="tab-pane fade @(src == id ? "show active" : "")" id="tab-@id">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white fw-semibold py-3">Upload @label</div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3"><i class="bi bi-info-circle me-1"></i>@hint</p>
+                    <form method="post" asp-page-handler="@handler" enctype="multipart/form-data">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Select File</label>
+                            <input type="file" name="file" class="form-control" accept="@accept" required />
+                            <div class="form-text">Maximum file size: 10 MB</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload me-1"></i>Import
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- ── OCR tab pane ───────────────────────────────────────────────── -->
+    <div class="tab-pane fade @(src == "ocr" ? "show active" : "")" id="tab-ocr">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold py-3 d-flex align-items-center gap-2">
+                PDF Import via Mathpix OCR
+                @if (Model.MathpixConfigured)
+                {
+                    <span class="badge bg-success">API Configured</span>
+                }
+                else
+                {
+                    <span class="badge bg-warning text-dark">Not Configured</span>
+                }
+            </div>
+            <div class="card-body">
+
+                @if (!Model.MathpixConfigured)
+                {
+                    <!-- ── Setup instructions ──────────────────────────────── -->
+                    <div class="alert alert-warning d-flex gap-3 align-items-start">
+                        <i class="bi bi-exclamation-triangle-fill fs-4 flex-shrink-0"></i>
+                        <div>
+                            <div class="fw-semibold mb-1">Mathpix API credentials are not configured</div>
+                            <ol class="mb-2 ps-3 small">
+                                <li>Sign up at <strong>mathpix.com</strong> → go to <em>Dashboard → API Keys</em></li>
+                                <li>Copy your <strong>App ID</strong> and <strong>App Key</strong></li>
+                                <li>Open <code>appsettings.json</code> and fill in:</li>
+                            </ol>
+                            <pre class="bg-light rounded p-2 small mb-2" style="font-size:.8rem">"Mathpix": {
+  "AppId":  "YOUR_APP_ID",
+  "AppKey": "YOUR_APP_KEY"
+}</pre>
+                            <p class="mb-0 small text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Restart the application after saving. Mathpix offers a free tier —
+                                a 60-question JEE paper costs roughly <strong>₹3–4</strong>.
+                            </p>
+                        </div>
+                    </div>
+                }
+
+                <!-- ── How it works ───────────────────────────────────────── -->
+                <div class="alert alert-info small mb-3 d-flex gap-2 align-items-start">
+                    <i class="bi bi-lightbulb flex-shrink-0 mt-1"></i>
+                    <div>
+                        <strong>How OCR import works:</strong>
+                        The PDF is rendered image-by-image by Mathpix and all mathematical symbols
+                        are recognised as proper LaTeX (e.g. <code>$\vec{B}$</code>,
+                        <code>$\frac{\mu_0 I}{4\pi}$</code>). Use this when the regular
+                        <em>PDF</em> tab produces garbled characters (◆ □ ⬧).
+                        Processing takes <strong>15–60 seconds</strong> depending on paper length —
+                        do not close the tab while waiting.
+                    </div>
+                </div>
+
+                <form method="post" asp-page-handler="Ocr" enctype="multipart/form-data"
+                      class="@(!Model.MathpixConfigured ? "opacity-50 pe-none" : "")"  >
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Select PDF File</label>
+                        <input type="file" name="file" class="form-control" accept=".pdf"
+                               @(!Model.MathpixConfigured ? "disabled" : "") required />
+                        <div class="form-text">Maximum file size: 20 MB</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary"
+                            @(!Model.MathpixConfigured ? "disabled" : "")
+                            onclick="this.disabled=true;this.innerHTML='<span class=\'spinner-border spinner-border-sm me-2\'></span>Processing… (may take up to 1 min)';this.form.submit()">
+                        <i class="bi bi-cpu me-1"></i>Import with OCR
+                    </button>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── Import Results ────────────────────────────────────────────────────── -->
+@if (Model.Result != null)
+{
+    var r = Model.Result;
+    <div class="card shadow-sm mt-4">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">Import Results — @r.Source</span>
+            <small class="text-muted">@r.TotalRows row(s) processed</small>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 mb-4">
+                <div class="col-4">
+                    <div class="text-center p-3 bg-success-subtle rounded border border-success-subtle">
+                        <div class="fw-bold fs-3 text-success">@r.Imported</div>
+                        <div class="small text-muted">Imported</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="text-center p-3 bg-warning-subtle rounded border border-warning-subtle">
+                        <div class="fw-bold fs-3 text-warning">@r.Skipped</div>
+                        <div class="small text-muted">Skipped</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="text-center p-3 bg-danger-subtle rounded border border-danger-subtle">
+                        <div class="fw-bold fs-3 text-danger">@r.Errors.Count</div>
+                        <div class="small text-muted">Errors</div>
+                    </div>
+                </div>
+            </div>
+
+            @if (r.Errors.Any())
+            {
+                <h6 class="fw-semibold mb-2"><i class="bi bi-exclamation-triangle text-danger me-1"></i>Row Errors</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th style="width:60px">Row</th><th style="width:140px">Field</th><th>Message</th></tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var e in r.Errors)
+                        {
+                            <tr>
+                                <td class="text-muted">@e.Row</td>
+                                <td class="fw-semibold">@e.Field</td>
+                                <td class="text-danger small">@e.Message</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+        <div class="card-footer bg-white">
+            <a asp-page="/Admin/Content/Questions/Index" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-arrow-right me-1"></i>View Questions
+            </a>
+        </div>
+    </div>
+}
+
+@section Scripts {
+<script>
+    // Restore active tab
+    (function () {
+        const src = '@src';
+        const el = document.querySelector(`[data-bs-target="#tab-${src}"]`);
+        if (el) bootstrap.Tab.getOrCreateInstance(el).show();
+    })();
+</script>
+}

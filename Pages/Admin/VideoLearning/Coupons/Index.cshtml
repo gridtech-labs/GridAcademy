@@ -1,0 +1,91 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Coupons";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0"><i class="bi bi-ticket-perforated me-2 text-primary"></i>Coupons</h4>
+    <a asp-page="Edit" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i> Add Coupon
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="mb-3">
+    <form method="get" class="row g-2 align-items-center">
+        <div class="col-auto">
+            <select name="isActive" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">All</option>
+                <option value="true" selected="@(Model.IsActive == true)">Active</option>
+                <option value="false" selected="@(Model.IsActive == false)">Inactive</option>
+            </select>
+        </div>
+        <div class="col">
+            <div class="input-group input-group-sm">
+                <input type="text" name="search" value="@Model.Search" class="form-control" placeholder="Search code…" />
+                <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Code</th>
+                    <th>Discount</th>
+                    <th>Program</th>
+                    <th class="text-center">Used / Limit</th>
+                    <th class="text-center">Valid Until</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var c in Model.Coupons.Items)
+                {
+                    <tr>
+                        <td class="fw-semibold font-monospace">@c.Code</td>
+                        <td>
+                            @if (c.DiscountType == DiscountType.Percentage)
+                            {
+                                <span>@c.DiscountValue%</span>
+                            }
+                            else
+                            {
+                                <span>₹@c.DiscountValue</span>
+                            }
+                        </td>
+                        <td class="small text-muted">@(c.ProgramTitle ?? "All Programs")</td>
+                        <td class="text-center">
+                            @c.UsedCount / @(c.UsageLimit.HasValue ? c.UsageLimit.ToString() : "∞")
+                        </td>
+                        <td class="text-center text-muted small">
+                            @(c.ValidTo.HasValue ? c.ValidTo.Value.ToString("dd MMM yyyy") : "No expiry")
+                        </td>
+                        <td class="text-center">
+                            <span class="badge @(c.IsActive ? "bg-success" : "bg-secondary")">@(c.IsActive ? "Active" : "Inactive")</span>
+                        </td>
+                        <td class="text-center">
+                            <a asp-page="Edit" asp-route-id="@c.Id" class="btn btn-outline-primary btn-sm" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="post" asp-page-handler="Delete" asp-route-id="@c.Id" class="d-inline"
+                                  onsubmit="return confirm('Delete coupon \'@c.Code\'?')">
+                                @Html.AntiForgeryToken()
+                                <button class="btn btn-outline-danger btn-sm" title="Delete"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Coupons.Items.Any())
+                {
+                    <tr><td colspan="7" class="text-center text-muted py-4">No coupons found.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

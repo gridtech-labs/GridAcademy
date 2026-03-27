@@ -1,0 +1,106 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Content Files";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="mb-0"><i class="bi bi-file-earmark-richtext me-2 text-primary"></i>Content Files</h4>
+        <small class="text-muted">SCORM packages · HTML pages · PDF documents</small>
+    </div>
+    <a asp-page="Edit" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i> Upload Content
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex gap-3 align-items-center flex-wrap">
+            <select name="DomainId" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+                <option value="">All Domains</option>
+                @foreach (var d in Model.Domains)
+                {
+                    <option value="@d.Id" selected="@(Model.FilterRequest.DomainId == d.Id)">@d.Name</option>
+                }
+            </select>
+            <select name="ContentType" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+                <option value="">All Types</option>
+                <option value="0" selected="@(Model.FilterRequest.ContentType == ContentFileType.Scorm)">SCORM</option>
+                <option value="1" selected="@(Model.FilterRequest.ContentType == ContentFileType.Html)">HTML</option>
+                <option value="2" selected="@(Model.FilterRequest.ContentType == ContentFileType.Pdf)">PDF</option>
+            </select>
+            <input type="text" name="Search" class="form-control form-control-sm" style="width:220px"
+                   placeholder="Search title…" value="@Model.FilterRequest.Search" />
+            <button type="submit" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-search"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Domain</th>
+                    <th>File</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Uploaded</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var f in Model.Files.Items)
+                {
+                    var typeIcon = f.ContentType switch {
+                        ContentFileType.Scorm => ("bi-puzzle", "bg-purple", "SCORM"),
+                        ContentFileType.Html  => ("bi-code-slash", "bg-warning text-dark", "HTML"),
+                        ContentFileType.Pdf   => ("bi-file-earmark-pdf", "bg-danger", "PDF"),
+                        _ => ("bi-file", "bg-secondary", "File")
+                    };
+                    <tr>
+                        <td class="fw-semibold">@f.Title</td>
+                        <td>
+                            <span class="badge @typeIcon.Item2">
+                                <i class="bi @typeIcon.Item1 me-1"></i>@typeIcon.Item3
+                            </span>
+                        </td>
+                        <td><span class="badge bg-light text-dark border">@f.DomainName</span></td>
+                        <td class="text-muted small">
+                            @f.OriginalFileName
+                            @if (f.FileSizeBytes > 0)
+                            {
+                                <br /><span class="text-muted">@(Math.Round(f.FileSizeBytes / 1024.0 / 1024, 1)) MB</span>
+                            }
+                        </td>
+                        <td class="text-center">
+                            <span class="badge @(f.IsActive ? "bg-success" : "bg-secondary")">
+                                @(f.IsActive ? "Active" : "Inactive")
+                            </span>
+                        </td>
+                        <td class="text-center text-muted small">@f.CreatedAt.ToString("MMM d, yyyy")</td>
+                        <td class="text-center">
+                            <a asp-page="Edit" asp-route-id="@f.Id" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="post" asp-page-handler="Delete" asp-route-id="@f.Id" class="d-inline"
+                                  onsubmit="return confirm('Delete this content file?')">
+                                @Html.AntiForgeryToken()
+                                <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Files.Items.Any())
+                {
+                    <tr><td colspan="7" class="text-center text-muted py-4">No content files yet.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

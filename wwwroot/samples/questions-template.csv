@@ -1,0 +1,5 @@
+SubjectName,TopicName,Subtopic,DifficultyLevel,ComplexityLevel,ExamType,Marks,NegativeMarks,QuestionType,QuestionText,OptionA,OptionB,OptionC,OptionD,CorrectOptions,NumericalAnswer,Tags,Solution
+Physics,Mechanics,Kinematics,Medium,Medium,JEE Main,4 Marks,-1 Mark,SingleCorrect,"A ball is thrown vertically upward with a speed of 20 m/s. What is the maximum height reached? (g = 10 m/s²)","10 m","20 m","40 m","80 m",B,,Kinematics,"Using v² = u² - 2gh; 0 = 400 - 20h; h = 20 m"
+Mathematics,Calculus,Differentiation,Hard,High,JEE Advanced,4 Marks,-2 Marks,MultipleCorrect,"Which of the following functions are differentiable at x = 0?","f(x) = |x|","f(x) = x|x|","f(x) = x²","f(x) = sin(x)","B,C,D",,Calculus,
+Physics,Electrostatics,Coulomb's Law,Easy,Low,JEE Main,4 Marks,-1 Mark,Numerical,"The electric force between two charges of 1 μC each separated by 1 m is ___ × 10⁻³ N. (k = 9 × 10⁹ N·m²/C²)",,,,,,9,,
+Chemistry,Physical Chemistry,Thermodynamics,Medium,Medium,NEET,4 Marks,-1 Mark,SingleCorrect,"Which thermodynamic quantity is a state function?","Work","Heat","Internal Energy","Both Work and Heat",C,,Thermodynamics,

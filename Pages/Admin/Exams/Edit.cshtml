@@ -1,0 +1,352 @@
+@page "{id:guid?}"
+@model GridAcademy.Pages.Admin.Exams.EditModel
+@using GridAcademy.Data.Entities.Exam
+@{ ViewData["Title"] = Model.IsEdit ? "Edit Exam" : "New Exam"; }
+@section Styles {
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jodit@3.24.6/build/jodit.min.css" />
+<style>
+.thumb-preview { width: 140px; height: 90px; object-fit: cover; border-radius: 6px;
+                 border: 2px dashed #dee2e6; display: block; background: #f8f9fa; }
+.thumb-preview.has-img { border-style: solid; border-color: #0d6efd; }
+.upload-btn-wrap { position: relative; overflow: hidden; display: inline-block; }
+.upload-btn-wrap input[type=file] { position: absolute; left:0; top:0; opacity:0;
+                                    width:100%; height:100%; cursor:pointer; }
+.jodit-container { border-radius: 4px; }
+</style>
+}
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a asp-page="Index" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+    <h4 class="mb-0 fw-bold"><i class="bi bi-mortarboard me-1 text-primary"></i>
+        @(Model.IsEdit ? "Edit Exam" : "New Exam")
+    </h4>
+</div>
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2">
+        <i class="bi bi-exclamation-triangle me-1"></i>@TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<form method="post" id="examForm" enctype="multipart/form-data">
+    <div class="row g-4">
+
+        <!-- ── LEFT COLUMN ─────────────────────────────────────────────── -->
+        <div class="col-lg-8">
+
+            <!-- Basic Info -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header fw-semibold"><i class="bi bi-info-circle me-1"></i>Basic Information</div>
+                <div class="card-body row g-3">
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Exam Title <span class="text-danger">*</span></label>
+                        <input asp-for="Title" class="form-control"
+                               placeholder="e.g. UP Home Guards Recruitment 2026"
+                               oninput="autoSlug(this.value)" required />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Slug (URL) <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text text-muted small">/exams/</span>
+                            <input asp-for="Slug" class="form-control" id="slugInput"
+                                   placeholder="up-home-guards" required />
+                        </div>
+                        <div class="form-text">Lowercase, numbers, hyphens only. Must be unique.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Conducting Body</label>
+                        <input asp-for="ConductingBody" class="form-control"
+                               placeholder="e.g. UP Police Recruitment Board" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Official Website</label>
+                        <input asp-for="OfficialWebsite" class="form-control" placeholder="https://..." />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Notification URL</label>
+                        <input asp-for="NotificationUrl" class="form-control"
+                               placeholder="Link to official notification PDF..." />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rich Content Tabs (CKEditor 5) -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header fw-semibold">
+                    <i class="bi bi-file-richtext me-1"></i>Content Sections
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#t-short">Short Desc</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#t-overview">Overview</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#t-eligibility">Eligibility</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#t-syllabus">Syllabus</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#t-pattern">Exam Pattern</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#t-apply">How To Apply</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#t-dates">Imp. Dates</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#t-result">Result</a></li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="t-short">
+                            <div class="form-text mb-2 text-muted">Summary shown in exam cards and search results.</div>
+                            <textarea id="ck-short" name="ShortDescription">@Html.Raw(Model.ShortDescription)</textarea>
+                        </div>
+                        <div class="tab-pane fade" id="t-overview">
+                            <div class="form-text mb-2 text-muted">Exam overview, total vacancies, stages, conducting organisation.</div>
+                            <textarea id="ck-overview" name="Overview">@Html.Raw(Model.Overview)</textarea>
+                        </div>
+                        <div class="tab-pane fade" id="t-eligibility">
+                            <div class="form-text mb-2 text-muted">Age limit, qualification, nationality, physical standards.</div>
+                            <textarea id="ck-eligibility" name="Eligibility">@Html.Raw(Model.Eligibility)</textarea>
+                        </div>
+                        <div class="tab-pane fade" id="t-syllabus">
+                            <div class="form-text mb-2 text-muted">Subject-wise syllabus and topic breakdown.</div>
+                            <textarea id="ck-syllabus" name="Syllabus">@Html.Raw(Model.Syllabus)</textarea>
+                        </div>
+                        <div class="tab-pane fade" id="t-pattern">
+                            <div class="form-text mb-2 text-muted">Stages, sections, marks, negative marking, duration.</div>
+                            <textarea id="ck-pattern" name="ExamPattern">@Html.Raw(Model.ExamPattern)</textarea>
+                        </div>
+                        <div class="tab-pane fade" id="t-apply">
+                            <div class="form-text mb-2 text-muted">Step-by-step application process, fee, documents required.</div>
+                            <textarea id="ck-howtoapply" name="HowToApply">@Html.Raw(Model.HowToApply)</textarea>
+                        </div>
+                        <div class="tab-pane fade" id="t-dates">
+                            <div class="form-text mb-2">
+                                JSON array:
+                                <code>[{"label":"Notification","date":"2026-04-01"},{"label":"Last Date","date":"2026-04-30"}]</code>
+                            </div>
+                            <textarea asp-for="ImportantDates" class="form-control font-monospace" rows="7"></textarea>
+                        </div>
+                        <div class="tab-pane fade" id="t-result">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Admit Card</label>
+                                    <textarea id="ck-admitcard" name="AdmitCard">@Html.Raw(Model.AdmitCard)</textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Result Info</label>
+                                    <textarea id="ck-result" name="ResultInfo">@Html.Raw(Model.ResultInfo)</textarea>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-semibold">Cut-off</label>
+                                    <textarea id="ck-cutoff" name="CutOff">@Html.Raw(Model.CutOff)</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Media -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header fw-semibold"><i class="bi bi-image me-1"></i>Media &amp; SEO</div>
+                <div class="card-body row g-3">
+
+                    <!-- Thumbnail upload -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Thumbnail Image</label>
+                        <div class="d-flex align-items-start gap-3">
+                            <img id="thumbPreview"
+                                 src="@(string.IsNullOrEmpty(Model.ThumbnailUrl) ? "" : Model.ThumbnailUrl)"
+                                 class="thumb-preview @(string.IsNullOrEmpty(Model.ThumbnailUrl) ? "" : "has-img")"
+                                 alt="Thumbnail" onerror="this.src=''" />
+                            <div>
+                                <div class="upload-btn-wrap mb-1">
+                                    <button type="button" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-upload me-1"></i>Choose Image
+                                    </button>
+                                    <input type="file" name="ThumbnailFile" id="thumbnailFile"
+                                           accept="image/*" onchange="previewImage(this,'thumbPreview')" />
+                                </div>
+                                <div class="form-text">JPG, PNG, WebP. Max 5 MB.</div>
+                                @if (!string.IsNullOrEmpty(Model.ThumbnailUrl))
+                                {
+                                    <div class="form-text text-truncate" style="max-width:160px">
+                                        <i class="bi bi-check-circle text-success me-1"></i>
+                                        <small>@System.IO.Path.GetFileName(Model.ThumbnailUrl)</small>
+                                    </div>
+                                }
+                                <!-- Keep existing URL if no new file chosen -->
+                                <input type="hidden" asp-for="ThumbnailUrl" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Banner upload -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Banner Image</label>
+                        <div class="d-flex align-items-start gap-3">
+                            <img id="bannerPreview"
+                                 src="@(string.IsNullOrEmpty(Model.BannerUrl) ? "" : Model.BannerUrl)"
+                                 class="thumb-preview @(string.IsNullOrEmpty(Model.BannerUrl) ? "" : "has-img")"
+                                 style="width:160px"
+                                 alt="Banner" onerror="this.src=''" />
+                            <div>
+                                <div class="upload-btn-wrap mb-1">
+                                    <button type="button" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-upload me-1"></i>Choose Banner
+                                    </button>
+                                    <input type="file" name="BannerFile" id="bannerFile"
+                                           accept="image/*" onchange="previewImage(this,'bannerPreview')" />
+                                </div>
+                                <div class="form-text">Wide banner image. Max 5 MB.</div>
+                                <input type="hidden" asp-for="BannerUrl" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Meta Title</label>
+                        <input asp-for="MetaTitle" class="form-control"
+                               placeholder="SEO page title (60 chars recommended)..." />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Meta Description</label>
+                        <textarea asp-for="MetaDescription" class="form-control" rows="2"
+                                  placeholder="SEO meta description (150-160 chars)..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── RIGHT COLUMN — Settings ─────────────────────────────────── -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-3">
+                <div class="card-header fw-semibold"><i class="bi bi-gear me-1"></i>Settings</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Status</label>
+                        <select asp-for="Status" class="form-select">
+                            <option value="0">Draft</option>
+                            <option value="1">Published</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Exam Level</label>
+                        <select asp-for="ExamLevelId" class="form-select">
+                            <option value="">-- Select Level --</option>
+                            @foreach (var l in Model.Levels)
+                            {
+                                <option value="@l.Id">@l.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Exam Type</label>
+                        <select asp-for="ExamTypeId" class="form-select">
+                            <option value="">-- Select Type --</option>
+                            @foreach (var t in Model.ExamTypes)
+                            {
+                                <option value="@t.Id">@t.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Sort Order</label>
+                        <input asp-for="SortOrder" type="number" class="form-control" />
+                    </div>
+                    <div class="form-check mb-2">
+                        <input asp-for="IsActive" class="form-check-input" type="checkbox" />
+                        <label class="form-check-label" asp-for="IsActive">Active</label>
+                    </div>
+                    <div class="form-check">
+                        <input asp-for="IsFeatured" class="form-check-input" type="checkbox" />
+                        <label class="form-check-label" asp-for="IsFeatured">
+                            <i class="bi bi-star me-1 text-warning"></i>Featured on Homepage
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-check-lg me-1"></i>
+                    @(Model.IsEdit ? "Save Changes" : "Create Exam")
+                </button>
+                <a asp-page="Index" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+<!-- Jodit Editor — MIT license, free, no API key, full table + image + font support -->
+<script src="https://cdn.jsdelivr.net/npm/jodit@3.24.6/build/jodit.min.js"></script>
+<script>
+// ── Antiforgery token for image uploads ───────────────────────────────
+var _aft    = document.querySelector('input[name="__RequestVerificationToken"]');
+var _aftVal = _aft ? _aft.value : '';
+
+// ── Jodit config ──────────────────────────────────────────────────────
+var JODIT_CFG = {
+    height: 300,
+    language: 'en',
+    toolbar: true,
+    buttons: [
+        'font', 'fontsize', '|',
+        'bold', 'italic', 'underline', 'strikethrough', '|',
+        'brush', 'paragraph', '|',
+        'align', '|',
+        'ul', 'ol', 'indent', 'outdent', '|',
+        'link', 'image', 'table', 'hr', '|',
+        'undo', 'redo', '|',
+        'fullsize', 'source'
+    ],
+    uploader: {
+        url: '/Admin/Exams/Edit?handler=UploadImage',
+        headers: { 'RequestVerificationToken': _aftVal },
+        format: 'json',
+        imagesExtensions: ['jpg','jpeg','png','gif','webp','svg'],
+        buildData: function(data) { return data; },
+        isSuccess: function(resp) { return resp && resp.url; },
+        getMsg: function(resp) { return resp.error || 'Upload failed'; },
+        process: function(resp) { return { files: [resp.url], path: '', baseurl: '', error: resp.error || '', msg: '' }; }
+    },
+    showCharsCounter: false,
+    showWordsCounter: false,
+    showXPathInStatusbar: false,
+    allowResizeX: false,
+    allowResizeY: true,
+    minHeight: 250
+};
+
+// ── Initialise all editors ─────────────────────────────────────────────
+var joditEditors = {};
+['short','overview','eligibility','syllabus','pattern','howtoapply','admitcard','result','cutoff']
+    .forEach(function(key) {
+        var el = document.getElementById('ck-' + key);
+        if (el) joditEditors[key] = Jodit.make(el, JODIT_CFG);
+    });
+
+// Jodit auto-syncs with textarea on form submit — no extra handler needed.
+
+// ── Auto-slug ─────────────────────────────────────────────────────────
+function autoSlug(v) {
+    var el = document.getElementById('slugInput');
+    if (el.dataset.manual === 'true') return;
+    el.value = v.toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '').trim()
+        .replace(/\s+/g, '-').replace(/-+/g, '-')
+        .substring(0, 100);
+}
+document.getElementById('slugInput').addEventListener('input', function () {
+    this.dataset.manual = 'true';
+});
+
+// ── Thumbnail / Banner live preview ───────────────────────────────────
+function previewImage(input, previewId) {
+    var preview = document.getElementById(previewId);
+    if (input.files && input.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            preview.classList.add('has-img');
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+</script>
+}

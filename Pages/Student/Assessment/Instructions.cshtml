@@ -1,0 +1,164 @@
+@page
+@model GridAcademy.Pages.Student.Assessment.InstructionsModel
+@{
+    ViewData["Title"] = "Test Instructions";
+    var t = Model.Test!;
+}
+
+<div class="student-container">
+
+    <div class="instructions-card">
+
+        <!-- Test Header -->
+        <div class="instructions-header">
+            <div class="instructions-header-left">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 mb-2">
+                    @t.ExamTypeName
+                </span>
+                <h3 class="fw-bold mb-1">@t.Title</h3>
+                <div class="d-flex flex-wrap gap-3 text-muted small mt-2">
+                    <span><i class="bi bi-clock me-1"></i><strong>@t.DurationMinutes</strong> minutes</span>
+                    <span><i class="bi bi-question-circle me-1"></i><strong>@t.Sections.Sum(s => s.QuestionCount)</strong> questions</span>
+                    <span><i class="bi bi-layers me-1"></i><strong>@t.Sections.Count</strong> section(s)</span>
+                    <span><i class="bi bi-award me-1"></i>Passing: <strong>@t.PassingPercent%</strong></span>
+                    @if (t.NegativeMarkingEnabled)
+                    {
+                        <span class="text-danger"><i class="bi bi-dash-circle me-1"></i>Negative marking enabled</span>
+                    }
+                    else
+                    {
+                        <span class="text-success"><i class="bi bi-plus-circle me-1"></i>No negative marking</span>
+                    }
+                </div>
+            </div>
+            <div class="instructions-timer-box">
+                <div class="timer-box-label">Time Limit</div>
+                <div class="timer-box-value">@t.DurationMinutes<span class="timer-box-unit">min</span></div>
+            </div>
+        </div>
+
+        <!-- Section Summary -->
+        <div class="section-summary mb-4">
+            <h6 class="fw-semibold mb-3"><i class="bi bi-list-ul me-2 text-primary"></i>Sections</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Section</th>
+                            <th>Subject</th>
+                            <th>Questions</th>
+                            <th>Marks/Q</th>
+                            @if (t.NegativeMarkingEnabled)
+                            {
+                                <th>Negative/Q</th>
+                            }
+                            <th>Max Marks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var (sec, i) in t.Sections.Select((s, i) => (s, i + 1)))
+                        {
+                            <tr>
+                                <td class="text-muted">@i</td>
+                                <td class="fw-semibold">@sec.Name</td>
+                                <td>@sec.SubjectName</td>
+                                <td>@sec.QuestionCount</td>
+                                <td class="text-success">+@sec.MarksPerQuestion</td>
+                                @if (t.NegativeMarkingEnabled)
+                                {
+                                    <td class="text-danger">-@sec.NegativeMarksPerQuestion</td>
+                                }
+                                <td><strong>@(sec.QuestionCount * sec.MarksPerQuestion)</strong></td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <td colspan="@(t.NegativeMarkingEnabled ? 3 : 3)" class="fw-semibold">Total</td>
+                            <td class="fw-semibold">@t.Sections.Sum(s => s.QuestionCount)</td>
+                            <td></td>
+                            @if (t.NegativeMarkingEnabled) { <td></td> }
+                            <td><strong>@t.Sections.Sum(s => s.QuestionCount * s.MarksPerQuestion)</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="instructions-body mb-4">
+            <h6 class="fw-semibold mb-3"><i class="bi bi-info-circle me-2 text-primary"></i>Instructions</h6>
+            @if (!string.IsNullOrWhiteSpace(t.Instructions))
+            {
+                <div class="instructions-html">@Html.Raw(t.Instructions)</div>
+            }
+            else
+            {
+                <ol class="instructions-list">
+                    <li>Read each question carefully before selecting your answer.</li>
+                    <li>Each question carries <strong>positive marks</strong> for a correct answer.</li>
+                    @if (t.NegativeMarkingEnabled)
+                    {
+                        <li class="text-danger">Negative marking applies — incorrect answers will deduct marks as specified per section.</li>
+                    }
+                    <li>You can navigate between questions using the question palette on the right.</li>
+                    <li>Questions can be marked for review and answered later.</li>
+                    <li>The timer starts as soon as you click <strong>Start Test</strong> and cannot be paused.</li>
+                    <li>Do not switch tabs, minimize the window, or use copy/paste during the exam.</li>
+                </ol>
+            }
+        </div>
+
+        <!-- Rules Box -->
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-4">
+            <i class="bi bi-shield-exclamation fs-4 flex-shrink-0 mt-1"></i>
+            <div>
+                <div class="fw-semibold mb-1">Exam Rules</div>
+                <ul class="mb-0 ps-3 small">
+                    <li>Switching tabs or minimizing the browser will be logged as a violation.</li>
+                    <li>Right-click context menu is disabled during the exam.</li>
+                    <li>Copy, paste, and developer tools keyboard shortcuts are blocked.</li>
+                    <li>The exam will auto-submit if the time limit is reached.</li>
+                    <li>Once submitted, answers cannot be changed.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Declaration Checkbox -->
+        <div class="form-check mb-4 p-3 bg-light border rounded">
+            <input class="form-check-input" type="checkbox" id="declareCheck" onchange="toggleStartBtn(this)" />
+            <label class="form-check-label fw-semibold" for="declareCheck">
+                I have read and understood all the instructions and exam rules. I agree to abide by them.
+            </label>
+        </div>
+
+        <!-- Attempt Info + Start Button -->
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div class="text-muted small">
+                <i class="bi bi-repeat me-1"></i>
+                Attempts: <strong>@Model.AttemptsUsed / @Model.MaxAttempts</strong> used &nbsp;&nbsp;
+                <i class="bi bi-calendar-check me-1"></i>
+                Available until: <strong>@Model.AvailableTo.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt")</strong>
+            </div>
+
+            <form method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="assignmentId" value="@Model.AssignmentId" />
+                <button type="submit" id="btnStartTest" class="btn btn-primary btn-lg px-5" disabled>
+                    <i class="bi bi-pencil-fill me-2"></i>Start Test
+                </button>
+            </form>
+        </div>
+
+    </div>
+
+</div>
+
+@section Scripts {
+<script>
+function toggleStartBtn(cb) {
+    document.getElementById('btnStartTest').disabled = !cb.checked;
+}
+</script>
+}

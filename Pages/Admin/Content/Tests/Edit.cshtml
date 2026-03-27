@@ -1,0 +1,339 @@
+@page "{id:guid}"
+@model GridAcademy.Pages.Admin.Content.Tests.EditModel
+@using GridAcademy.Data.Entities.Assessment
+@{
+    ViewData["Title"] = Model.Test is not null ? $"Edit — {Model.Test.Title}" : "Edit Test";
+    bool isPublished = Model.Test?.Status == TestStatus.Published;
+}
+
+<!-- ── Page header ─────────────────────────────────────────────────────────── -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-pencil-square me-2 text-primary"></i>Edit Test</h4>
+        <p class="text-muted small mb-0">@(Model.Test?.Title ?? "")</p>
+    </div>
+    <a asp-page="/Admin/Content/Tests/Index" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Back to Tests
+    </a>
+</div>
+
+@if (TempData["Success"] is string success)
+{
+    <div class="alert alert-success alert-dismissible fade show py-2" role="alert">
+        <i class="bi bi-check-circle me-1"></i>@success
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
+        <i class="bi bi-exclamation-circle me-1"></i>@error
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (isPublished)
+{
+    <div class="alert alert-warning d-flex gap-2 py-2 mb-3">
+        <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+        <div>
+            <strong>Published tests cannot be edited without unpublishing first.</strong>
+            Fields are locked. Unpublish the test to make changes.
+        </div>
+    </div>
+}
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TOP CARD — Test header form
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="card shadow-sm mb-3">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+        <span class="fw-semibold"><i class="bi bi-info-circle me-1 text-primary"></i>Test Details</span>
+        @{
+            var statusBadge = Model.Test?.Status switch {
+                TestStatus.Published => ("bg-success-subtle text-success border border-success-subtle", "Published"),
+                TestStatus.Archived  => ("bg-dark-subtle text-dark border border-dark-subtle",    "Archived"),
+                _                    => ("bg-secondary-subtle text-secondary border border-secondary-subtle", "Draft")
+            };
+        }
+        <span class="badge @statusBadge.Item1">@statusBadge.Item2</span>
+    </div>
+    <div class="card-body">
+        <form method="post" asp-page-handler="Test">
+            @Html.AntiForgeryToken()
+
+            <div class="mb-3">
+                <label asp-for="TestForm.Title" class="form-label fw-semibold">Title <span class="text-danger">*</span></label>
+                <input asp-for="TestForm.Title" class="form-control" required disabled="@isPublished" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Instructions</label>
+                @if (isPublished)
+                {
+                    <div class="form-control bg-light" style="min-height:120px; font-size:.9rem;" readonly>
+                        @Html.Raw(Model.TestForm.Instructions ?? "<em class='text-muted'>No instructions set.</em>")
+                    </div>
+                    <input type="hidden" asp-for="TestForm.Instructions" />
+                }
+                else
+                {
+                    <div id="instructionsEditor" style="min-height:160px; border:1px solid #dee2e6; border-radius:0 0 .375rem .375rem;"></div>
+                    <input type="hidden" asp-for="TestForm.Instructions" id="instructionsHidden" />
+                }
+                <div class="form-text">Use the toolbar to format — bold, italic, lists, colors. Shown to the student before the exam.</div>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-sm-3">
+                    <label asp-for="TestForm.DurationMinutes" class="form-label fw-semibold">Duration (min)</label>
+                    <input asp-for="TestForm.DurationMinutes" type="number" min="1" class="form-control" disabled="@isPublished" />
+                </div>
+                <div class="col-sm-3">
+                    <label asp-for="TestForm.PassingPercent" class="form-label fw-semibold">Passing %</label>
+                    <input asp-for="TestForm.PassingPercent" type="number" min="0" max="100" step="0.01" class="form-control" disabled="@isPublished" />
+                </div>
+                <div class="col-sm-3">
+                    <label asp-for="TestForm.ExamTypeId" class="form-label fw-semibold">Exam Type</label>
+                    <select asp-for="TestForm.ExamTypeId" class="form-select" disabled="@isPublished">
+                        <option value="0">— None —</option>
+                        @foreach (var et in Model.ExamTypes)
+                        {
+                            <option value="@et.Id">@et.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-sm-3 d-flex align-items-end pb-1">
+                    <div class="form-check form-switch">
+                        <input asp-for="TestForm.NegativeMarkingEnabled" class="form-check-input" type="checkbox"
+                               role="switch" id="negMarkSwitch" disabled="@isPublished" />
+                        <label class="form-check-label fw-semibold" for="negMarkSwitch">Neg. Marking</label>
+                    </div>
+                </div>
+            </div>
+
+            @if (!isPublished)
+            {
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-floppy me-1"></i>Save Test
+                </button>
+            }
+        </form>
+
+        <!-- Publish / Unpublish — MUST be outside the Test form (no nested forms) -->
+        <div class="mt-3 d-flex gap-2">
+            @if (Model.Test?.Status == TestStatus.Draft || Model.Test?.Status == TestStatus.Archived)
+            {
+                <form method="post" asp-page-handler="Publish">
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-success btn-sm">
+                        <i class="bi bi-check-circle me-1"></i>Publish
+                    </button>
+                </form>
+            }
+            else if (Model.Test?.Status == TestStatus.Published)
+            {
+                <form method="post" asp-page-handler="Unpublish">
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-warning btn-sm">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Unpublish
+                    </button>
+                </form>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MIDDLE CARD — Sections list
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="card shadow-sm mb-3">
+    <div class="card-header bg-white fw-semibold py-2">
+        <i class="bi bi-layers me-1 text-primary"></i>Sections
+        <span class="badge bg-secondary ms-1">@(Model.Test?.Sections.Count ?? 0)</span>
+    </div>
+    <div class="card-body p-0">
+        @if (Model.Test?.Sections.Any() == true)
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Subject</th>
+                            <th>Difficulty</th>
+                            <th class="text-center">Count</th>
+                            <th class="text-center">Marks+</th>
+                            <th class="text-center">Marks-</th>
+                            <th class="text-center">Pool</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var s in Model.Test.Sections.OrderBy(x => x.SortOrder))
+                    {
+                        <tr>
+                            <td class="text-muted small">@s.SortOrder</td>
+                            <td class="fw-semibold small">@s.Name</td>
+                            <td class="small">@s.SubjectName</td>
+                            <td class="small text-muted">@(s.DifficultyLevelName ?? "Any")</td>
+                            <td class="text-center small">@s.QuestionCount</td>
+                            <td class="text-center small text-success fw-semibold">+@s.MarksPerQuestion</td>
+                            <td class="text-center small text-danger">-@s.NegativeMarksPerQuestion</td>
+                            <td class="text-center">
+                                <span class="pool-badge badge bg-light text-dark border" data-section-id="@s.Id">…</span>
+                            </td>
+                            <td class="text-end">
+                                @if (!isPublished)
+                                {
+                                    <form method="post" asp-page-handler="DeleteSection"
+                                          onsubmit="return confirm('Remove this section?')">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="sectionId" value="@s.Id" />
+                                        <button class="btn btn-sm btn-outline-danger" title="Remove section">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-layers" style="font-size:2rem;opacity:0.3"></i>
+                <p class="mt-2 mb-0 small">No sections yet. Add a section below.</p>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     BOTTOM CARD — Add Section form
+     ═══════════════════════════════════════════════════════════════ -->
+@if (!isPublished)
+{
+    <div class="card shadow-sm">
+        <div class="card-header bg-white fw-semibold py-2">
+            <i class="bi bi-plus-circle me-1 text-success"></i>Add Section
+        </div>
+        <div class="card-body">
+            <form method="post" asp-page-handler="AddSection">
+                @Html.AntiForgeryToken()
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-3">
+                        <label asp-for="SectionForm.Name" class="form-label fw-semibold">Section Name <span class="text-danger">*</span></label>
+                        <input asp-for="SectionForm.Name" class="form-control form-control-sm" placeholder="e.g. Physics" required />
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label asp-for="SectionForm.SubjectId" class="form-label fw-semibold">Subject <span class="text-danger">*</span></label>
+                        <select asp-for="SectionForm.SubjectId" class="form-select form-select-sm" required>
+                            <option value="0">— Select —</option>
+                            @foreach (var s in Model.Subjects)
+                            {
+                                <option value="@s.Id">@s.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label asp-for="SectionForm.DifficultyLevelId" class="form-label fw-semibold">Difficulty</label>
+                        <select asp-for="SectionForm.DifficultyLevelId" class="form-select form-select-sm">
+                            <option value="">Any</option>
+                            @foreach (var d in Model.DifficultyLevels)
+                            {
+                                <option value="@d.Id">@d.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-4 col-md-1">
+                        <label asp-for="SectionForm.QuestionCount" class="form-label fw-semibold">Count</label>
+                        <input asp-for="SectionForm.QuestionCount" type="number" min="1" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <label asp-for="SectionForm.MarksPerQuestion" class="form-label fw-semibold">Marks+</label>
+                        <input asp-for="SectionForm.MarksPerQuestion" type="number" min="0" step="0.25" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <label asp-for="SectionForm.NegativeMarksPerQuestion" class="form-label fw-semibold">Marks-</label>
+                        <input asp-for="SectionForm.NegativeMarksPerQuestion" type="number" min="0" step="0.25" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-success btn-sm">
+                            <i class="bi bi-plus-lg me-1"></i>Add
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+<!-- Quill.js (only needed when not published) -->
+@if (!isPublished)
+{
+    <text>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" />
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+    <script>
+    (function () {
+        const hiddenInput = document.getElementById('instructionsHidden');
+        if (!hiddenInput) return;
+        const quill = new Quill('#instructionsEditor', {
+            theme: 'snow',
+            placeholder: 'Type exam instructions here…',
+            modules: {
+                toolbar: [
+                    [{ header: [1, 2, 3, false] }],
+                    ['bold', 'italic', 'underline'],
+                    [{ color: [] }, { background: [] }],
+                    [{ list: 'ordered' }, { list: 'bullet' }],
+                    [{ align: [] }],
+                    ['clean']
+                ]
+            }
+        });
+
+        // Pre-populate from hidden input
+        if (hiddenInput.value) {
+            quill.clipboard.dangerouslyPasteHTML(hiddenInput.value);
+        }
+
+        // Sync before form submit
+        hiddenInput.closest('form').addEventListener('submit', function () {
+            hiddenInput.value = quill.getSemanticHTML();
+        });
+    })();
+    </script>
+    </text>
+}
+<script>
+// Fetch question pool count for each section badge
+document.querySelectorAll('.pool-badge').forEach(function(badge) {
+    const sectionId = badge.dataset.sectionId;
+    if (!sectionId) return;
+    fetch(`?handler=SectionPool&sectionId=${sectionId}`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+        if (!data) { badge.textContent = '?'; return; }
+        const count = data.count;
+        badge.textContent = count >= 0 ? count + ' avail.' : '?';
+        if (count >= 0) {
+            const row = badge.closest('tr');
+            const needed = parseInt(row ? row.querySelectorAll('td')[4]?.textContent ?? '0' : '0', 10);
+            badge.className = 'pool-badge badge border ' + (count >= needed
+                ? 'bg-success-subtle text-success border-success-subtle'
+                : 'bg-danger-subtle text-danger border-danger-subtle');
+        }
+    })
+    .catch(() => { badge.textContent = '?'; });
+});
+</script>
+}

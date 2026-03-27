@@ -1,0 +1,132 @@
+@page "{id:guid}"
+@model GridAcademy.Pages.Admin.Content.Tests.ResultsModel
+@{
+    ViewData["Title"] = "Test Results";
+    var t = Model.Test!;
+    var submitted = Model.Attempts.Where(a => a.Status == GridAcademy.Data.Entities.Assessment.AttemptStatus.Submitted).ToList();
+    var passCount = submitted.Count(a => a.IsPassed == true);
+    var avgPct    = submitted.Any() ? submitted.Average(a => (double)(a.Percentage ?? 0)) : 0;
+}
+
+<div class="d-flex align-items-center gap-2 mb-4">
+    <a asp-page="Edit" asp-route-id="@t.Id" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-bar-chart me-2 text-info"></i>Results</h4>
+        <p class="text-muted small mb-0">@t.Title</p>
+    </div>
+</div>
+
+@if (!Model.Attempts.Any())
+{
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-clipboard-x fs-1 d-block mb-2"></i>
+        <p>No attempts yet for this test.</p>
+    </div>
+}
+else
+{
+    <!-- Summary Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm text-center p-3">
+                <div class="fs-3 fw-bold text-primary">@Model.Attempts.Count</div>
+                <div class="small text-muted">Total Attempts</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm text-center p-3">
+                <div class="fs-3 fw-bold text-success">@passCount</div>
+                <div class="small text-muted">Passed</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm text-center p-3">
+                <div class="fs-3 fw-bold text-danger">@(submitted.Count - passCount)</div>
+                <div class="small text-muted">Failed</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm text-center p-3">
+                <div class="fs-3 fw-bold text-secondary">@avgPct.ToString("F1")%</div>
+                <div class="small text-muted">Avg Score</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Student</th>
+                        <th>Attempt #</th>
+                        <th>Status</th>
+                        <th>Started</th>
+                        <th>Submitted</th>
+                        <th>Score %</th>
+                        <th>Result</th>
+                        <th>Violations</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in Model.Attempts.OrderByDescending(a => a.StartedAt))
+                    {
+                        var rowClass = a.IsPassed == true ? "table-success" : (a.IsPassed == false ? "table-danger" : "");
+                        <tr class="@rowClass">
+                            <td>
+                                <div class="fw-semibold small">@a.StudentName</div>
+                                <div class="text-muted" style="font-size:.75rem">@a.StudentEmail</div>
+                            </td>
+                            <td>#@a.AttemptNumber</td>
+                            <td>
+                                @switch (a.Status)
+                                {
+                                    case GridAcademy.Data.Entities.Assessment.AttemptStatus.InProgress:
+                                        <span class="badge bg-warning text-dark">In Progress</span>
+                                        break;
+                                    case GridAcademy.Data.Entities.Assessment.AttemptStatus.Submitted:
+                                        <span class="badge bg-success">Submitted</span>
+                                        break;
+                                    case GridAcademy.Data.Entities.Assessment.AttemptStatus.TimedOut:
+                                        <span class="badge bg-secondary">Timed Out</span>
+                                        break;
+                                    case GridAcademy.Data.Entities.Assessment.AttemptStatus.Abandoned:
+                                        <span class="badge bg-dark">Abandoned</span>
+                                        break;
+                                }
+                            </td>
+                            <td class="small text-muted">@a.StartedAt.ToLocalTime().ToString("dd MMM, hh:mm tt")</td>
+                            <td class="small text-muted">@(a.SubmittedAt.HasValue ? a.SubmittedAt.Value.ToLocalTime().ToString("dd MMM, hh:mm tt") : "—")</td>
+                            <td class="fw-semibold">@(a.Percentage.HasValue ? $"{a.Percentage:F1}%" : "—")</td>
+                            <td>
+                                @if (a.IsPassed.HasValue)
+                                {
+                                    <span class="badge @(a.IsPassed.Value ? "bg-success" : "bg-danger")">
+                                        @(a.IsPassed.Value ? "Pass" : "Fail")
+                                    </span>
+                                }
+                            </td>
+                            <td>
+                                @if (a.ViolationCount > 0)
+                                {
+                                    <span class="badge bg-danger">@a.ViolationCount</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">0</span>
+                                }
+                            </td>
+                            <td>
+                                <a asp-page="AttemptDetail" asp-route-attemptId="@a.AttemptId"
+                                   class="btn btn-xs btn-outline-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

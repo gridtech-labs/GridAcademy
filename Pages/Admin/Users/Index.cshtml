@@ -1,0 +1,156 @@
+@page
+@model GridAcademy.Pages.Admin.Users.IndexModel
+@{
+    ViewData["Title"] = "User Management";
+}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h5 class="fw-bold mb-1">Users</h5>
+        <p class="text-muted small mb-0">@Model.Users.TotalCount total users</p>
+    </div>
+    <a asp-page="./Create" class="btn btn-primary">
+        <i class="bi bi-person-plus me-1"></i>Create User
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body py-3">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-12 col-md-4">
+                <label class="form-label small fw-semibold mb-1">Search</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" name="search" value="@Model.Search"
+                           class="form-control" placeholder="Name or email…" />
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-semibold mb-1">Role</label>
+                <select name="role" class="form-select form-select-sm">
+                    <option value="">All Roles</option>
+                    <option value="Admin"      selected="@(Model.Role == "Admin")">Admin</option>
+                    <option value="Instructor" selected="@(Model.Role == "Instructor")">Instructor</option>
+                    <option value="User"       selected="@(Model.Role == "User")">Student</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-semibold mb-1">Status</label>
+                <select name="isActive" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    <option value="true"  selected="@(Model.IsActive == "true")">Active</option>
+                    <option value="false" selected="@(Model.IsActive == "false")">Inactive</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+                <a asp-page="./Index" class="btn btn-sm btn-outline-secondary ms-1">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Table -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        @if (Model.Users.Items.Count == 0)
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-people text-muted" style="font-size:2.5rem;opacity:0.4"></i>
+                <p class="text-muted mt-3 mb-0">No users found. Try adjusting the filters.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Last Login</th>
+                            <th>Joined</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in Model.Users.Items)
+                        {
+                            <tr>
+                                <td class="fw-semibold">@user.FullName</td>
+                                <td class="text-muted small">@user.Email</td>
+                                <td>
+                                    @{
+                                        var roleClass = user.Role switch
+                                        {
+                                            "Admin"      => "badge-admin",
+                                            "Instructor" => "badge-instructor",
+                                            _            => "badge-user"
+                                        };
+                                    }
+                                    <span class="badge @roleClass">@user.Role</span>
+                                </td>
+                                <td>
+                                    @if (user.IsActive)
+                                    {
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Inactive</span>
+                                    }
+                                </td>
+                                <td class="text-muted small">
+                                    @(user.LastLoginAt.HasValue
+                                        ? user.LastLoginAt.Value.ToString("MMM d, yyyy")
+                                        : "Never")
+                                </td>
+                                <td class="text-muted small">@user.CreatedAt.ToString("MMM d, yyyy")</td>
+                                <td class="text-end">
+                                    <a asp-page="./Edit" asp-route-id="@user.Id"
+                                       class="btn btn-sm btn-outline-primary me-1" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a asp-page="./Delete" asp-route-id="@user.Id"
+                                       class="btn btn-sm btn-outline-danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            @if (Model.Users.TotalPages > 1)
+            {
+                <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
+                    <small class="text-muted">
+                        Showing @((Model.Users.Page - 1) * Model.Users.PageSize + 1)–@(Math.Min(Model.Users.Page * Model.Users.PageSize, Model.Users.TotalCount))
+                        of @Model.Users.TotalCount
+                    </small>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0">
+                            @for (var i = 1; i <= Model.Users.TotalPages; i++)
+                            {
+                                <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                    <a class="page-link"
+                                       asp-page="./Index"
+                                       asp-route-search="@Model.Search"
+                                       asp-route-role="@Model.Role"
+                                       asp-route-isActive="@Model.IsActive"
+                                       asp-route-currentPage="@i">@i</a>
+                                </li>
+                            }
+                        </ul>
+                    </nav>
+                </div>
+            }
+        }
+    </div>
+</div>

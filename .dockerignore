@@ -1,0 +1,13 @@
+**/.git
+**/.gitignore
+**/bin
+**/obj
+**/.vs
+**/.vscode
+**/node_modules
+**/*.user
+**/*.suo
+**/Thumbs.db
+**/Desktop.ini
+**/appsettings.Development.json
+**/Tools/

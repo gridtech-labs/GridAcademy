@@ -1,0 +1,274 @@
+using System.Text;
+using GridAcademy.Data;
+using GridAcademy.Helpers;
+using GridAcademy.Jobs;
+using GridAcademy.Middleware;
+using GridAcademy.Services;
+using GridAcademy.Services.Marketplace;
+using Hangfire;
+using Hangfire.PostgreSql;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+
+var builder = WebApplication.CreateBuilder(args);
+var config  = builder.Configuration;
+
+// ── Railway: listen on the PORT env-var assigned by the platform ───────────
+var listenPort = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://0.0.0.0:{listenPort}");
+
+// Increase request size limit for video uploads (2 GB)
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options => {
+    options.MultipartBodyLengthLimit = 2L * 1024 * 1024 * 1024; // 2 GB
+});
+builder.WebHost.ConfigureKestrel(serverOptions => {
+    serverOptions.Limits.MaxRequestBodySize = 2L * 1024 * 1024 * 1024; // 2 GB
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 1. DATABASE — PostgreSQL via EF Core
+//    Railway provides DATABASE_URL as:  postgresql://user:pass@host:port/db
+//    Fall back to appsettings ConnectionStrings:DefaultConnection for local dev.
+// ═══════════════════════════════════════════════════════════════════════════
+static string BuildConnectionString(IConfiguration cfg)
+{
+    var url = Environment.GetEnvironmentVariable("DATABASE_URL");
+    if (!string.IsNullOrEmpty(url))
+    {
+        // Parse  postgresql://user:pass@host:port/dbname
+        var uri      = new Uri(url);
+        var userInfo = uri.UserInfo.Split(':', 2);
+        var user     = Uri.UnescapeDataString(userInfo[0]);
+        var pass     = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
+        var db       = uri.AbsolutePath.TrimStart('/');
+        return $"Host={uri.Host};Port={uri.Port};Database={db};" +
+               $"Username={user};Password={pass};" +
+               "SSL Mode=Require;Trust Server Certificate=true;";
+    }
+    return cfg.GetConnectionString("DefaultConnection")
+           ?? throw new InvalidOperationException("No database connection string found.");
+}
+
+var connectionString = BuildConnectionString(config);
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(
+        connectionString,
+        npgsql => npgsql.EnableRetryOnFailure(3)
+    ));
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 2. AUTHENTICATION — Cookie (admin panel) + JWT Bearer (REST API)
+//    Cookie is the default scheme so Razor Pages work naturally with [Authorize].
+//    API controllers explicitly opt-in to Bearer via AuthenticationSchemes.
+// ═══════════════════════════════════════════════════════════════════════════
+var jwtSecret = config["Jwt:Secret"]
+    ?? throw new InvalidOperationException("Jwt:Secret is not configured in appsettings.");
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme          = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+})
+.AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
+{
+    options.LoginPath         = "/Account/Login";
+    options.LogoutPath        = "/Account/Logout";
+    options.AccessDeniedPath  = "/Account/AccessDenied";
+    options.ExpireTimeSpan    = TimeSpan.FromHours(8);
+    options.SlidingExpiration = true;
+    options.Cookie.Name       = "GridAcademy.Admin";
+    options.Cookie.HttpOnly    = true;
+    options.Cookie.SameSite   = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+})
+.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer           = true,
+        ValidIssuer              = config["Jwt:Issuer"],
+        ValidateAudience         = true,
+        ValidAudience            = config["Jwt:Audience"],
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+        ValidateLifetime         = true,
+        ClockSkew                = TimeSpan.Zero
+    };
+});
+
+builder.Services.AddAuthorization();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 3. HANGFIRE — Background jobs (PostgreSQL storage)
+// ═══════════════════════════════════════════════════════════════════════════
+builder.Services.AddHangfire(cfg => cfg
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(options =>
+        options.UseNpgsqlConnection(connectionString)));
+
+builder.Services.AddHangfireServer(options =>
+{
+    options.WorkerCount = 5;
+    options.Queues      = ["default", "critical"];
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 4. APPLICATION SERVICES
+// ═══════════════════════════════════════════════════════════════════════════
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IMasterService, MasterService>();
+builder.Services.AddScoped<IQuestionService, QuestionService>();
+builder.Services.AddScoped<IImportService, ImportService>();
+builder.Services.AddScoped<ITestService, TestService>();
+builder.Services.AddScoped<IAssessmentService, AssessmentService>();
+builder.Services.AddScoped<JwtHelper>();
+
+// Mathpix OCR — IHttpClientFactory required by MathpixService
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<IMathpixService, MathpixService>();
+
+builder.Services.AddScoped<InactiveUserJob>();
+builder.Services.AddScoped<EmailJob>();
+
+// ── Exam Module ────────────────────────────────────────────────────────────
+builder.Services.AddScoped<IExamService, ExamService>();
+
+// ── Marketplace Module ─────────────────────────────────────────────────────
+builder.Services.AddScoped<IOtpService,              OtpService>();
+builder.Services.AddScoped<IRazorpayService,         RazorpayService>();
+builder.Services.AddScoped<IStorefrontService,       StorefrontService>();
+builder.Services.AddScoped<IOrderService,            OrderService>();
+builder.Services.AddScoped<IStudentService,          StudentService>();
+builder.Services.AddScoped<IProviderService,         ProviderService>();
+builder.Services.AddScoped<IMarketplaceAdminService, MarketplaceAdminService>();
+
+// ── Video Learning Module ──────────────────────────────────────────────────
+builder.Services.Configure<GridAcademy.Data.Entities.VideoLearning.VideoLearningFeatures>(
+    builder.Configuration.GetSection("VideoLearning:Features"));
+builder.Services.Configure<GridAcademy.Data.Entities.VideoLearning.VideoLearningStorageOptions>(
+    builder.Configuration.GetSection("VideoLearning:Storage"));
+
+builder.Services.AddScoped<GridAcademy.Services.VideoLearning.IDomainService,        GridAcademy.Services.VideoLearning.DomainService>();
+builder.Services.AddScoped<GridAcademy.Services.VideoLearning.IVideoCategoryService, GridAcademy.Services.VideoLearning.VideoCategoryService>();
+builder.Services.AddScoped<GridAcademy.Services.VideoLearning.IVideoService,         GridAcademy.Services.VideoLearning.VideoService>();
+builder.Services.AddScoped<GridAcademy.Services.VideoLearning.ILearningPathService,  GridAcademy.Services.VideoLearning.LearningPathService>();
+builder.Services.AddScoped<GridAcademy.Services.VideoLearning.IProgramService,       GridAcademy.Services.VideoLearning.ProgramService>();
+builder.Services.AddScoped<GridAcademy.Services.VideoLearning.ICouponService,        GridAcademy.Services.VideoLearning.CouponService>();
+builder.Services.AddScoped<GridAcademy.Services.VideoLearning.ISalesChannelService,  GridAcademy.Services.VideoLearning.SalesChannelService>();
+builder.Services.AddScoped<GridAcademy.Services.VideoLearning.IEnrollmentService,    GridAcademy.Services.VideoLearning.EnrollmentService>();
+builder.Services.AddScoped<GridAcademy.Services.VideoLearning.IContentFileService, GridAcademy.Services.VideoLearning.ContentFileService>();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 5. CONTROLLERS, RAZOR PAGES & API
+// ═══════════════════════════════════════════════════════════════════════════
+builder.Services.AddControllers();
+builder.Services.AddRazorPages();       // Admin panel server-rendered pages
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddAntiforgery();      // CSRF protection for admin forms
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 6. SWAGGER — JWT-enabled API explorer (now at /swagger)
+// ═══════════════════════════════════════════════════════════════════════════
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title       = "GridAcademy API",
+        Version     = "v1",
+        Description = "Learning Management System — Backend API"
+    });
+
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name         = "Authorization",
+        Type         = SecuritySchemeType.Http,
+        Scheme       = "Bearer",
+        BearerFormat = "JWT",
+        In           = ParameterLocation.Header,
+        Description  = "Paste your JWT token here. Example: Bearer eyJhbG..."
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            Array.Empty<string>()
+        }
+    });
+
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath)) c.IncludeXmlComments(xmlPath);
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 7. CORS
+// ═══════════════════════════════════════════════════════════════════════════
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+        policy.WithOrigins(config.GetSection("AllowedOrigins").Get<string[]>() ?? ["http://localhost:3000"])
+              .AllowAnyHeader()
+              .AllowAnyMethod());
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BUILD
+// ═══════════════════════════════════════════════════════════════════════════
+var app = builder.Build();
+
+// ── Migrate DB + Seed on startup ───────────────────────────────────────────
+using (var scope = app.Services.CreateScope())
+{
+    var db     = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    await DbSeeder.SeedAsync(db, logger);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MIDDLEWARE PIPELINE  (order matters!)
+// ═══════════════════════════════════════════════════════════════════════════
+
+app.UseMiddleware<ExceptionMiddleware>();
+
+app.UseStaticFiles();   // Serve wwwroot (admin.css, etc.)
+
+// Swagger at /swagger (root is now the admin panel)
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "GridAcademy API v1");
+    c.RoutePrefix = "swagger";
+    c.DisplayRequestDuration();
+});
+
+// Railway terminates HTTPS at the load balancer — no app-level redirect needed
+app.UseCors("AllowFrontend");
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Hangfire dashboard at /hangfire
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    // In production: add HangfireAdminAuthFilter here
+});
+
+JobScheduler.RegisterAll();
+
+app.MapControllers();
+app.MapRazorPages();    // Admin panel routes
+
+// Root → admin panel (redirects to login if not authenticated)
+app.MapGet("/", () => Results.Redirect("/Admin")).AllowAnonymous();
+
+app.Run();

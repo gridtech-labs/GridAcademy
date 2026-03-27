@@ -1,0 +1,103 @@
+@page
+@model EditModel
+@{
+    ViewData["Title"] = Model.IsEdit ? "Edit Content File" : "Upload Content File";
+}
+
+<div class="d-flex align-items-center mb-4 gap-2">
+    <a asp-page="Index" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
+    <h4 class="mb-0">@ViewData["Title"]</h4>
+</div>
+
+<div class="card shadow-sm" style="max-width:680px;">
+    <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Domain <span class="text-danger">*</span></label>
+                    <select asp-for="DomainId" class="form-select" required>
+                        <option value="">-- Select Domain --</option>
+                        @foreach (var d in Model.Domains)
+                        {
+                            <option value="@d.Id">@d.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Content Type <span class="text-danger">*</span></label>
+                    <select asp-for="ContentType" class="form-select" required id="contentTypeSelect">
+                        <option value="0">📦 SCORM Package</option>
+                        <option value="1">🌐 HTML Page</option>
+                        <option value="2">📄 PDF Document</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Title <span class="text-danger">*</span></label>
+                <input asp-for="Title" class="form-control" required maxlength="300" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Description</label>
+                <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold" id="fileLabel">Content File</label>
+                @if (!string.IsNullOrEmpty(Model.FilePath))
+                {
+                    <div class="alert alert-info py-2 mb-2 small">
+                        <i class="bi bi-file-earmark me-1"></i>
+                        Current: <strong>@Model.OriginalFileName</strong>
+                        &nbsp;— upload a new file to replace it.
+                    </div>
+                }
+                <input type="file" name="ContentFile" class="form-control" id="contentFileInput"
+                       accept=".zip,.scorm,.html,.htm,.pdf" @(!Model.IsEdit ? "required" : "") />
+                <div class="form-text" id="fileHint">
+                    SCORM: .zip package · HTML: .html/.htm · PDF: .pdf
+                </div>
+            </div>
+
+            <div class="mb-3 form-check form-switch">
+                <input asp-for="IsActive" class="form-check-input" type="checkbox" role="switch" />
+                <label asp-for="IsActive" class="form-check-label fw-semibold">Active</label>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg me-1"></i> @(Model.IsEdit ? "Update" : "Upload")
+                </button>
+                <a asp-page="Index" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+document.getElementById('contentTypeSelect').addEventListener('change', function() {
+    var t = this.value;
+    var label = document.getElementById('fileLabel');
+    var hint  = document.getElementById('fileHint');
+    var input = document.getElementById('contentFileInput');
+    if (t === '0') {
+        label.textContent = 'SCORM Package (.zip)';
+        hint.textContent = 'Upload the SCORM ZIP package';
+        input.accept = '.zip';
+    } else if (t === '1') {
+        label.textContent = 'HTML File';
+        hint.textContent = 'Upload the main HTML file';
+        input.accept = '.html,.htm';
+    } else {
+        label.textContent = 'PDF Document';
+        hint.textContent = 'Upload the PDF file';
+        input.accept = '.pdf';
+    }
+});
+</script>
+}

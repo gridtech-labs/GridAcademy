@@ -1,0 +1,139 @@
+@page "{id:guid}"
+@model GridAcademy.Pages.Admin.Exams.TestsModel
+@{ ViewData["Title"] = Model.Exam != null ? $"Tests — {Model.Exam.Title}" : "Exam Tests"; }
+
+<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <a asp-page="Edit" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Exam
+    </a>
+    <h4 class="mb-0 fw-bold">
+        <i class="bi bi-journal-check me-1 text-primary"></i>
+        @(Model.Exam?.Title ?? "Exam Tests")
+    </h4>
+    <a asp-page="Index" class="btn btn-sm btn-outline-primary ms-auto">
+        <i class="bi bi-list me-1"></i> All Exams
+    </a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show py-2">
+        <i class="bi bi-check-circle me-1"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2">
+        <i class="bi bi-exclamation-triangle me-1"></i>@TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <span class="fw-semibold"><i class="bi bi-check2-circle me-1 text-success"></i>Tests in this Exam</span>
+                <span class="badge bg-success">@Model.Mapped.Count mapped</span>
+            </div>
+            @if (!Model.Mapped.Any())
+            {
+                <div class="card-body text-center text-muted py-5">
+                    <i class="bi bi-journal-x fs-2 d-block mb-2"></i>
+                    No tests added yet. Pick from the panel on the right.
+                </div>
+            }
+            else
+            {
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Test Title</th>
+                            <th class="text-center">Access</th>
+                            <th class="text-end pe-3">Remove</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{ int i = 1; }
+                        @foreach (var t in Model.Mapped.OrderBy(x => x.SortOrder))
+                        {
+                            <tr>
+                                <td class="text-muted">@i</td>
+                                <td><i class="bi bi-journal-check text-primary me-1"></i>@t.Title</td>
+                                <td class="text-center">
+                                    @if (t.IsFree)
+                                    { <span class="badge bg-success">Free</span> }
+                                    else
+                                    { <span class="badge bg-secondary">Paid</span> }
+                                </td>
+                                <td class="text-end pe-3">
+                                    <form method="post" asp-page-handler="Unmap"
+                                          onsubmit="return confirm('Remove this test?')">
+                                        <input type="hidden" name="testId" value="@t.TestId" />
+                                        <button type="submit" class="btn btn-xs btn-outline-danger">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            i++;
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-header fw-semibold">
+                <i class="bi bi-plus-circle me-1 text-primary"></i>Add Published Tests
+            </div>
+            @if (!Model.AllTests.Any())
+            {
+                <div class="card-body text-center text-muted py-5">
+                    <i class="bi bi-journal fs-2 d-block mb-2"></i>
+                    All published tests have been added, or no published tests exist.
+                    <br/>
+                    <a asp-page="/Admin/Content/Tests/Index" class="btn btn-sm btn-outline-primary mt-2">
+                        <i class="bi bi-journals me-1"></i>Manage Tests
+                    </a>
+                </div>
+            }
+            else
+            {
+                <div class="card-body p-0">
+                    <div class="p-2 border-bottom">
+                        <input type="text" id="srch" class="form-control form-control-sm"
+                               placeholder="Search tests..." oninput="filterTests(this.value)" />
+                    </div>
+                    <div id="tList" style="max-height:450px;overflow-y:auto;">
+                        @foreach (var t in Model.AllTests)
+                        {
+                            <div class="ti d-flex align-items-center justify-content-between px-3 py-2 border-bottom"
+                                 data-title="@t.Title.ToLower()">
+                                <span class="small">
+                                    <i class="bi bi-journal-check text-warning me-1"></i>@t.Title
+                                </span>
+                                <form method="post" asp-page-handler="Map" class="ms-2 d-flex gap-1">
+                                    <input type="hidden" name="testId" value="@t.Id" />
+                                    <input type="hidden" name="isFree" value="true" />
+                                    <button type="submit" class="btn btn-xs btn-success" title="Add as Free Test">
+                                        <i class="bi bi-plus-lg"></i> Add Free
+                                    </button>
+                                </form>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>.btn-xs { padding:.1rem .4rem; font-size:.75rem; }</style>
+<script>
+function filterTests(q){document.querySelectorAll(".ti").forEach(function(el){el.style.display=el.dataset.title.includes(q.toLowerCase())?"":"none";});}
+</script>

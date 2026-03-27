@@ -1,0 +1,173 @@
+@page
+@model GridAcademy.Pages.Admin.Content.Tests.AttemptDetailModel
+@{
+    ViewData["Title"] = "Attempt Detail";
+    var r = Model.Result!;
+}
+
+<div class="d-flex align-items-center gap-2 mb-4">
+    <a href="javascript:history.back()" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-clipboard-data me-2 text-primary"></i>Attempt Detail</h4>
+        <p class="text-muted small mb-0">@r.TestTitle — @r.StudentName</p>
+    </div>
+</div>
+
+<!-- Score Card -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card shadow-sm text-center p-3 @(r.IsPassed ? "border-success" : "border-danger")">
+            <div class="fs-2 fw-bold @(r.IsPassed ? "text-success" : "text-danger")">@r.Percentage.ToString("F1")%</div>
+            <div class="small text-muted">Score</div>
+            <span class="badge @(r.IsPassed ? "bg-success" : "bg-danger") mt-1">
+                @(r.IsPassed ? "PASS" : "FAIL")
+            </span>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm p-3">
+            <div class="small text-muted mb-1">Marks</div>
+            <div class="fw-bold">@r.TotalMarksObtained / @r.TotalMarksPossible</div>
+            <div class="small text-muted mt-1">Passing: @r.PassingPercent%</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm p-3">
+            <div class="small text-muted mb-1">Duration</div>
+            <div class="fw-bold">@TimeSpan.FromSeconds(r.DurationSecondsUsed).ToString(@"hh\:mm\:ss")</div>
+            <div class="small text-muted mt-1">Submitted @r.SubmittedAt.ToLocalTime().ToString("dd MMM, hh:mm tt")</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm p-3 @(r.ViolationCount > 0 ? "border-danger" : "")">
+            <div class="small text-muted mb-1">Violations</div>
+            <div class="fw-bold @(r.ViolationCount > 0 ? "text-danger" : "text-success")">@r.ViolationCount</div>
+            <div class="small text-muted mt-1">Proctoring events</div>
+        </div>
+    </div>
+</div>
+
+<!-- Section Results -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-white fw-semibold py-3">Section Summary</div>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Section</th>
+                    <th>Total Q</th>
+                    <th>Attempted</th>
+                    <th>Correct</th>
+                    <th>Incorrect</th>
+                    <th>Unattempted</th>
+                    <th>Marks</th>
+                    <th>Max</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var sec in r.Sections)
+                {
+                    <tr>
+                        <td class="fw-semibold">@sec.SectionName</td>
+                        <td>@sec.TotalQuestions</td>
+                        <td>@sec.Attempted</td>
+                        <td class="text-success">@sec.Correct</td>
+                        <td class="text-danger">@sec.Incorrect</td>
+                        <td class="text-muted">@sec.Unattempted</td>
+                        <td class="fw-semibold">@sec.MarksObtained</td>
+                        <td class="text-muted">@sec.MaxMarks</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Question Accordion -->
+<div class="card shadow-sm">
+    <div class="card-header bg-white fw-semibold py-3">Question-wise Analysis</div>
+    <div class="card-body p-0">
+        <div class="accordion accordion-flush" id="questionAccordion">
+            @foreach (var (q, qi) in r.Questions.Select((q, i) => (q, i)))
+            {
+                var bg = !q.IsAttempted ? "" : (q.IsCorrect ? "bg-success-subtle" : "bg-danger-subtle");
+                <div class="accordion-item @bg">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed py-2" type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#q-@qi">
+                            <span class="badge bg-secondary me-2">Q@(q.DisplayOrder)</span>
+                            <span class="fw-semibold small me-2">@q.SectionName</span>
+                            @if (!q.IsAttempted)
+                            {
+                                <span class="badge bg-secondary me-2">Not Attempted</span>
+                            }
+                            else if (q.IsCorrect)
+                            {
+                                <span class="badge bg-success me-2">Correct +@q.MarksAwarded</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger me-2">Wrong @q.MarksAwarded</span>
+                            }
+                            <span class="text-muted small text-truncate" style="max-width:400px">@Html.Raw(q.QuestionText)</span>
+                        </button>
+                    </h2>
+                    <div id="q-@qi" class="accordion-collapse collapse" data-bs-parent="#questionAccordion">
+                        <div class="accordion-body">
+                            <div class="mb-3 question-text">@Html.Raw(q.QuestionText)</div>
+
+                            @if (q.QuestionType == GridAcademy.Data.Entities.Content.QuestionType.NAT)
+                            {
+                                <div class="d-flex gap-3 align-items-center">
+                                    <div>
+                                        <span class="small text-muted">Correct Answer:</span>
+                                        <strong class="text-success ms-1">@q.CorrectNumericalAnswer</strong>
+                                    </div>
+                                    <div>
+                                        <span class="small text-muted">Student Answer:</span>
+                                        <strong class="ms-1 @(q.IsCorrect ? "text-success" : "text-danger")">
+                                            @(q.StudentNumericalValue.HasValue ? q.StudentNumericalValue.ToString() : "—")
+                                        </strong>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="list-group list-group-flush">
+                                    @foreach (var opt in q.Options)
+                                    {
+                                        var isStudentSelected = q.StudentSelectedOptionIds.Contains(opt.Id);
+                                        var optClass = opt.IsCorrect
+                                            ? "list-group-item-success"
+                                            : (isStudentSelected ? "list-group-item-danger" : "");
+                                        <div class="list-group-item @optClass py-2">
+                                            <span class="fw-bold me-2">(@opt.Label)</span>
+                                            @Html.Raw(opt.Text)
+                                            @if (opt.IsCorrect)
+                                            {
+                                                <i class="bi bi-check-circle-fill text-success ms-2"></i>
+                                            }
+                                            @if (isStudentSelected && !opt.IsCorrect)
+                                            {
+                                                <i class="bi bi-x-circle-fill text-danger ms-2"></i>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(q.Solution))
+                            {
+                                <div class="alert alert-info small mt-3 mb-0">
+                                    <i class="bi bi-lightbulb me-1"></i>
+                                    <strong>Solution:</strong> @Html.Raw(q.Solution)
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

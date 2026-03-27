@@ -1,0 +1,73 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Domains";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0"><i class="bi bi-globe me-2 text-primary"></i>Domains</h4>
+    <a asp-page="Edit" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i> Add Domain
+    </a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th class="text-center">Videos</th>
+                    <th class="text-center">Sort</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var d in Model.Domains)
+                {
+                    <tr>
+                        <td class="fw-semibold">
+                            @if (!string.IsNullOrEmpty(d.LogoUrl))
+                            {
+                                <img src="@d.LogoUrl" class="me-2 rounded" style="width:32px;height:32px;object-fit:cover;" />
+                            }
+                            @d.Name
+                        </td>
+                        <td class="text-muted small">@(d.Description?.Length > 60 ? d.Description[..60] + "…" : d.Description)</td>
+                        <td class="text-center"><span class="badge bg-info text-dark">@d.VideoCount</span></td>
+                        <td class="text-center">@d.SortOrder</td>
+                        <td class="text-center">
+                            @if (d.IsActive)
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Inactive</span>
+                            }
+                        </td>
+                        <td class="text-center">
+                            <a asp-page="Edit" asp-route-id="@d.Id" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="post" asp-page-handler="Delete" asp-route-id="@d.Id"
+                                  class="d-inline"
+                                  onsubmit="return confirm('Delete domain \'@d.Name\'? This cannot be undone.')">
+                                @Html.AntiForgeryToken()
+                                <button class="btn btn-outline-danger btn-sm">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Domains.Any())
+                {
+                    <tr><td colspan="6" class="text-center text-muted py-4">No domains yet. <a asp-page="Edit">Add one.</a></td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

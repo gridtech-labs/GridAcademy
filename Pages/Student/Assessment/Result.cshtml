@@ -1,0 +1,330 @@
+@page
+@model GridAcademy.Pages.Student.ResultModel
+@using GridAcademy.Data.Entities.Content
+@{
+    ViewData["Title"] = $"Result — {Model.Result!.TestTitle}";
+    var r = Model.Result!;
+
+    // Helper: format seconds as Hh Mm Ss
+    static string FormatDuration(int totalSeconds)
+    {
+        var h = totalSeconds / 3600;
+        var m = (totalSeconds % 3600) / 60;
+        var s = totalSeconds % 60;
+        if (h > 0) return $"{h}h {m}m {s}s";
+        if (m > 0) return $"{m}m {s}s";
+        return $"{s}s";
+    }
+}
+
+<div class="result-wrapper">
+
+    <!-- ── Score Summary Card ─────────────────────────────────────────── -->
+    <div class="result-score-card">
+
+        <!-- Percentage Circle -->
+        <div class="score-circle @(r.IsPassed ? "passed" : "failed")">
+            <div class="score-percent">@r.Percentage.ToString("0.##")%</div>
+            <div class="score-label">Score</div>
+        </div>
+
+        <!-- Meta -->
+        <div class="result-meta">
+            <div class="result-title">@r.TestTitle</div>
+            <div class="result-student">
+                <i class="bi bi-person-circle me-1"></i>@r.StudentName
+            </div>
+
+            <!-- Pass/Fail Banner -->
+            @if (r.IsPassed)
+            {
+                <div class="result-banner mb-2" style="background:#f0fdf4; color:#15803d; border:1.5px solid #86efac;">
+                    <i class="bi bi-check-circle-fill me-2"></i>PASSED
+                </div>
+            }
+            else
+            {
+                <div class="result-banner mb-2" style="background:#fef2f2; color:#dc2626; border:1.5px solid #fca5a5;">
+                    <i class="bi bi-x-circle-fill me-2"></i>FAILED
+                </div>
+            }
+
+            <div class="result-stats">
+                <div class="result-stat">
+                    <span class="stat-val">@r.TotalMarksObtained.ToString("0.##") / @r.TotalMarksPossible.ToString("0.##")</span>
+                    <span class="stat-lbl">Marks Obtained</span>
+                </div>
+                <div class="result-stat">
+                    <span class="stat-val">@r.PassingPercent%</span>
+                    <span class="stat-lbl">Passing Score</span>
+                </div>
+                <div class="result-stat">
+                    <span class="stat-val">@FormatDuration(r.DurationSecondsUsed)</span>
+                    <span class="stat-lbl">Time Taken</span>
+                </div>
+                <div class="result-stat">
+                    <span class="stat-val">@r.StartedAt.ToString("dd MMM HH:mm")</span>
+                    <span class="stat-lbl">Started</span>
+                </div>
+                <div class="result-stat">
+                    <span class="stat-val">@r.SubmittedAt.ToString("dd MMM HH:mm")</span>
+                    <span class="stat-lbl">Submitted</span>
+                </div>
+            </div>
+
+            @if (r.ViolationCount > 0)
+            {
+                <div class="mt-2">
+                    <span class="badge text-warning-emphasis border border-warning bg-warning bg-opacity-10">
+                        <i class="bi bi-exclamation-triangle me-1"></i>@r.ViolationCount violation(s) recorded
+                    </span>
+                </div>
+            }
+        </div>
+
+    </div>
+
+    <!-- ── Section-wise Summary ───────────────────────────────────────── -->
+    @if (r.Sections.Count > 0)
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white fw-semibold">
+                <i class="bi bi-bar-chart-line me-2 text-primary"></i>Section Summary
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0" style="font-size:.875rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Section</th>
+                                <th class="text-center">Total</th>
+                                <th class="text-center">Attempted</th>
+                                <th class="text-center text-success">Correct</th>
+                                <th class="text-center text-danger">Incorrect</th>
+                                <th class="text-center text-muted">Unattempted</th>
+                                <th class="text-end">Marks</th>
+                                <th class="text-end">Max</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var sec in r.Sections.OrderBy(s => s.SectionIndex))
+                            {
+                                var pctCorrect = sec.TotalQuestions > 0 ? (double)sec.Correct / sec.TotalQuestions * 100 : 0;
+                                var pctIncorrect = sec.TotalQuestions > 0 ? (double)sec.Incorrect / sec.TotalQuestions * 100 : 0;
+                                var pctUnattempted = sec.TotalQuestions > 0 ? (double)sec.Unattempted / sec.TotalQuestions * 100 : 0;
+
+                                <tr>
+                                    <td class="fw-medium">@sec.SectionName</td>
+                                    <td class="text-center">@sec.TotalQuestions</td>
+                                    <td class="text-center">@sec.Attempted</td>
+                                    <td class="text-center text-success fw-semibold">@sec.Correct</td>
+                                    <td class="text-center text-danger fw-semibold">@sec.Incorrect</td>
+                                    <td class="text-center text-muted">@sec.Unattempted</td>
+                                    <td class="text-end fw-semibold">@sec.MarksObtained.ToString("0.##")</td>
+                                    <td class="text-end text-muted">@sec.MaxMarks.ToString("0.##")</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="8" class="py-0 px-3 pb-2">
+                                        <div class="progress" style="height:5px; border-radius:3px;">
+                                            <div class="progress-bar bg-success" style="width:@pctCorrect.ToString("0.##")%;" title="Correct @sec.Correct"></div>
+                                            <div class="progress-bar bg-danger" style="width:@pctIncorrect.ToString("0.##")%;" title="Incorrect @sec.Incorrect"></div>
+                                            <div class="progress-bar bg-secondary bg-opacity-25" style="width:@pctUnattempted.ToString("0.##")%;" title="Unattempted @sec.Unattempted"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td class="fw-bold">Total</td>
+                                <td class="text-center fw-bold">@r.Sections.Sum(s => s.TotalQuestions)</td>
+                                <td class="text-center fw-bold">@r.Sections.Sum(s => s.Attempted)</td>
+                                <td class="text-center text-success fw-bold">@r.Sections.Sum(s => s.Correct)</td>
+                                <td class="text-center text-danger fw-bold">@r.Sections.Sum(s => s.Incorrect)</td>
+                                <td class="text-center text-muted fw-bold">@r.Sections.Sum(s => s.Unattempted)</td>
+                                <td class="text-end fw-bold">@r.TotalMarksObtained.ToString("0.##")</td>
+                                <td class="text-end text-muted fw-bold">@r.TotalMarksPossible.ToString("0.##")</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- ── Question-wise Review ───────────────────────────────────────── -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white fw-semibold">
+            <i class="bi bi-list-check me-2 text-primary"></i>Question-wise Review
+        </div>
+        <div class="card-body p-0">
+            <div class="accordion accordion-flush" id="questionAccordion">
+                @{
+                    int qIdx = 0;
+                }
+                @foreach (var q in r.Questions)
+                {
+                    qIdx++;
+                    var collapseId = $"qCollapse{qIdx}";
+                    var headerId = $"qHeader{qIdx}";
+
+                    string statusClass;
+                    string statusIcon;
+                    string statusText;
+                    string marksBadgeClass;
+
+                    if (!q.IsAttempted)
+                    {
+                        statusClass = "text-muted";
+                        statusIcon = "bi-dash-circle";
+                        statusText = "Not Attempted";
+                        marksBadgeClass = "bg-secondary";
+                    }
+                    else if (q.IsCorrect)
+                    {
+                        statusClass = "text-success";
+                        statusIcon = "bi-check-circle-fill";
+                        statusText = "Correct";
+                        marksBadgeClass = "bg-success";
+                    }
+                    else
+                    {
+                        statusClass = "text-danger";
+                        statusIcon = "bi-x-circle-fill";
+                        statusText = "Wrong";
+                        marksBadgeClass = "bg-danger";
+                    }
+
+                    <div class="accordion-item border-0 border-bottom">
+                        <h2 class="accordion-header" id="@headerId">
+                            <button class="accordion-button collapsed py-2 px-3" type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#@collapseId"
+                                    aria-expanded="false"
+                                    aria-controls="@collapseId"
+                                    style="font-size:.875rem;">
+                                <span class="fw-semibold me-2" style="min-width:36px;">Q@(q.DisplayOrder)</span>
+                                <span class="badge bg-secondary bg-opacity-15 text-secondary me-2 fw-normal" style="font-size:.72rem;">@q.SectionName</span>
+                                <span class="@statusClass fw-semibold me-2" style="font-size:.82rem;">
+                                    <i class="bi @statusIcon me-1"></i>@statusText
+                                </span>
+                                <span class="badge @marksBadgeClass ms-auto" style="font-size:.72rem;">
+                                    @q.MarksAwarded.ToString("+0.##;-0.##;0") / @q.MaxMarks.ToString("0.##")
+                                </span>
+                            </button>
+                        </h2>
+                        <div id="@collapseId"
+                             class="accordion-collapse collapse"
+                             aria-labelledby="@headerId"
+                             data-bs-parent="">
+                            <div class="accordion-body px-4 py-3">
+
+                                <!-- Question Text -->
+                                <div class="question-text mb-3" style="font-size:1rem;">
+                                    @Html.Raw(q.QuestionText)
+                                </div>
+
+                                @if (q.QuestionType == QuestionType.NAT)
+                                {
+                                    <!-- NAT Result -->
+                                    <div class="d-flex flex-wrap gap-3 mb-3" style="font-size:.875rem;">
+                                        <div>
+                                            <span class="text-muted">Correct Answer:</span>
+                                            <span class="fw-bold text-success ms-1">@(q.CorrectNumericalAnswer?.ToString("0.####") ?? "N/A")</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-muted">Your Answer:</span>
+                                            @if (q.IsAttempted)
+                                            {
+                                                <span class="fw-bold ms-1 @(q.IsCorrect ? "text-success" : "text-danger")">
+                                                    @(q.StudentNumericalValue?.ToString("0.####") ?? "—")
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted ms-1">Not attempted</span>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <!-- MCQ/MSQ Options -->
+                                    <ul class="options-list mb-3">
+                                        @foreach (var opt in q.Options)
+                                        {
+                                            bool isStudentSelected = q.StudentSelectedOptionIds.Contains(opt.Id);
+                                            bool isCorrectOpt = opt.IsCorrect;
+
+                                            string optClass = "";
+                                            if (isCorrectOpt)
+                                                optClass = " result-correct";
+                                            else if (isStudentSelected && !isCorrectOpt)
+                                                optClass = " result-wrong";
+
+                                            <li class="option-row@(optClass)" style="cursor:default;">
+                                                <span class="option-label">@opt.Label</span>
+                                                <span class="option-text">@Html.Raw(opt.Text)</span>
+                                                @if (isCorrectOpt)
+                                                {
+                                                    <span class="ms-auto badge bg-success bg-opacity-15 text-success border border-success" style="font-size:.7rem; flex-shrink:0; align-self:center;">Correct</span>
+                                                }
+                                                @if (isStudentSelected && !isCorrectOpt)
+                                                {
+                                                    <span class="ms-auto badge bg-danger bg-opacity-15 text-danger border border-danger" style="font-size:.7rem; flex-shrink:0; align-self:center;">Your Answer</span>
+                                                }
+                                                @if (isStudentSelected && isCorrectOpt)
+                                                {
+                                                    <span class="ms-auto badge bg-success bg-opacity-15 text-success border border-success" style="font-size:.7rem; flex-shrink:0; align-self:center;">Your Answer ✓</span>
+                                                }
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+
+                                <!-- Solution -->
+                                @if (!string.IsNullOrWhiteSpace(q.Solution))
+                                {
+                                    <div class="alert alert-light border-start border-primary border-3 py-2 px-3" style="font-size:.875rem;">
+                                        <div class="fw-semibold mb-1 text-primary">
+                                            <i class="bi bi-lightbulb me-1"></i>Solution
+                                        </div>
+                                        <div>@Html.Raw(q.Solution)</div>
+                                    </div>
+                                }
+
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Bottom Actions ─────────────────────────────────────────────── -->
+    <div class="d-flex gap-3 justify-content-center mt-2 mb-4">
+        <a href="/Student/Dashboard" class="btn btn-outline-secondary">
+            <i class="bi bi-house-door me-1"></i>Back to Dashboard
+        </a>
+    </div>
+
+</div>
+
+@section Scripts {
+<script>
+// Re-render KaTeX for all question text and options loaded into the result page
+document.addEventListener('DOMContentLoaded', function () {
+    if (window.renderMathInElement) {
+        renderMathInElement(document.getElementById('questionAccordion') || document.body, {
+            delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '$', right: '$', display: false },
+                { left: '\\(', right: '\\)', display: false },
+                { left: '\\[', right: '\\]', display: true }
+            ],
+            throwOnError: false
+        });
+    }
+});
+</script>
+}

@@ -1,0 +1,140 @@
+@page
+@model GridAcademy.Pages.Admin.Content.Tests.IndexModel
+@{
+    ViewData["Title"] = "Tests";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-journal-check me-2 text-primary"></i>Tests</h4>
+        <p class="text-muted small mb-0">Create, publish, and assign tests to students</p>
+    </div>
+    <a asp-page="Create" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>New Test
+    </a>
+</div>
+
+<!-- Filters -->
+<form method="get" class="row g-2 mb-4">
+    <div class="col-md-4">
+        <input name="search" type="text" class="form-control form-control-sm"
+               placeholder="Search tests…" value="@Model.Search" />
+    </div>
+    <div class="col-auto">
+        <select name="status" class="form-select form-select-sm">
+            <option value="">All Statuses</option>
+            <option value="1" selected="@(Model.StatusFilter == 1)">Draft</option>
+            <option value="2" selected="@(Model.StatusFilter == 2)">Published</option>
+            <option value="3" selected="@(Model.StatusFilter == 3)">Archived</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-funnel me-1"></i>Filter
+        </button>
+        <a asp-page="Index" class="btn btn-sm btn-outline-secondary ms-1">Clear</a>
+    </div>
+</form>
+
+@if (!Model.Tests.Any())
+{
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-journal-x fs-1 d-block mb-2"></i>
+        <p>No tests found. <a asp-page="Create">Create your first test</a>.</p>
+    </div>
+}
+else
+{
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Title</th>
+                        <th>Exam Type</th>
+                        <th>Sections</th>
+                        <th>Questions</th>
+                        <th>Duration</th>
+                        <th>Pass %</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in Model.Tests)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@t.Title</td>
+                            <td><span class="badge bg-secondary-subtle text-secondary border">@t.ExamTypeName</span></td>
+                            <td>@t.SectionCount</td>
+                            <td>@t.TotalQuestions</td>
+                            <td>@t.DurationMinutes min</td>
+                            <td>@t.PassingPercent%</td>
+                            <td>
+                                @switch (t.Status)
+                                {
+                                    case GridAcademy.Data.Entities.Assessment.TestStatus.Draft:
+                                        <span class="badge bg-warning text-dark">Draft</span>
+                                        break;
+                                    case GridAcademy.Data.Entities.Assessment.TestStatus.Published:
+                                        <span class="badge bg-success">Published</span>
+                                        break;
+                                    case GridAcademy.Data.Entities.Assessment.TestStatus.Archived:
+                                        <span class="badge bg-secondary">Archived</span>
+                                        break;
+                                }
+                            </td>
+                            <td class="text-muted small">@t.CreatedAt.ToString("dd MMM yyyy")</td>
+                            <td class="text-end">
+                                <a asp-page="Edit"         asp-route-id="@t.Id" class="btn btn-xs btn-outline-primary me-1" title="Edit"><i class="bi bi-pencil"></i></a>
+                                <a asp-page="Assign"       asp-route-id="@t.Id" class="btn btn-xs btn-outline-success me-1" title="Assign"><i class="bi bi-person-plus"></i></a>
+                                <a asp-page="Results"      asp-route-id="@t.Id" class="btn btn-xs btn-outline-info me-1" title="Results"><i class="bi bi-bar-chart"></i></a>
+                                @if (t.Status == GridAcademy.Data.Entities.Assessment.TestStatus.Draft)
+                                {
+                                    <button type="button" class="btn btn-xs btn-outline-danger" title="Delete"
+                                            onclick="confirmDelete('@t.Id','@t.Title')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title">Delete Test</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body small">
+                Delete <strong id="deleteName"></strong>? This cannot be undone.
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" asp-page-handler="Delete" id="deleteForm">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" id="deleteId" name="id" />
+                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function confirmDelete(id, name) {
+    document.getElementById('deleteId').value = id;
+    document.getElementById('deleteName').textContent = name;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
+}

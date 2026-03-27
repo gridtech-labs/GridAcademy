@@ -1,0 +1,669 @@
+@page
+@model GridAcademy.Pages.Admin.Content.Questions.CreateModel
+@using GridAcademy.Data.Entities.Content
+@{
+    ViewData["Title"] = Model.IsEdit ? "Edit Question" : "Add Question";
+
+    // Pre-compute option rows to keep the template clean
+    var optRows = new[]
+    {
+        new { Letter = "A", Name = "Form.OptionA", ChkName = "Form.CorrectA", Val = Model.Form.OptionA, Chk = Model.Form.CorrectA },
+        new { Letter = "B", Name = "Form.OptionB", ChkName = "Form.CorrectB", Val = Model.Form.OptionB, Chk = Model.Form.CorrectB },
+        new { Letter = "C", Name = "Form.OptionC", ChkName = "Form.CorrectC", Val = Model.Form.OptionC, Chk = Model.Form.CorrectC },
+        new { Letter = "D", Name = "Form.OptionD", ChkName = "Form.CorrectD", Val = Model.Form.OptionD, Chk = Model.Form.CorrectD },
+    };
+}
+
+@section Styles {
+    <!-- KaTeX (math rendering for Quill formula module) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+    <!-- Quill 2 Snow theme -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" />
+    <style>
+        /* Merge Quill border + Bootstrap border so the editor looks like a .form-control */
+        .math-editor-wrap { border: 1px solid #dee2e6; border-radius: .375rem; overflow: hidden; }
+        .math-editor-wrap .ql-toolbar.ql-snow  { border: none; border-bottom: 1px solid #dee2e6; background: #f8f9fa; border-radius: 0; }
+        .math-editor-wrap .ql-container.ql-snow { border: none; font-size: .925rem; }
+        .math-editor-wrap .ql-editor            { min-height: 110px; }
+        .math-editor-wrap.ql-mini .ql-editor    { min-height: 56px; }
+        /* Option badge colours */
+        .opt-letter { display:inline-block; width:26px; height:26px; line-height:26px;
+                      text-align:center; border-radius:50%; background:#6c757d;
+                      color:#fff; font-weight:700; font-size:.8rem; flex-shrink:0; }
+        /* Images inserted via the image toolbar button */
+        .math-editor-wrap .ql-editor img {
+            max-width: 100%;
+            max-height: 380px;
+            object-fit: contain;
+            display: block;
+            margin: .5rem 0;
+            border-radius: .25rem;
+            border: 1px solid #dee2e6;
+            background: #f8f9fa;
+        }
+        /* Upload progress shimmer while image is being sent */
+        .img-uploading { opacity:.45; animation: shimmer 1s infinite alternate; }
+        @@keyframes shimmer { from { opacity:.3 } to { opacity:.7 } }
+    </style>
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">
+            <i class="bi bi-patch-question me-2 text-primary"></i>@ViewData["Title"]
+        </h4>
+        <p class="text-muted small mb-0">
+            @(Model.IsEdit
+                ? "Update the question details below. Use the ƒ button in any toolbar to insert a LaTeX formula."
+                : "Fill in all required fields. Use the ƒ button in any toolbar to insert a LaTeX formula (e.g. x^{2}+y^{2}=r^{2}).")
+        </p>
+    </div>
+    <a asp-page="/Admin/Content/Questions/Index" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to Questions
+    </a>
+</div>
+
+<form method="post" id="questionForm" novalidate>
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+
+    <div class="row g-4">
+
+        <!-- ── Left column: question text, type, options ────────────────── -->
+        <div class="col-12 col-xl-8">
+
+            <!-- Question Text -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-white fw-semibold py-3 d-flex align-items-center gap-2">
+                    Question Text
+                    <span class="badge bg-danger">Required</span>
+                    <small class="text-muted fw-normal ms-auto" style="font-size:.76rem">
+                        Click <kbd>ƒ</kbd> in the toolbar to insert LaTeX (e.g. <code>\frac{a}{b}</code>, <code>\int_0^\infty</code>)
+                    </small>
+                </div>
+                <div class="card-body">
+                    <!-- Hidden textarea — bound to model; populated by JS before submit -->
+                    <textarea asp-for="Form.Text" id="Form_Text" style="display:none"></textarea>
+                    <div class="math-editor-wrap" id="wrap-text">
+                        <div id="editor-text"></div>
+                    </div>
+                    <div id="textError" class="text-danger small mt-1" style="display:none">
+                        <i class="bi bi-exclamation-circle me-1"></i>Question text is required.
+                    </div>
+
+                    <div class="row mt-3 g-2">
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">
+                                Subtopic / Chapter <span class="text-muted fw-normal">(optional)</span>
+                            </label>
+                            <input asp-for="Form.Subtopic" class="form-control form-control-sm"
+                                   placeholder="e.g. Quadratic Equations" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">
+                                Solution / Explanation <span class="text-muted fw-normal">(optional)</span>
+                            </label>
+                            <textarea asp-for="Form.Solution" id="Form_Solution" style="display:none"></textarea>
+                            <div class="math-editor-wrap ql-mini">
+                                <div id="editor-solution"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Question Type -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-white fw-semibold py-3">Question Type</div>
+                <div class="card-body">
+                    <div class="d-flex gap-3 flex-wrap">
+                        @foreach (var (val, label, icon) in new[] {
+                            ("1", "Single Correct (MCQ)", "bi-record-circle"),
+                            ("2", "Multi Correct (MSQ)",  "bi-check-square"),
+                            ("3", "Numerical (NAT)",       "bi-123")
+                        })
+                        {
+                            <div class="form-check form-check-inline border rounded px-3 py-2"
+                                 style="cursor:pointer">
+                                <input class="form-check-input" type="radio" name="Form.QuestionType"
+                                       id="qtype_@val" value="@val"
+                                       @(((int)Model.Form.QuestionType).ToString() == val ? "checked" : "") />
+                                <label class="form-check-label" for="qtype_@val">
+                                    <i class="bi @icon me-1"></i>@label
+                                </label>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- MCQ Options -->
+            <div class="card shadow-sm mb-3" id="mcqOptionsCard">
+                <div class="card-header bg-white fw-semibold py-3 d-flex align-items-center gap-2">
+                    Options
+                    <small class="text-muted fw-normal ms-auto" style="font-size:.76rem">
+                        <i class="bi bi-check-circle text-success"></i> Tick the checkbox to mark correct option(s)
+                    </small>
+                </div>
+                <div class="card-body">
+                    @foreach (var opt in optRows)
+                    {
+                        <div class="d-flex align-items-start gap-3 mb-3">
+                            <!-- Label + correct checkbox stacked -->
+                            <div class="d-flex flex-column align-items-center gap-1 pt-2" style="min-width:40px">
+                                <span class="opt-letter">@opt.Letter</span>
+                                <div class="form-check m-0 d-flex flex-column align-items-center">
+                                    <input type="checkbox" name="@opt.ChkName" value="true"
+                                           @(opt.Chk ? "checked" : "")
+                                           id="chk@(opt.Letter)"
+                                           class="form-check-input" title="Mark as correct answer" />
+                                    <label for="chk@(opt.Letter)"
+                                           class="form-check-label text-success"
+                                           style="font-size:.65rem;font-weight:600">✓</label>
+                                </div>
+                            </div>
+                            <!-- Quill editor for option text -->
+                            <div class="flex-grow-1">
+                                <input type="hidden" id="Form_Option@(opt.Letter)"
+                                       name="@opt.Name" value="@opt.Val" />
+                                <div class="math-editor-wrap ql-mini">
+                                    <div id="editor-opt@(opt.Letter)"></div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Numerical Answer -->
+            <div class="card shadow-sm mb-3" id="numericalCard" style="display:none">
+                <div class="card-header bg-white fw-semibold py-3">Numerical Answer</div>
+                <div class="card-body">
+                    <input asp-for="Form.NumericalAnswer" type="number" step="any"
+                           class="form-control" placeholder="Enter the exact numerical answer" />
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ── Right column: metadata ──────────────────────────────────── -->
+        <div class="col-12 col-xl-4">
+
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-white fw-semibold py-3">Classification</div>
+                <div class="card-body">
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Subject <span class="text-danger">*</span></label>
+                        <select asp-for="Form.SubjectId" class="form-select form-select-sm" id="subjectSelect" required>
+                            <option value="">— select subject —</option>
+                            @foreach (var s in Model.Subjects)
+                            { <option value="@s.Id" selected="@(Model.Form.SubjectId == s.Id)">@s.Name</option> }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Topic <span class="text-danger">*</span></label>
+                        <select asp-for="Form.TopicId" class="form-select form-select-sm" id="topicSelect" required>
+                            <option value="">— select topic —</option>
+                            @foreach (var t in Model.Topics)
+                            { <option value="@t.Id" data-subject="@t.SubjectId" selected="@(Model.Form.TopicId == t.Id)">@t.Name</option> }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Difficulty <span class="text-danger">*</span></label>
+                        <select asp-for="Form.DifficultyLevelId" class="form-select form-select-sm" required>
+                            <option value="">— select —</option>
+                            @foreach (var d in Model.DifficultyLevels)
+                            { <option value="@d.Id" selected="@(Model.Form.DifficultyLevelId == d.Id)">@d.Name</option> }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Complexity <span class="text-danger">*</span></label>
+                        <select asp-for="Form.ComplexityLevelId" class="form-select form-select-sm" required>
+                            <option value="">— select —</option>
+                            @foreach (var c in Model.ComplexityLevels)
+                            { <option value="@c.Id" selected="@(Model.Form.ComplexityLevelId == c.Id)">@c.Name</option> }
+                        </select>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label small fw-semibold">Exam Type <span class="text-danger">*</span></label>
+                        <select asp-for="Form.ExamTypeId" class="form-select form-select-sm" required>
+                            <option value="">— select —</option>
+                            @foreach (var e in Model.ExamTypes)
+                            { <option value="@e.Id" selected="@(Model.Form.ExamTypeId == e.Id)">@e.Name</option> }
+                        </select>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-white fw-semibold py-3">Marks</div>
+                <div class="card-body">
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Positive Marks <span class="text-danger">*</span></label>
+                        <select asp-for="Form.MarksId" class="form-select form-select-sm" required>
+                            <option value="">— select —</option>
+                            @foreach (var m in Model.Marks)
+                            { <option value="@m.Id" selected="@(Model.Form.MarksId == m.Id)">@m.Name (+@m.Value)</option> }
+                        </select>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label small fw-semibold">Negative Marks <span class="text-danger">*</span></label>
+                        <select asp-for="Form.NegativeMarksId" class="form-select form-select-sm" required>
+                            <option value="">— select —</option>
+                            @foreach (var n in Model.NegativeMarks)
+                            { <option value="@n.Id" selected="@(Model.Form.NegativeMarksId == n.Id)">@n.Name (@n.Value)</option> }
+                        </select>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-white fw-semibold py-3">Tags</div>
+                <div class="card-body">
+                    <input type="hidden" asp-for="Form.SelectedTagIds" id="selectedTagIds" />
+                    <div id="tagBadges" class="mb-2 d-flex flex-wrap gap-1" style="min-height:1.5rem"></div>
+                    <div class="d-flex flex-wrap gap-1" id="tagOptions">
+                        @foreach (var t in Model.Tags)
+                        {
+                            <span class="badge border border-secondary text-secondary tag-pick"
+                                  data-id="@t.Id" data-name="@t.Name"
+                                  style="cursor:pointer;font-size:.8rem">@t.Name</span>
+                        }
+                    </div>
+                    <small class="text-muted d-block mt-1">Click a tag to add / remove it.</small>
+                </div>
+            </div>
+
+            <!-- ── LaTeX Quick Reference ──────────────────────────────── -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-white py-2 d-flex align-items-center justify-content-between"
+                     style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#latexRefPanel">
+                    <span class="fw-semibold">
+                        <i class="bi bi-calculator me-2 text-primary"></i>LaTeX Quick Reference
+                    </span>
+                    <i class="bi bi-chevron-down small text-muted"></i>
+                </div>
+                <div id="latexRefPanel" class="collapse">
+                    <div class="card-body p-2">
+                        <!-- Tab bar -->
+                        <div class="d-flex gap-1 mb-2 flex-wrap" id="latexTabBar">
+                            <button type="button" class="btn btn-xs btn-primary latex-tab active"
+                                    data-ltab="greek" style="font-size:.72rem;padding:.2rem .55rem">Greek</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary latex-tab"
+                                    data-ltab="math"  style="font-size:.72rem;padding:.2rem .55rem">Math</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary latex-tab"
+                                    data-ltab="trig"  style="font-size:.72rem;padding:.2rem .55rem">Trig/Calc</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary latex-tab"
+                                    data-ltab="phys"  style="font-size:.72rem;padding:.2rem .55rem">Physics</button>
+                        </div>
+                        <!-- Symbol grid — filled by JS -->
+                        <div id="latexSymGrid" class="d-flex flex-wrap gap-1"></div>
+                        <p class="text-muted mb-0 mt-2" style="font-size:.7rem">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Click to insert into the focused editor. Click inside any editor first.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            @if (Model.IsEdit)
+            {
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header bg-white fw-semibold py-3">Status</div>
+                    <div class="card-body">
+                        <select asp-for="Form.Status" class="form-select form-select-sm">
+                            <option value="1">Draft</option>
+                            <option value="2">Published</option>
+                        </select>
+                    </div>
+                </div>
+            }
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-floppy me-1"></i>@(Model.IsEdit ? "Save Changes" : "Create Question")
+                </button>
+                <a asp-page="/Admin/Content/Questions/Index" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+<!-- 1. KaTeX (required by Quill formula module) -->
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<!-- 2. Quill 2.x -->
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+<script>
+// jQuery validation must ignore hidden fields on this page.
+// Quill editors sync HTML into hidden inputs during the submit handler —
+// if jQuery validates before sync runs, the hidden inputs appear empty and block submit.
+if (typeof jQuery !== 'undefined' && jQuery.validator) {
+    jQuery.validator.setDefaults({ ignore: ':hidden, [type=hidden]' });
+}
+</script>
+<script>
+(function () {
+    'use strict';
+
+    // ── Register font-size format (must happen before any Quill instance) ────
+    const SizeStyle = Quill.import('attributors/style/size');
+    SizeStyle.whitelist = ['0.75em', '1em', '1.25em', '1.5em', '2em'];
+    Quill.register(SizeStyle, true);
+
+    // ── Toolbar configs ───────────────────────────────────────────────────────
+    const fullToolbar = [
+        [{ size: ['0.75em', false, '1.25em', '1.5em', '2em'] }],
+        ['bold', 'italic', 'underline'],
+        [{ script: 'sub' }, { script: 'super' }],
+        ['formula', 'image'],                  // image: insert diagram / figure
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        ['clean']
+    ];
+    const miniToolbar = [
+        ['bold', 'italic'],
+        [{ script: 'sub' }, { script: 'super' }],
+        ['formula'],
+        ['clean']
+    ];
+
+    // ── Create a Quill editor ─────────────────────────────────────────────────
+    function mkEditor(containerId, toolbar, placeholder) {
+        return new Quill('#' + containerId, {
+            modules: { formula: true, toolbar },
+            theme:   'snow',
+            placeholder: placeholder || ''
+        });
+    }
+
+    // ── Load existing HTML content into an editor ─────────────────────────────
+    function loadHtml(editor, hiddenId) {
+        const hidden = document.getElementById(hiddenId);
+        if (hidden && hidden.value && hidden.value.trim()) {
+            editor.clipboard.dangerouslyPasteHTML(hidden.value);
+        }
+    }
+
+    // ── Sync editor HTML back to the hidden field ─────────────────────────────
+    function syncField(editor, inputId) {
+        const html = editor.root.innerHTML;
+        const empty = html === '<p><br></p>' || html.trim() === '';
+        document.getElementById(inputId).value = empty ? '' : html;
+    }
+
+    // ── Initialise all editors ────────────────────────────────────────────────
+    const qText     = mkEditor('editor-text',     fullToolbar, 'Enter the full question text…');
+    const qSolution = mkEditor('editor-solution',  miniToolbar, 'Step-by-step solution (optional)…');
+    const qOptA     = mkEditor('editor-optA',      miniToolbar, 'Option A text…');
+    const qOptB     = mkEditor('editor-optB',      miniToolbar, 'Option B text…');
+    const qOptC     = mkEditor('editor-optC',      miniToolbar, 'Option C text…');
+    const qOptD     = mkEditor('editor-optD',      miniToolbar, 'Option D text…');
+
+    // Load existing content (edit mode)
+    loadHtml(qText,     'Form_Text');
+    loadHtml(qSolution, 'Form_Solution');
+    loadHtml(qOptA,     'Form_OptionA');
+    loadHtml(qOptB,     'Form_OptionB');
+    loadHtml(qOptC,     'Form_OptionC');
+    loadHtml(qOptD,     'Form_OptionD');
+
+    // ── Track which editor is active (for Quick Reference inserts) ────────────
+    let activeEditor = qText;
+    [qText, qSolution, qOptA, qOptB, qOptC, qOptD].forEach(function (ed) {
+        ed.on('selection-change', function (range) {
+            if (range) activeEditor = ed;
+        });
+    });
+
+    // Insert a LaTeX formula into the active editor
+    function insertFormula(latex) {
+        const range = activeEditor.getSelection() || { index: Math.max(0, activeEditor.getLength() - 1) };
+        activeEditor.insertEmbed(range.index, 'formula', latex);
+        activeEditor.setSelection(range.index + 1);
+        activeEditor.focus();
+    }
+
+    // ── Image upload via toolbar image button ─────────────────────────────────
+    // Overrides Quill's default URL-prompt behaviour with a proper file picker
+    // that uploads to wwwroot/uploads/questions/ via ?handler=UploadImage (cookie auth).
+    function setupImageUpload(editor) {
+        editor.getModule('toolbar').addHandler('image', function () {
+            const input    = document.createElement('input');
+            input.type     = 'file';
+            input.accept   = 'image/jpeg,image/png,image/gif,image/webp';
+
+            input.onchange = async function () {
+                const file = input.files[0];
+                if (!file) return;
+
+                // Save cursor position before async work
+                const range = editor.getSelection(true) || { index: editor.getLength() - 1 };
+
+                // Insert placeholder so teacher sees something loading
+                editor.insertEmbed(range.index, 'image', '/img/uploading.gif');
+                const placeholder = editor.getContents(range.index, 1);
+                editor.root.querySelector('img[src="/img/uploading.gif"]')?.classList.add('img-uploading');
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+                    const res   = await fetch('?handler=UploadImage', {
+                        method:  'POST',
+                        headers: { 'RequestVerificationToken': token },
+                        body:    formData
+                    });
+
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const data = await res.json();
+
+                    if (data.url) {
+                        // Replace placeholder with real image
+                        editor.deleteText(range.index, 1);
+                        editor.insertEmbed(range.index, 'image', data.url);
+                        editor.setSelection(range.index + 1);
+                        editor.focus();
+                    } else {
+                        editor.deleteText(range.index, 1);
+                        alert('Upload failed: ' + (data.error || 'Unknown error'));
+                    }
+                } catch (err) {
+                    editor.deleteText(range.index, 1);
+                    console.error('Image upload error:', err);
+                    alert('Image upload failed. Please try again.');
+                }
+            };
+
+            input.click();
+        });
+    }
+
+    // Enable image upload only for the question-text editor (diagrams belong in the question)
+    setupImageUpload(qText);
+
+    // ── LaTeX Quick Reference panel ───────────────────────────────────────────
+    const SYMS = {
+        greek: [
+            {d:'α',  l:'\\alpha'},  {d:'β', l:'\\beta'},   {d:'γ', l:'\\gamma'},
+            {d:'δ',  l:'\\delta'},  {d:'ε', l:'\\epsilon'},{d:'ζ', l:'\\zeta'},
+            {d:'θ',  l:'\\theta'},  {d:'λ', l:'\\lambda'}, {d:'μ', l:'\\mu'},
+            {d:'π',  l:'\\pi'},     {d:'ρ', l:'\\rho'},    {d:'σ', l:'\\sigma'},
+            {d:'τ',  l:'\\tau'},    {d:'φ', l:'\\phi'},    {d:'ψ', l:'\\psi'},
+            {d:'ω',  l:'\\omega'},  {d:'Γ', l:'\\Gamma'},  {d:'Δ', l:'\\Delta'},
+            {d:'Θ',  l:'\\Theta'},  {d:'Σ', l:'\\Sigma'},  {d:'Ω', l:'\\Omega'},
+        ],
+        math: [
+            {d:'a/b',   l:'\\frac{a}{b}'},   {d:'√x',  l:'\\sqrt{x}'},
+            {d:'ⁿ√x',   l:'\\sqrt[n]{x}'},   {d:'x²',  l:'x^{2}'},
+            {d:'xₙ',    l:'x_{n}'},           {d:'±',   l:'\\pm'},
+            {d:'×',     l:'\\times'},          {d:'÷',   l:'\\div'},
+            {d:'∞',     l:'\\infty'},          {d:'|x|', l:'|x|'},
+            {d:'∑',     l:'\\sum_{i=1}^{n}'}, {d:'∏',  l:'\\prod_{i=1}^{n}'},
+            {d:'≤',     l:'\\leq'},            {d:'≥',   l:'\\geq'},
+            {d:'≠',     l:'\\neq'},            {d:'≈',   l:'\\approx'},
+            {d:'∈',     l:'\\in'},             {d:'∉',   l:'\\notin'},
+            {d:'⊂',     l:'\\subset'},         {d:'∩',   l:'\\cap'},
+            {d:'∪',     l:'\\cup'},            {d:'∀',   l:'\\forall'},
+            {d:'∃',     l:'\\exists'},
+        ],
+        trig: [
+            {d:'sin',    l:'\\sin'},          {d:'cos',    l:'\\cos'},
+            {d:'tan',    l:'\\tan'},          {d:'cot',    l:'\\cot'},
+            {d:'sec',    l:'\\sec'},          {d:'csc',    l:'\\csc'},
+            {d:'sin⁻¹', l:'\\sin^{-1}'},     {d:'cos⁻¹', l:'\\cos^{-1}'},
+            {d:'tan⁻¹', l:'\\tan^{-1}'},     {d:'log',    l:'\\log'},
+            {d:'log₂',  l:'\\log_{2}'},       {d:'ln',     l:'\\ln'},
+            {d:'lim',   l:'\\lim_{x\\to a}'},{d:'d/dx',   l:'\\frac{d}{dx}'},
+            {d:'∂/∂x',  l:'\\frac{\\partial}{\\partial x}'},
+            {d:'∫',     l:'\\int_{a}^{b}'},   {d:'∬',     l:'\\iint'},
+            {d:'∮',     l:'\\oint'},
+        ],
+        phys: [
+            {d:'v⃗',  l:'\\vec{v}'},    {d:'F⃗',  l:'\\vec{F}'},
+            {d:'B⃗',  l:'\\vec{B}'},    {d:'E⃗',  l:'\\vec{E}'},
+            {d:'î',   l:'\\hat{i}'},    {d:'ĵ',   l:'\\hat{j}'},
+            {d:'k̂',   l:'\\hat{k}'},   {d:'n̂',   l:'\\hat{n}'},
+            {d:'ℏ',   l:'\\hbar'},     {d:'μ₀',  l:'\\mu_0'},
+            {d:'ε₀',  l:'\\varepsilon_0'}, {d:'∇', l:'\\nabla'},
+            {d:'∇×',  l:'\\nabla \\times'}, {d:'∇·', l:'\\nabla \\cdot'},
+            {d:'∝',   l:'\\propto'},   {d:'°',    l:'^{\\circ}'},
+            {d:'Å',   l:'\\text{Å}'},  {d:'eV',   l:'\\text{eV}'},
+        ],
+    };
+
+    let activeTab = 'greek';
+    const symGrid = document.getElementById('latexSymGrid');
+
+    function renderTab(tab) {
+        symGrid.innerHTML = '';
+        SYMS[tab].forEach(function (sym) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-sm btn-outline-secondary';
+            btn.style.cssText = 'font-family:Georgia,serif;font-size:.82rem;padding:.15rem .45rem;min-width:2.4rem';
+            btn.title = sym.l;
+            btn.textContent = sym.d;
+            btn.addEventListener('click', function () { insertFormula(sym.l); });
+            symGrid.appendChild(btn);
+        });
+    }
+
+    document.querySelectorAll('.latex-tab').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            document.querySelectorAll('.latex-tab').forEach(function (t) {
+                t.classList.replace('btn-primary', 'btn-outline-secondary');
+                t.classList.remove('active');
+            });
+            tab.classList.replace('btn-outline-secondary', 'btn-primary');
+            tab.classList.add('active');
+            activeTab = tab.dataset.ltab;
+            renderTab(activeTab);
+        });
+    });
+    renderTab(activeTab); // render Greek tab on load
+
+    // ── Sync + validate on submit ─────────────────────────────────────────────
+    document.getElementById('questionForm').addEventListener('submit', function (e) {
+        syncField(qText,     'Form_Text');
+        syncField(qSolution, 'Form_Solution');
+        syncField(qOptA,     'Form_OptionA');
+        syncField(qOptB,     'Form_OptionB');
+        syncField(qOptC,     'Form_OptionC');
+        syncField(qOptD,     'Form_OptionD');
+
+        const txt = (document.getElementById('Form_Text').value || '').trim();
+        const errDiv = document.getElementById('textError');
+        const wrap   = document.getElementById('wrap-text');
+        if (!txt) {
+            e.preventDefault();
+            errDiv.style.display = '';
+            wrap.style.borderColor = '#dc3545';
+            document.getElementById('editor-text').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
+        errDiv.style.display = 'none';
+        wrap.style.borderColor = '';
+    });
+
+    // ── Question type toggle ──────────────────────────────────────────────────
+    const mcqCard = document.getElementById('mcqOptionsCard');
+    const numCard = document.getElementById('numericalCard');
+    const radios  = document.querySelectorAll('input[name="Form.QuestionType"]');
+
+    function applyType(val) {
+        const isNAT = val === '3';
+        mcqCard.style.display = isNAT ? 'none' : '';
+        numCard.style.display = isNAT ? ''     : 'none';
+    }
+    radios.forEach(r => {
+        r.addEventListener('change', () => applyType(r.value));
+        if (r.checked) applyType(r.value);
+    });
+
+    // ── Subject → Topic cascade ───────────────────────────────────────────────
+    const subjectSel = document.getElementById('subjectSelect');
+    const topicSel   = document.getElementById('topicSelect');
+    const allTopics  = Array.from(topicSel.querySelectorAll('option[data-subject]'));
+
+    function filterTopics(subjectId) {
+        const val = subjectId ? String(subjectId) : '';
+        topicSel.querySelectorAll('option[data-subject]').forEach(o => o.remove());
+        allTopics.forEach(o => {
+            if (!val || o.dataset.subject === val) topicSel.appendChild(o);
+        });
+    }
+    subjectSel.addEventListener('change', () => filterTopics(subjectSel.value));
+    filterTopics(subjectSel.value);
+
+    // ── Tag picker ────────────────────────────────────────────────────────────
+    const hiddenTagInput = document.getElementById('selectedTagIds');
+    const badgesBox      = document.getElementById('tagBadges');
+    const tagPicks       = document.querySelectorAll('.tag-pick');
+    let selected = new Set(
+        (hiddenTagInput.value || '').split(',').map(Number).filter(Boolean)
+    );
+
+    function refreshTags() {
+        badgesBox.innerHTML = '';
+        selected.forEach(id => {
+            const opt = document.querySelector(`.tag-pick[data-id="${id}"]`);
+            if (!opt) return;
+            const span = document.createElement('span');
+            span.className = 'badge bg-info text-white';
+            span.style.cssText = 'font-size:.8rem;cursor:pointer';
+            span.textContent = opt.dataset.name + ' ✕';
+            span.addEventListener('click', () => { selected.delete(id); refreshTags(); });
+            badgesBox.appendChild(span);
+        });
+        hiddenTagInput.value = [...selected].join(',');
+        tagPicks.forEach(o => {
+            const id = Number(o.dataset.id);
+            o.classList.toggle('bg-info',          selected.has(id));
+            o.classList.toggle('text-white',        selected.has(id));
+            o.classList.toggle('border-info',       selected.has(id));
+            o.classList.toggle('text-secondary',   !selected.has(id));
+            o.classList.toggle('border-secondary', !selected.has(id));
+        });
+    }
+    tagPicks.forEach(o => {
+        o.addEventListener('click', () => {
+            const id = Number(o.dataset.id);
+            selected.has(id) ? selected.delete(id) : selected.add(id);
+            refreshTags();
+        });
+    });
+    refreshTags();
+})();
+</script>
+}

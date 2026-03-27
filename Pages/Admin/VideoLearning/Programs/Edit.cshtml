@@ -1,0 +1,189 @@
+@page
+@model EditModel
+@{
+    ViewData["Title"] = Model.IsEdit ? "Edit Program" : "Add Program";
+}
+
+<div class="d-flex align-items-center mb-4 gap-2">
+    <a asp-page="Index" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
+    <h4 class="mb-0">@ViewData["Title"]</h4>
+</div>
+
+<div class="card shadow-sm" style="max-width:700px;">
+    <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="ProgramId" />
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Domain <span class="text-danger">*</span></label>
+                <select asp-for="DomainId" class="form-select" required>
+                    <option value="">-- Select Domain --</option>
+                    @foreach (var d in Model.Domains)
+                    {
+                        <option value="@d.Id">@d.Name</option>
+                    }
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Title <span class="text-danger">*</span></label>
+                <input asp-for="Title" class="form-control" required maxlength="300" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Short Description</label>
+                <input asp-for="ShortDescription" class="form-control" maxlength="500" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Description</label>
+                <textarea asp-for="Description" class="form-control" rows="4"></textarea>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Thumbnail</label>
+                @if (!string.IsNullOrEmpty(Model.ThumbnailPath))
+                {
+                    <div class="mb-2">
+                        <img src="@Model.ThumbnailPath" class="rounded border" style="height:64px;object-fit:cover;" />
+                    </div>
+                }
+                <input type="file" name="ThumbnailFile" accept="image/*" class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Status</label>
+                <select asp-for="Status" class="form-select">
+                    @foreach (ProgramStatus s in Enum.GetValues<ProgramStatus>())
+                    {
+                        <option value="@((int)s)">@s</option>
+                    }
+                </select>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg me-1"></i> @(Model.IsEdit ? "Update" : "Create")
+                </button>
+                <a asp-page="Index" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.IsEdit && Model.ProgramData != null)
+{
+    <!-- Pricing Plans -->
+    <div class="card shadow-sm mt-4" style="max-width:700px;">
+        <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+            <span>Pricing Plans</span>
+            <span class="badge bg-secondary">@Model.ProgramData.PricingPlans.Count</span>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm mb-0">
+                <thead class="table-light">
+                    <tr><th>Name</th><th>INR</th><th>USD</th><th>Validity</th><th class="text-center">Status</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var plan in Model.ProgramData.PricingPlans)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@plan.Name</td>
+                            <td>₹@plan.PriceInr</td>
+                            <td>$@plan.PriceUsd</td>
+                            <td class="text-muted small">@(plan.ValidityDays.HasValue ? $"{plan.ValidityDays}d" : "Lifetime")</td>
+                            <td class="text-center">
+                                <span class="badge @(plan.IsActive ? "bg-success" : "bg-secondary")">@(plan.IsActive ? "Active" : "Off")</span>
+                            </td>
+                            <td class="text-end">
+                                <form method="post" asp-page-handler="DeletePlan" asp-route-planId="@plan.Id" class="d-inline"
+                                      onsubmit="return confirm('Delete plan \'@plan.Name\'?')">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-outline-danger btn-sm py-0 px-1"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.ProgramData.PricingPlans.Any())
+                    {
+                        <tr><td colspan="6" class="text-center text-muted py-3 small">No plans yet.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-white">
+            <form method="post" asp-page-handler="AddPlan" class="row g-2 align-items-end">
+                @Html.AntiForgeryToken()
+                <div class="col-sm-3">
+                    <input type="text" name="planName" class="form-control form-control-sm" placeholder="Plan name *" required />
+                </div>
+                <div class="col-sm-2">
+                    <input type="number" name="priceInr" step="0.01" class="form-control form-control-sm" placeholder="INR" required />
+                </div>
+                <div class="col-sm-2">
+                    <input type="number" name="priceUsd" step="0.01" class="form-control form-control-sm" placeholder="USD" required />
+                </div>
+                <div class="col-sm-2">
+                    <input type="number" name="validityDays" class="form-control form-control-sm" placeholder="Days (blank=∞)" />
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-lg"></i> Add Plan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Learning Paths Section -->
+    <div class="card shadow-sm mt-4" style="max-width:700px;">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="bi bi-journals me-2 text-primary"></i>Learning Paths</h6>
+        </div>
+        <div class="card-body">
+            @if (Model.AssignedPaths.Any())
+            {
+                <div class="list-group list-group-flush mb-3">
+                    @foreach (var lp in Model.AssignedPaths)
+                    {
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>@lp.Title</strong>
+                                <span class="badge bg-light text-dark border ms-2">@lp.DomainName</span>
+                                <span class="badge @(lp.IsActive ? "bg-success" : "bg-secondary") ms-1">
+                                    @(lp.IsActive ? "Active" : "Inactive")
+                                </span>
+                                <small class="text-muted ms-2">@lp.NodeCount nodes</small>
+                            </div>
+                            <form method="post" asp-page-handler="RemoveLp" asp-route-LpId="@lp.Id"
+                                  onsubmit="return confirm('Remove this learning path from the program?')">
+                                @Html.AntiForgeryToken()
+                                <button class="btn btn-outline-danger btn-sm"><i class="bi bi-x"></i></button>
+                            </form>
+                        </div>
+                    }
+                </div>
+            }
+            <!-- Add learning path form -->
+            <form method="post" asp-page-handler="AddLp" class="d-flex gap-2 align-items-end">
+                @Html.AntiForgeryToken()
+                <div class="flex-grow-1">
+                    <label class="form-label fw-semibold mb-1">Add Learning Path</label>
+                    <select name="LpId" class="form-select">
+                        <option value="">-- Select Learning Path --</option>
+                        @foreach (var lp in Model.AvailablePaths)
+                        {
+                            <option value="@lp.Id">@lp.Title (@lp.DomainName)</option>
+                        }
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="bi bi-plus-lg me-1"></i>Add
+                </button>
+            </form>
+            @if (!Model.AvailablePaths.Any() && !Model.AssignedPaths.Any())
+            {
+                <div class="text-muted small mt-2">No learning paths available. <a asp-page="/Admin/VideoLearning/LearningPaths/Edit">Create one first.</a></div>
+            }
+        </div>
+    </div>
+}

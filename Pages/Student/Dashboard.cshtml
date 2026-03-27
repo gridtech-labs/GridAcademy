@@ -1,0 +1,118 @@
+@page
+@model GridAcademy.Pages.Student.DashboardModel
+@{
+    ViewData["Title"] = "My Tests";
+}
+
+<div class="student-container">
+
+    <div class="dashboard-header">
+        <div>
+            <h4 class="fw-bold mb-1">
+                <i class="bi bi-journal-check me-2 text-primary"></i>My Tests
+            </h4>
+            <p class="text-muted small mb-0">View and take your assigned tests</p>
+        </div>
+        <div class="text-muted small">
+            <i class="bi bi-clock me-1"></i>@DateTime.Now.ToString("ddd, dd MMM yyyy")
+        </div>
+    </div>
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (!Model.Tests.Any())
+    {
+        <div class="empty-state">
+            <i class="bi bi-journal-x"></i>
+            <h5>No tests assigned yet</h5>
+            <p class="text-muted">Your instructor hasn't assigned any tests to you. Check back later.</p>
+        </div>
+    }
+    else
+    {
+        <div class="test-card-grid">
+            @foreach (var t in Model.Tests)
+            {
+                var now = DateTime.UtcNow;
+                var isExpired    = now > t.AvailableTo;
+                var notStarted   = now < t.AvailableFrom;
+                var noAttempts   = t.AttemptsRemaining == 0 && !t.HasInProgressAttempt;
+                var isCompleted  = t.LastCompletedAttemptId.HasValue && !t.HasInProgressAttempt;
+                var isInProgress = t.HasInProgressAttempt;
+
+                string statusClass = "status-available";
+                string statusText  = "Available";
+                if      (isExpired)    { statusClass = "status-expired";     statusText = "Expired"; }
+                else if (notStarted)   { statusClass = "status-scheduled";   statusText = "Scheduled"; }
+                else if (noAttempts)   { statusClass = "status-completed";   statusText = "Completed"; }
+                else if (isInProgress) { statusClass = "status-in-progress"; statusText = "In Progress"; }
+                else if (isCompleted)  { statusClass = "status-completed";   statusText = "Completed"; }
+
+                <div class="test-card @(isExpired || (noAttempts && !isCompleted) ? "test-card-dim" : "")">
+                    <div class="test-card-header">
+                        <span class="test-badge @statusClass">@statusText</span>
+                        <span class="test-exam-type">@t.ExamTypeName</span>
+                    </div>
+
+                    <h5 class="test-title">@t.Title</h5>
+
+                    <div class="test-meta">
+                        <span><i class="bi bi-clock me-1"></i>@t.DurationMinutes min</span>
+                        <span><i class="bi bi-question-circle me-1"></i>@t.TotalQuestions Q</span>
+                        <span><i class="bi bi-layers me-1"></i>@t.SectionCount section(s)</span>
+                        @if (t.NegativeMarkingEnabled)
+                        {
+                            <span class="text-danger"><i class="bi bi-dash-circle me-1"></i>Negative Marking</span>
+                        }
+                    </div>
+
+                    <div class="test-window">
+                        <i class="bi bi-calendar-range me-1"></i>
+                        @t.AvailableFrom.ToLocalTime().ToString("dd MMM, hh:mm tt") —
+                        @t.AvailableTo.ToLocalTime().ToString("dd MMM, hh:mm tt")
+                    </div>
+
+                    <div class="test-card-footer">
+                        <span class="attempts-info">
+                            @if (t.MaxAttempts == 1)
+                            {
+                                <span>@(t.AttemptsUsed == 0 ? "Not started" : "Attempt used")</span>
+                            }
+                            else
+                            {
+                                <span>@t.AttemptsUsed / @t.MaxAttempts attempt(s) used</span>
+                            }
+                        </span>
+
+                        @if (isInProgress && t.InProgressAttemptId.HasValue)
+                        {
+                            <a href="/Student/Assessment/Take?attemptId=@t.InProgressAttemptId" class="btn-card btn-continue">
+                                <i class="bi bi-play-fill me-1"></i>Continue
+                            </a>
+                        }
+                        else if (!isExpired && !notStarted && !noAttempts)
+                        {
+                            <a href="/Student/Assessment/Instructions?assignmentId=@t.AssignmentId" class="btn-card btn-start">
+                                <i class="bi bi-pencil-fill me-1"></i>Start Test
+                            </a>
+                        }
+
+                        @if ((isCompleted || noAttempts) && t.LastCompletedAttemptId.HasValue)
+                        {
+                            <a href="/Student/Assessment/Result?attemptId=@t.LastCompletedAttemptId" class="btn-card btn-result">
+                                <i class="bi bi-bar-chart-fill me-1"></i>View Result
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+</div>

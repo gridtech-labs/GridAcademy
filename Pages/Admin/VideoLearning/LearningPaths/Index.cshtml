@@ -1,0 +1,79 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Learning Paths";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0"><i class="bi bi-journals me-2 text-primary"></i>Learning Paths</h4>
+    <a asp-page="Edit" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i> New Learning Path
+    </a>
+</div>
+
+<!-- Domain filter -->
+<div class="mb-3">
+    <form method="get" class="d-flex gap-2 align-items-center">
+        <label class="form-label mb-0 fw-semibold">Filter by Domain:</label>
+        <select name="domainId" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+            <option value="">All Domains</option>
+            @foreach (var d in Model.Domains)
+            {
+                <option value="@d.Id" selected="@(Model.DomainId == d.Id)">@d.Name</option>
+            }
+        </select>
+    </form>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Title</th>
+                    <th>Domain</th>
+                    <th class="text-center">Modules</th>
+                    <th class="text-center">Nodes</th>
+                    <th class="text-center">Sort</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var lp in Model.LearningPaths)
+                {
+                    <tr>
+                        <td>
+                            @if (!string.IsNullOrEmpty(lp.ThumbnailPath))
+                            {
+                                <img src="@lp.ThumbnailPath" class="me-2 rounded" style="width:48px;height:32px;object-fit:cover;" />
+                            }
+                            <span class="fw-semibold">@lp.Title</span>
+                        </td>
+                        <td><span class="badge bg-light text-dark border">@lp.DomainName</span></td>
+                        <td class="text-center"><span class="badge bg-secondary">@lp.ModuleCount</span></td>
+                        <td class="text-center"><span class="badge bg-info text-dark">@lp.NodeCount</span></td>
+                        <td class="text-center">@lp.SortOrder</td>
+                        <td class="text-center">
+                            <span class="badge @(lp.IsActive ? "bg-success" : "bg-secondary")">@(lp.IsActive ? "Active" : "Inactive")</span>
+                        </td>
+                        <td class="text-center">
+                            <a asp-page="Builder" asp-route-id="@lp.Id" class="btn btn-outline-primary btn-sm" title="Build / Edit">
+                                <i class="bi bi-pencil"></i> Build / Edit
+                            </a>
+                            <form method="post" asp-page-handler="Delete" asp-route-id="@lp.Id" class="d-inline"
+                                  onsubmit="return confirm('Delete learning path \'@lp.Title\'?')">
+                                @Html.AntiForgeryToken()
+                                <button class="btn btn-outline-danger btn-sm" title="Delete"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.LearningPaths.Any())
+                {
+                    <tr><td colspan="7" class="text-center text-muted py-4">No learning paths found.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

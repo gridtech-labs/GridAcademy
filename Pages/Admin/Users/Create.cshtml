@@ -1,0 +1,93 @@
+@page
+@model GridAcademy.Pages.Admin.Users.CreateModel
+@{
+    ViewData["Title"] = "Create User";
+}
+
+<div class="d-flex align-items-center gap-2 mb-4">
+    <a asp-page="./Index" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <h5 class="fw-bold mb-0">Create New User</h5>
+</div>
+
+<div class="row">
+    <div class="col-12 col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <form method="post">
+                    <!-- Validation summary -->
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label asp-for="Input.FirstName" class="form-label fw-semibold">First Name</label>
+                            <input asp-for="Input.FirstName" class="form-control" placeholder="John" />
+                            <span asp-validation-for="Input.FirstName" class="text-danger small"></span>
+                        </div>
+                        <div class="col-6">
+                            <label asp-for="Input.LastName" class="form-label fw-semibold">Last Name</label>
+                            <input asp-for="Input.LastName" class="form-control" placeholder="Doe" />
+                            <span asp-validation-for="Input.LastName" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Input.Email" class="form-label fw-semibold">Email Address</label>
+                            <input asp-for="Input.Email" type="email" class="form-control"
+                                   placeholder="john.doe@example.com" autocomplete="off" />
+                            <span asp-validation-for="Input.Email" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Input.Password" class="form-label fw-semibold">Password</label>
+                            <input asp-for="Input.Password" type="password" class="form-control"
+                                   placeholder="Min 8 chars, uppercase, digit, special" autocomplete="new-password" />
+                            <div class="form-text">Minimum 8 characters with uppercase letter, digit, and special character.</div>
+                            <span asp-validation-for="Input.Password" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Input.Role" class="form-label fw-semibold">Role</label>
+                            <select asp-for="Input.Role" class="form-select">
+                                <option value="User">Student (default)</option>
+                                <option value="Instructor">Instructor</option>
+                                <option value="Admin">Admin</option>
+                            </select>
+                            <span asp-validation-for="Input.Role" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <hr class="my-4" />
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-person-plus me-1"></i>Create User
+                        </button>
+                        <a asp-page="./Index" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+        <div class="card shadow-sm border-0 bg-light">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold mb-3"><i class="bi bi-info-circle me-2 text-primary"></i>Role Permissions</h6>
+                <div class="mb-3">
+                    <span class="badge badge-admin mb-1">Admin</span>
+                    <p class="small text-muted mb-0">Full access — manage all users, access all features.</p>
+                </div>
+                <div class="mb-3">
+                    <span class="badge badge-instructor mb-1">Instructor</span>
+                    <p class="small text-muted mb-0">Can manage courses and content (coming soon).</p>
+                </div>
+                <div>
+                    <span class="badge badge-user mb-1">Student</span>
+                    <p class="small text-muted mb-0">Standard learner account. No admin panel access.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

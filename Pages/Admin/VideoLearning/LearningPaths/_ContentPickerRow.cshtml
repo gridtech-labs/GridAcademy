@@ -1,0 +1,133 @@
+@model GridAcademy.Pages.Admin.VideoLearning.LearningPaths.ContentPickerRowModel
+
+@{
+    // unique suffix to avoid duplicate IDs when multiple rows on page
+    var uid = Model.ModuleId?.ToString() ?? "flat";
+}
+
+<form method="post" asp-page-handler="AddItem" class="content-picker-form">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="TargetModuleId" value="@Model.ModuleId" />
+
+    <div class="row g-2 align-items-end">
+        <!-- Content Type -->
+        <div class="col-md-3">
+            <label class="form-label small text-muted mb-1">Content Type</label>
+            <select name="ItemContentType" class="form-select form-select-sm content-type-sel"
+                    data-uid="@uid" data-domain="@Model.DomainId" onchange="onTypeChange(this)">
+                <option value="0">Video</option>
+                <option value="1">Assessment</option>
+                <option value="2">SCORM</option>
+                <option value="3">HTML</option>
+                <option value="4">PDF</option>
+            </select>
+        </div>
+
+        <!-- Content Name (filtered) -->
+        <div class="col-md-4">
+            <label class="form-label small text-muted mb-1">Content Name</label>
+            <select name="VideoId" class="form-select form-select-sm content-name-sel" id="vidSel_@uid" onchange="onContentSelect(this, '@uid')">
+                <option value="">-- Loading... --</option>
+            </select>
+            <select name="ContentFileId" class="form-select form-select-sm content-name-sel d-none" id="cfSel_@uid" onchange="onContentSelect(this, '@uid')">
+                <option value="">-- Select --</option>
+            </select>
+            <select name="TestId" class="form-select form-select-sm content-name-sel d-none" id="testSel_@uid" onchange="onContentSelect(this, '@uid')">
+                <option value="">-- Select --</option>
+            </select>
+        </div>
+
+        <!-- Display Title (auto-filled, editable) -->
+        <div class="col-md-3">
+            <label class="form-label small text-muted mb-1">Display Title</label>
+            <input type="text" name="ItemTitle" class="form-control form-control-sm item-title-input"
+                   id="title_@uid" placeholder="Auto-filled or type..." maxlength="300" required />
+        </div>
+
+        <!-- Preview + Add -->
+        <div class="col-md-2 d-flex align-items-end gap-1">
+            <div class="form-check mb-0 me-1" title="Free Preview">
+                <input type="checkbox" name="IsPreview" class="form-check-input" value="true" id="prev_@uid" />
+                <label class="form-check-label small" for="prev_@uid">Preview</label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-lg"></i>
+            </button>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+// Content picker AJAX logic - idempotent (safe to include multiple times)
+if (!window._cpInit) {
+    window._cpInit = true;
+    window._cpCache = {};
+
+    window.onTypeChange = async function(sel) {
+        const uid    = sel.dataset.uid;
+        const type   = parseInt(sel.value);
+        const domain = parseInt(sel.dataset.domain) || 0;
+
+        // Show the right select
+        ['vidSel','cfSel','testSel'].forEach(function(p) {
+            const el = document.getElementById(p + '_' + uid);
+            if (el) el.classList.add('d-none');
+        });
+
+        let targetSel, url;
+        if      (type === 0) { targetSel = document.getElementById('vidSel_'  + uid); url = '/api/content-picker/videos?domainId=' + domain; }
+        else if (type === 1) { targetSel = document.getElementById('testSel_' + uid); url = '/api/content-picker/assessments'; }
+        else                 { targetSel = document.getElementById('cfSel_'   + uid); url = '/api/content-picker/content-files?fileType=' + (type - 2) + '&domainId=' + domain; }
+
+        if (!targetSel) return;
+        targetSel.classList.remove('d-none');
+        await loadOptions(targetSel, url, uid);
+    };
+
+    window.loadOptions = async function(sel, url, uid) {
+        const cacheKey = url;
+        if (window._cpCache[cacheKey]) {
+            populateSelect(sel, window._cpCache[cacheKey], uid);
+            return;
+        }
+        sel.innerHTML = '<option value="">Loading...</option>';
+        try {
+            const res = await fetch(url, { credentials: 'include' });
+            const json = await res.json();
+            const items = json.data || [];
+            window._cpCache[cacheKey] = items;
+            populateSelect(sel, items, uid);
+        } catch(e) {
+            sel.innerHTML = '<option value="">Error loading</option>';
+        }
+    };
+
+    window.populateSelect = function(sel, items, uid) {
+        sel.innerHTML = '<option value="">-- Select content --</option>';
+        items.forEach(function(item) {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = item.title + (item.subTitle ? ' - ' + item.subTitle : '');
+            opt.dataset.title = item.title;
+            sel.appendChild(opt);
+        });
+    };
+
+    window.onContentSelect = function(sel, uid) {
+        const selectedOpt = sel.options[sel.selectedIndex];
+        const titleInput = document.getElementById('title_' + uid);
+        if (titleInput && selectedOpt && selectedOpt.dataset.title) {
+            titleInput.value = selectedOpt.dataset.title;
+        }
+    };
+
+    // Initialize all existing pickers on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.content-type-sel').forEach(function(sel) {
+            onTypeChange(sel); // load videos by default
+        });
+    });
+}
+</script>
+}

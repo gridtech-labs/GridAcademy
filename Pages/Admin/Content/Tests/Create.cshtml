@@ -1,0 +1,107 @@
+@page
+@model GridAcademy.Pages.Admin.Content.Tests.CreateModel
+@{
+    ViewData["Title"] = "New Test";
+}
+
+<div class="d-flex align-items-center gap-2 mb-4">
+    <a asp-page="Index" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+    <h4 class="fw-bold mb-0"><i class="bi bi-journal-plus me-2 text-primary"></i>New Test</h4>
+</div>
+
+<div class="card shadow-sm" style="max-width:700px;">
+    <div class="card-header bg-white fw-semibold py-3">Test Details</div>
+    <div class="card-body">
+        <form method="post">
+            @Html.AntiForgeryToken()
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Title <span class="text-danger">*</span></label>
+                <input type="text" name="Title" class="form-control"
+                       placeholder="e.g. JEE Main Mock Test 1" required value="@Model.Input?.Title" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Instructions</label>
+                <div id="instructionsEditor" style="min-height:160px; border:1px solid #dee2e6; border-radius:0 0 .375rem .375rem;"></div>
+                <input type="hidden" name="Instructions" id="instructionsHidden" value="@Model.Input?.Instructions" />
+                <div class="form-text">Use the toolbar to format text — bold, italic, lists, colors etc. The student sees this on the instructions page.</div>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Duration (minutes) <span class="text-danger">*</span></label>
+                    <input type="number" name="DurationMinutes" class="form-control"
+                           min="5" max="360" required value="@(Model.Input?.DurationMinutes ?? 60)" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Passing % <span class="text-danger">*</span></label>
+                    <input type="number" name="PassingPercent" class="form-control"
+                           min="1" max="100" step="0.01" required value="@(Model.Input?.PassingPercent ?? 35)" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Exam Type <span class="text-danger">*</span></label>
+                    <select name="ExamTypeId" class="form-select" required>
+                        <option value="">Select…</option>
+                        @foreach (var et in Model.ExamTypes)
+                        {
+                            <option value="@et.Id" selected="@(Model.Input?.ExamTypeId == et.Id)">@et.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="NegativeMarkingEnabled"
+                           id="negMarking" value="true"
+                           @(Model.Input?.NegativeMarkingEnabled == true ? "checked" : "") />
+                    <label class="form-check-label fw-semibold" for="negMarking">Enable Negative Marking</label>
+                </div>
+                <div class="form-text">When enabled, the negative marks per question are deducted for wrong answers (configured per section).</div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg me-1"></i>Create Test
+                </button>
+                <a asp-page="Index" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<!-- Quill.js -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" />
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+<script>
+(function () {
+    const hiddenInput = document.getElementById('instructionsHidden');
+    const quill = new Quill('#instructionsEditor', {
+        theme: 'snow',
+        placeholder: 'Type exam instructions here…',
+        modules: {
+            toolbar: [
+                [{ header: [1, 2, 3, false] }],
+                ['bold', 'italic', 'underline'],
+                [{ color: [] }, { background: [] }],
+                [{ list: 'ordered' }, { list: 'bullet' }],
+                [{ align: [] }],
+                ['clean']
+            ]
+        }
+    });
+
+    // Pre-populate from hidden input (for validation re-render)
+    if (hiddenInput.value) {
+        quill.clipboard.dangerouslyPasteHTML(hiddenInput.value);
+    }
+
+    // Sync to hidden input before form submit
+    hiddenInput.closest('form').addEventListener('submit', function () {
+        hiddenInput.value = quill.getSemanticHTML();
+    });
+})();
+</script>
+}

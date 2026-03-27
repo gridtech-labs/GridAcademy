@@ -1,0 +1,615 @@
+@page
+@model GridAcademy.Pages.Admin.Content.Masters.IndexModel
+@{
+    ViewData["Title"] = "Masters";
+    var tab = Model.ActiveTab ?? "subjects";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-collection me-2 text-primary"></i>Masters</h4>
+        <p class="text-muted small mb-0">Manage lookup data used across the content module</p>
+    </div>
+</div>
+
+<!-- ── Tab nav ──────────────────────────────────────────────────────────── -->
+<ul class="nav nav-tabs mb-3" id="masterTabs">
+    @{
+        var navItems = new[] {
+            ("subjects",   "Subjects",       "bi-journal-text",  Model.Subjects.Count),
+            ("topics",     "Topics",         "bi-list-nested",   Model.Topics.Count),
+            ("difficulty", "Difficulty",     "bi-speedometer",   Model.DifficultyLevels.Count),
+            ("complexity", "Complexity",     "bi-layers",        Model.ComplexityLevels.Count),
+            ("examtypes",  "Exam Types",     "bi-mortarboard",   Model.ExamTypes.Count),
+            ("marks",      "Marks",          "bi-plus-circle",   Model.Marks.Count),
+            ("negmarks",   "Neg. Marks",     "bi-dash-circle",   Model.NegativeMarks.Count),
+            ("tags",       "Tags",           "bi-tags",          Model.Tags.Count),
+            ("qtypes",     "Q. Types",       "bi-ui-checks",     Model.QuestionTypes.Count),
+        };
+    }
+    @foreach (var (id, label, icon, count) in navItems)
+    {
+        <li class="nav-item">
+            <button class="nav-link @(tab == id ? "active" : "")"
+                    data-bs-toggle="tab" data-bs-target="#tab-@id" type="button">
+                <i class="bi @icon me-1"></i>@label
+                <span class="badge bg-secondary ms-1">@count</span>
+            </button>
+        </li>
+    }
+</ul>
+
+<div class="tab-content">
+
+    <!-- ══ SUBJECTS ══════════════════════════════════════════════════════════ -->
+    <div class="tab-pane fade @(tab=="subjects" ? "show active" : "")" id="tab-subjects">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold py-3">Subjects</div>
+            <div class="card-body p-0">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr><th>#</th><th>Name</th><th>Status</th><th>Sort</th><th class="text-end">Actions</th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var s in Model.Subjects)
+                    {
+                        <tr>
+                            <td class="text-muted small">@s.Id</td>
+                            <td class="fw-semibold">@s.Name</td>
+                            <td>
+                                @if (s.IsActive) { <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span> }
+                                else             { <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Inactive</span> }
+                            </td>
+                            <td class="text-muted">@s.SortOrder</td>
+                            <td class="text-end">
+                                @if (User.IsInRole("Admin"))
+                                {
+                                    <form method="post" asp-page-handler="DeleteSubject" class="d-inline"
+                                          onsubmit="return confirm('Delete subject \'@s.Name\'? Topics linked to it may also be affected.')">
+                                        <input type="hidden" name="id" value="@s.Id" />
+                                        <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Subjects.Any())
+                    { <tr><td colspan="5" class="text-center text-muted py-3">No subjects yet.</td></tr> }
+                    </tbody>
+                </table>
+            </div>
+            @if (User.IsInRole("Admin") || User.IsInRole("Instructor"))
+            {
+                <div class="card-footer bg-white">
+                    <form method="post" asp-page-handler="AddSubject" class="row g-2 align-items-end">
+                        <div class="col-12 col-md">
+                            <label class="form-label small mb-1 text-muted">New Subject Name</label>
+                            <input asp-for="NewSubject.Name" class="form-control form-control-sm" placeholder="e.g. Mathematics" required />
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label small mb-1 text-muted">Sort Order</label>
+                            <input asp-for="NewSubject.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" />
+                        </div>
+                        <div class="col-auto align-self-end">
+                            <button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Subject</button>
+                        </div>
+                    </form>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- ══ TOPICS ════════════════════════════════════════════════════════════ -->
+    <div class="tab-pane fade @(tab=="topics" ? "show active" : "")" id="tab-topics">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold py-3">Topics</div>
+            <div class="card-body p-0">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr><th>#</th><th>Name</th><th>Subject</th><th>Status</th><th>Sort</th><th class="text-end">Actions</th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var t in Model.Topics)
+                    {
+                        <tr>
+                            <td class="text-muted small">@t.Id</td>
+                            <td class="fw-semibold">@t.Name</td>
+                            <td><span class="badge bg-primary-subtle text-primary border border-primary-subtle">@t.SubjectName</span></td>
+                            <td>
+                                @if (t.IsActive) { <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span> }
+                                else             { <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Inactive</span> }
+                            </td>
+                            <td class="text-muted">@t.SortOrder</td>
+                            <td class="text-end">
+                                @if (User.IsInRole("Admin"))
+                                {
+                                    <form method="post" asp-page-handler="DeleteTopic" class="d-inline"
+                                          onsubmit="return confirm('Delete topic \'@t.Name\'?')">
+                                        <input type="hidden" name="id" value="@t.Id" />
+                                        <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Topics.Any())
+                    { <tr><td colspan="6" class="text-center text-muted py-3">No topics yet.</td></tr> }
+                    </tbody>
+                </table>
+            </div>
+            @if (User.IsInRole("Admin") || User.IsInRole("Instructor"))
+            {
+                <div class="card-footer bg-white">
+                    <form method="post" asp-page-handler="AddTopic" class="row g-2 align-items-end">
+                        <div class="col-auto">
+                            <label class="form-label small mb-1 text-muted">Subject</label>
+                            <select asp-for="NewTopic.SubjectId" class="form-select form-select-sm" required>
+                                <option value="">— select —</option>
+                                @foreach (var s in Model.Subjects.Where(x => x.IsActive))
+                                { <option value="@s.Id">@s.Name</option> }
+                            </select>
+                        </div>
+                        <div class="col-12 col-md">
+                            <label class="form-label small mb-1 text-muted">Topic Name</label>
+                            <input asp-for="NewTopic.Name" class="form-control form-control-sm" placeholder="e.g. Algebra" required />
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label small mb-1 text-muted">Sort</label>
+                            <input asp-for="NewTopic.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" />
+                        </div>
+                        <div class="col-auto align-self-end">
+                            <button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Topic</button>
+                        </div>
+                    </form>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- ══ DIFFICULTY LEVELS ════════════════════════════════════════════════ -->
+    <div class="tab-pane fade @(tab=="difficulty" ? "show active" : "")" id="tab-difficulty">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold py-3">Difficulty Levels</div>
+            <div class="card-body p-0">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr><th>#</th><th>Name</th><th>Sort</th><th class="text-end">Actions</th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var d in Model.DifficultyLevels)
+                    {
+                        <tr>
+                            <td class="text-muted small">@d.Id</td>
+                            <td class="fw-semibold">@d.Name</td>
+                            <td class="text-muted">@d.SortOrder</td>
+                            <td class="text-end">
+                                @if (User.IsInRole("Admin"))
+                                {
+                                    <form method="post" asp-page-handler="DeleteDifficulty" class="d-inline"
+                                          onsubmit="return confirm('Delete \'@d.Name\'?')">
+                                        <input type="hidden" name="id" value="@d.Id" />
+                                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.DifficultyLevels.Any())
+                    { <tr><td colspan="4" class="text-center text-muted py-3">No entries yet.</td></tr> }
+                    </tbody>
+                </table>
+            </div>
+            @if (User.IsInRole("Admin") || User.IsInRole("Instructor"))
+            {
+                <div class="card-footer bg-white">
+                    <form method="post" asp-page-handler="AddDifficulty" class="row g-2 align-items-end">
+                        <div class="col-12 col-md">
+                            <input asp-for="NewDifficulty.Name" class="form-control form-control-sm" placeholder="e.g. Easy" required />
+                        </div>
+                        <div class="col-auto">
+                            <input asp-for="NewDifficulty.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" />
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add</button>
+                        </div>
+                    </form>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- ══ COMPLEXITY LEVELS ════════════════════════════════════════════════ -->
+    <div class="tab-pane fade @(tab=="complexity" ? "show active" : "")" id="tab-complexity">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold py-3">Complexity Levels</div>
+            <div class="card-body p-0">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr><th>#</th><th>Name</th><th>Sort</th><th class="text-end">Actions</th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var c in Model.ComplexityLevels)
+                    {
+                        <tr>
+                            <td class="text-muted small">@c.Id</td>
+                            <td class="fw-semibold">@c.Name</td>
+                            <td class="text-muted">@c.SortOrder</td>
+                            <td class="text-end">
+                                @if (User.IsInRole("Admin"))
+                                {
+                                    <form method="post" asp-page-handler="DeleteComplexity" class="d-inline"
+                                          onsubmit="return confirm('Delete \'@c.Name\'?')">
+                                        <input type="hidden" name="id" value="@c.Id" />
+                                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.ComplexityLevels.Any())
+                    { <tr><td colspan="4" class="text-center text-muted py-3">No entries yet.</td></tr> }
+                    </tbody>
+                </table>
+            </div>
+            @if (User.IsInRole("Admin") || User.IsInRole("Instructor"))
+            {
+                <div class="card-footer bg-white">
+                    <form method="post" asp-page-handler="AddComplexity" class="row g-2 align-items-end">
+                        <div class="col-12 col-md">
+                            <input asp-for="NewComplexity.Name" class="form-control form-control-sm" placeholder="e.g. Basic" required />
+                        </div>
+                        <div class="col-auto">
+                            <input asp-for="NewComplexity.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" />
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add</button>
+                        </div>
+                    </form>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- ══ EXAM TYPES ════════════════════════════════════════════════════════ -->
+    <div class="tab-pane fade @(tab=="examtypes" ? "show active" : "")" id="tab-examtypes">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold py-3">Exam Types</div>
+            <div class="card-body p-0">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr><th>#</th><th>Name</th><th>Sort</th><th class="text-end">Actions</th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var e in Model.ExamTypes)
+                    {
+                        <tr>
+                            <td class="text-muted small">@e.Id</td>
+                            <td class="fw-semibold">@e.Name</td>
+                            <td class="text-muted">@e.SortOrder</td>
+                            <td class="text-end">
+                                @if (User.IsInRole("Admin"))
+                                {
+                                    <form method="post" asp-page-handler="DeleteExamType" class="d-inline"
+                                          onsubmit="return confirm('Delete \'@e.Name\'?')">
+                                        <input type="hidden" name="id" value="@e.Id" />
+                                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.ExamTypes.Any())
+                    { <tr><td colspan="4" class="text-center text-muted py-3">No entries yet.</td></tr> }
+                    </tbody>
+                </table>
+            </div>
+            @if (User.IsInRole("Admin") || User.IsInRole("Instructor"))
+            {
+                <div class="card-footer bg-white">
+                    <form method="post" asp-page-handler="AddExamType" class="row g-2 align-items-end">
+                        <div class="col-12 col-md">
+                            <input asp-for="NewExamType.Name" class="form-control form-control-sm" placeholder="e.g. JEE Main" required />
+                        </div>
+                        <div class="col-auto">
+                            <input asp-for="NewExamType.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" />
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add</button>
+                        </div>
+                    </form>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- ══ MARKS ═════════════════════════════════════════════════════════════ -->
+    <div class="tab-pane fade @(tab=="marks" ? "show active" : "")" id="tab-marks">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold py-3">Marks</div>
+            <div class="card-body p-0">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr><th>#</th><th>Label</th><th>Value</th><th>Sort</th><th class="text-end">Actions</th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var m in Model.Marks)
+                    {
+                        <tr>
+                            <td class="text-muted small">@m.Id</td>
+                            <td class="fw-semibold">@m.Name</td>
+                            <td><span class="badge bg-success text-white">+@m.Value</span></td>
+                            <td class="text-muted">@m.SortOrder</td>
+                            <td class="text-end">
+                                @if (User.IsInRole("Admin"))
+                                {
+                                    <form method="post" asp-page-handler="DeleteMarks" class="d-inline"
+                                          onsubmit="return confirm('Delete marks \'@m.Name\'?')">
+                                        <input type="hidden" name="id" value="@m.Id" />
+                                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Marks.Any())
+                    { <tr><td colspan="5" class="text-center text-muted py-3">No entries yet.</td></tr> }
+                    </tbody>
+                </table>
+            </div>
+            @if (User.IsInRole("Admin") || User.IsInRole("Instructor"))
+            {
+                <div class="card-footer bg-white">
+                    <form method="post" asp-page-handler="AddMarks" class="row g-2 align-items-end">
+                        <div class="col-auto">
+                            <label class="form-label small mb-1 text-muted">Label</label>
+                            <input asp-for="NewMarks.Name" class="form-control form-control-sm" placeholder="e.g. 2 Marks" required />
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label small mb-1 text-muted">Value</label>
+                            <input asp-for="NewMarks.Value" type="number" step="0.25" class="form-control form-control-sm" style="width:90px" required />
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label small mb-1 text-muted">Sort</label>
+                            <input asp-for="NewMarks.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" />
+                        </div>
+                        <div class="col-auto align-self-end">
+                            <button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add</button>
+                        </div>
+                    </form>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- ══ NEGATIVE MARKS ════════════════════════════════════════════════════ -->
+    <div class="tab-pane fade @(tab=="negmarks" ? "show active" : "")" id="tab-negmarks">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold py-3">Negative Marks</div>
+            <div class="card-body p-0">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr><th>#</th><th>Label</th><th>Value</th><th>Sort</th><th class="text-end">Actions</th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var n in Model.NegativeMarks)
+                    {
+                        <tr>
+                            <td class="text-muted small">@n.Id</td>
+                            <td class="fw-semibold">@n.Name</td>
+                            <td><span class="badge bg-danger text-white">@n.Value</span></td>
+                            <td class="text-muted">@n.SortOrder</td>
+                            <td class="text-end">
+                                @if (User.IsInRole("Admin"))
+                                {
+                                    <form method="post" asp-page-handler="DeleteNegativeMarks" class="d-inline"
+                                          onsubmit="return confirm('Delete \'@n.Name\'?')">
+                                        <input type="hidden" name="id" value="@n.Id" />
+                                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.NegativeMarks.Any())
+                    { <tr><td colspan="5" class="text-center text-muted py-3">No entries yet.</td></tr> }
+                    </tbody>
+                </table>
+            </div>
+            @if (User.IsInRole("Admin") || User.IsInRole("Instructor"))
+            {
+                <div class="card-footer bg-white">
+                    <form method="post" asp-page-handler="AddNegativeMarks" class="row g-2 align-items-end">
+                        <div class="col-auto">
+                            <label class="form-label small mb-1 text-muted">Label</label>
+                            <input asp-for="NewNegativeMarks.Name" class="form-control form-control-sm" placeholder="e.g. -0.25" required />
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label small mb-1 text-muted">Value</label>
+                            <input asp-for="NewNegativeMarks.Value" type="number" step="0.25" class="form-control form-control-sm" style="width:90px" required />
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label small mb-1 text-muted">Sort</label>
+                            <input asp-for="NewNegativeMarks.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" />
+                        </div>
+                        <div class="col-auto align-self-end">
+                            <button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add</button>
+                        </div>
+                    </form>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- ══ TAGS ═══════════════════════════════════════════════════════════════ -->
+    <div class="tab-pane fade @(tab=="tags" ? "show active" : "")" id="tab-tags">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold py-3">Tags</div>
+            <div class="card-body">
+                @if (Model.Tags.Any())
+                {
+                    @foreach (var t in Model.Tags)
+                    {
+                        <span class="badge fs-6 px-3 py-2 me-2 mb-2"
+                              style="background:var(--bs-info-bg-subtle);color:var(--bs-info-text-emphasis);border:1px solid var(--bs-info-border-subtle)">
+                            @t.Name
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <form method="post" asp-page-handler="DeleteTag" class="d-inline ms-1"
+                                      onsubmit="return confirm('Delete tag \'@t.Name\'?')">
+                                    <input type="hidden" name="id" value="@t.Id" />
+                                    <button type="submit" class="btn-close" style="font-size:0.55rem" aria-label="Delete"></button>
+                                </form>
+                            }
+                        </span>
+                    }
+                }
+                else
+                {
+                    <p class="text-muted small mb-0">No tags yet. Add your first tag below.</p>
+                }
+            </div>
+            @if (User.IsInRole("Admin") || User.IsInRole("Instructor"))
+            {
+                <div class="card-footer bg-white">
+                    <form method="post" asp-page-handler="AddTag" class="row g-2 align-items-end">
+                        <div class="col-12 col-md">
+                            <label class="form-label small mb-1 text-muted">Tag Name</label>
+                            <input asp-for="NewTag.Name" class="form-control form-control-sm" placeholder="e.g. Algebra, Calculus, Thermodynamics…" required />
+                        </div>
+                        <div class="col-auto align-self-end">
+                            <button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Tag</button>
+                        </div>
+                    </form>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- ══ QUESTION TYPES ════════════════════════════════════════════════════ -->
+    <div class="tab-pane fade @(tab=="qtypes" ? "show active" : "")" id="tab-qtypes">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold py-3 d-flex justify-content-between align-items-center">
+                <span>Question Types</span>
+                <span class="text-muted small fw-normal">Fixed set — rename or toggle active only. Cannot add or delete.</span>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:50px">#</th>
+                            <th style="width:70px">Code</th>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th style="width:90px">Status</th>
+                            @if (User.IsInRole("Admin")) { <th class="text-end" style="width:80px">Actions</th> }
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var qt in Model.QuestionTypes)
+                    {
+                        <tr>
+                            <td class="text-muted small">@qt.Id</td>
+                            <td>
+                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">@qt.Code</span>
+                            </td>
+                            <td class="fw-semibold">@qt.Name</td>
+                            <td class="text-muted small">@qt.Description</td>
+                            <td>
+                                @if (qt.IsActive) { <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span> }
+                                else              { <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Inactive</span> }
+                            </td>
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-secondary"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#editQTypeModal"
+                                            data-id="@qt.Id"
+                                            data-name="@qt.Name"
+                                            data-desc="@(qt.Description ?? "")"
+                                            data-active="@qt.IsActive.ToString().ToLower()"
+                                            title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                </td>
+                            }
+                        </tr>
+                    }
+                    @if (!Model.QuestionTypes.Any())
+                    { <tr><td colspan="6" class="text-center text-muted py-3">No question types found.</td></tr> }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── Edit Question Type Modal (Admin only) ───────────────────────────────── -->
+@if (User.IsInRole("Admin"))
+{
+    <div class="modal fade" id="editQTypeModal" tabindex="-1" aria-labelledby="editQTypeModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" asp-page-handler="UpdateQuestionType" id="editQTypeForm">
+                    <input type="hidden" name="id" id="editQTypeId" />
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editQTypeModalLabel"><i class="bi bi-pencil me-2"></i>Edit Question Type</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label asp-for="EditQType.Name" class="form-label">Display Name <span class="text-danger">*</span></label>
+                            <input asp-for="EditQType.Name" id="editQTypeName" class="form-control" required />
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="EditQType.Description" class="form-label">Description</label>
+                            <textarea asp-for="EditQType.Description" id="editQTypeDesc" class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input asp-for="EditQType.IsActive" id="editQTypeActive" class="form-check-input" type="checkbox" />
+                            <label asp-for="EditQType.IsActive" class="form-check-label">Active</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+<script>
+    // Restore active tab from TempData (server) or localStorage (client)
+    (function () {
+        const serverTab = '@tab';
+        const target    = '#tab-' + serverTab;
+        const el = document.querySelector(`[data-bs-target="${target}"]`);
+        if (el) { bootstrap.Tab.getOrCreateInstance(el).show(); }
+
+        // Persist clicks in localStorage
+        document.querySelectorAll('#masterTabs [data-bs-toggle="tab"]').forEach(btn => {
+            btn.addEventListener('shown.bs.tab', e => {
+                const id = e.target.getAttribute('data-bs-target').replace('#tab-', '');
+                localStorage.setItem('masterTab', id);
+            });
+        });
+    })();
+
+    // Populate Edit Question Type modal from data-* attributes
+    (function () {
+        const modal = document.getElementById('editQTypeModal');
+        if (!modal) return;
+        modal.addEventListener('show.bs.modal', function (e) {
+            const btn    = e.relatedTarget;
+            document.getElementById('editQTypeId').value       = btn.getAttribute('data-id');
+            document.getElementById('editQTypeName').value     = btn.getAttribute('data-name');
+            document.getElementById('editQTypeDesc').value     = btn.getAttribute('data-desc');
+            document.getElementById('editQTypeActive').checked = btn.getAttribute('data-active') === 'true';
+        });
+    })();
+</script>
+}

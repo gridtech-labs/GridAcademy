@@ -1,0 +1,377 @@
+@page "{id:guid?}"
+@model GridAcademy.Pages.Admin.VideoLearning.LearningPaths.BuilderModel
+@using GridAcademy.Data.Entities.VideoLearning
+@{
+    ViewData["Title"] = Model.Detail != null ? $"Builder — {Model.Detail.Title}" : "Learning Path Builder";
+    var detail = Model.Detail;
+}
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a asp-page="Index" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+    <h4 class="mb-0 fw-bold">
+        <i class="bi bi-diagram-3 me-1 text-primary"></i>
+        @(detail != null ? detail.Title : "Learning Path Builder")
+    </h4>
+    @if (detail != null)
+    {
+        <span class="badge bg-secondary ms-1">@detail.NodeCount nodes</span>
+        <a asp-page="Edit" asp-route-id="@detail.Id" class="btn btn-sm btn-outline-primary ms-auto">
+            <i class="bi bi-pencil"></i> Edit Details
+        </a>
+    }
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show py-2">
+        <i class="bi bi-check-circle me-1"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2">
+        <i class="bi bi-exclamation-triangle me-1"></i>@TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (detail == null)
+{
+    <div class="alert alert-info">
+        No learning path loaded. <a asp-page="Edit">Create a new learning path first.</a>
+    </div>
+}
+else
+{
+    <div class="d-flex gap-2 mb-4 flex-wrap">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModuleModal">
+            <i class="bi bi-folder-plus me-1"></i> Add Module
+        </button>
+        <button class="btn btn-outline-success" onclick="openAddContent(null, null)">
+            <i class="bi bi-plus-circle me-1"></i> Add Content (Top Level)
+        </button>
+        <div class="ms-auto text-muted small align-self-center">
+            <i class="bi bi-info-circle me-1"></i>
+            Modules group content. Top-level content has no parent module.
+        </div>
+    </div>
+
+    <div class="mb-3 d-flex gap-2 flex-wrap align-items-center small">
+        <span class="badge bg-secondary">N</span> <span class="me-2">Module</span>
+        <span class="badge bg-warning text-dark">AS</span> <span class="me-2">Assessment</span>
+        <span class="badge bg-primary">VL</span> <span class="me-2">Video</span>
+        <span class="badge bg-info text-dark">SC</span> <span class="me-2">SCORM</span>
+        <span class="badge bg-danger">PD</span> <span class="me-2">PDF</span>
+        <span class="badge bg-success">HT</span> <span>HTML</span>
+    </div>
+
+    @if (!detail.TopLevelNodes.Any())
+    {
+        <div class="card text-center py-5 text-muted" style="border:2px dashed #dee2e6;">
+            <i class="bi bi-diagram-3 fs-1 mb-2 d-block"></i>
+            <p class="mb-1">No content yet.</p>
+            <p class="small">Click <strong>Add Module</strong> to create a module, or <strong>Add Content</strong> for a direct item.</p>
+        </div>
+    }
+    else
+    {
+        <div id="nodeTree">
+            @foreach (var node in detail.TopLevelNodes.OrderBy(n => n.SortOrder))
+            {
+                @if (node.NodeType == LpNodeType.Module)
+                {
+                    <div class="card mb-3 shadow-sm" style="border-left:4px solid #6c757d;">
+                        <div class="card-header bg-light d-flex align-items-center gap-2 py-2">
+                            <span class="badge bg-secondary" title="Module node">N</span>
+                            <i class="bi bi-folder2-open text-warning fs-5"></i>
+                            <strong class="flex-grow-1 fs-6">@node.Title</strong>
+                            <span class="badge bg-light text-dark border me-2">@node.Children.Count items</span>
+                            <button class="btn btn-sm btn-success"
+                                    onclick="openAddContent(@node.Id, '@Html.Raw(node.Title.Replace("'","\\'"))')"
+                                    title="Add content to this module">
+                                <i class="bi bi-plus-circle me-1"></i>Add Content
+                            </button>
+                            <form method="post" asp-page-handler="DeleteNode" class="d-inline ms-1"
+                                  onsubmit="return confirm('Delete module and ALL its content?')">
+                                <input type="hidden" name="NodeId" value="@node.Id" />
+                                <input type="hidden" name="Id" value="@Model.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete module">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                        @if (node.Children.Any())
+                        {
+                            <table class="table table-sm table-hover mb-0">
+                                <tbody>
+                                    @foreach (var child in node.Children.OrderBy(c => c.SortOrder))
+                                    {
+                                        <tr>
+                                            <td class="ps-4" style="width:55px">
+                                                <span class="badge @LpNodeType.BadgeClass(child.NodeType)" title="@LpNodeType.Label(child.NodeType)">@child.NodeType</span>
+                                            </td>
+                                            <td>
+                                                <i class="bi @BuilderModel.NodeIcon(child.NodeType) me-1 text-muted"></i>
+                                                @child.Title
+                                            </td>
+                                            <td class="text-muted small">@LpNodeType.Label(child.NodeType)</td>
+                                            <td style="width:80px">
+                                                @if (child.IsPreview)
+                                                {
+                                                    <span class="badge bg-info text-dark">Preview</span>
+                                                }
+                                            </td>
+                                            <td class="text-end pe-3" style="width:60px">
+                                                <form method="post" asp-page-handler="DeleteNode" class="d-inline"
+                                                      onsubmit="return confirm('Remove this content from the module?')">
+                                                    <input type="hidden" name="NodeId" value="@child.Id" />
+                                                    <input type="hidden" name="Id" value="@Model.Id" />
+                                                    <button type="submit" class="btn btn-xs btn-outline-danger" title="Remove">
+                                                        <i class="bi bi-x-lg"></i>
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <div class="card-body py-2 ps-4 text-muted small fst-italic">
+                                No content in this module. Click "Add Content" above.
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="card mb-2 shadow-sm" style="border-left:4px solid #0d6efd;">
+                        <div class="card-body d-flex align-items-center gap-2 py-2">
+                            <span class="badge @LpNodeType.BadgeClass(node.NodeType)" title="@LpNodeType.Label(node.NodeType)">@node.NodeType</span>
+                            <i class="bi @BuilderModel.NodeIcon(node.NodeType) me-1 text-muted fs-5"></i>
+                            <span class="flex-grow-1">@node.Title</span>
+                            <span class="text-muted small">@LpNodeType.Label(node.NodeType)</span>
+                            @if (node.IsPreview)
+                            {
+                                <span class="badge bg-info text-dark ms-2">Preview</span>
+                            }
+                            <form method="post" asp-page-handler="DeleteNode" class="d-inline ms-2"
+                                  onsubmit="return confirm('Remove this content from the learning path?')">
+                                <input type="hidden" name="NodeId" value="@node.Id" />
+                                <input type="hidden" name="Id" value="@Model.Id" />
+                                <button type="submit" class="btn btn-xs btn-outline-danger" title="Remove">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    }
+}
+
+@* ═══════════ ADD MODULE MODAL ═══════════ *@
+<div class="modal fade" id="addModuleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" asp-page-handler="AddModule">
+            <input type="hidden" name="Id" value="@Model.Id" />
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-folder-plus me-1"></i> Add Module</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label fw-semibold">Module Name <span class="text-danger">*</span></label>
+                    <input type="text" name="ModuleTitle" class="form-control form-control-lg" required
+                           placeholder="e.g. Physics, Chapter 1, Introduction..." />
+                    <div class="form-text mt-2">
+                        Creates a module node (type <code>N</code>). Add content to it after creation.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg me-1"></i> Add Module
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@* ═══════════ ADD CONTENT MODAL ═══════════ *@
+<div class="modal fade" id="addContentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <form method="post" asp-page-handler="AddContent" id="addContentForm">
+            <input type="hidden" name="Id" value="@Model.Id" />
+            <input type="hidden" name="ParentNodeId" id="hidParentNodeId" value="" />
+            <input type="hidden" name="ContentIds"   id="hidContentIds"   value="" />
+            <input type="hidden" name="NodeType"     id="hidNodeType"     value="" />
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle me-1"></i> Add Content</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+
+                    <div id="targetModuleInfo" class="alert alert-secondary py-2 small mb-3 d-none">
+                        <i class="bi bi-folder2-open me-1 text-warning"></i>
+                        Adding under module: <strong id="targetModuleName"></strong>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">1. Select Content Type <span class="text-danger">*</span></label>
+                        <select id="selNodeType" class="form-select form-select-lg"
+                                onchange="onContentTypeChange(this.value)">
+                            <option value="">— Choose type —</option>
+                            <option value="AS">🧪 Assessment / Test</option>
+                            <option value="VL">🎬 Video</option>
+                            <option value="SC">📦 SCORM</option>
+                            <option value="PD">📄 PDF</option>
+                            <option value="HT">🌐 HTML</option>
+                        </select>
+                    </div>
+
+                    <div id="contentPickerSection" style="display:none">
+                        <label class="form-label fw-semibold">
+                            2. Select Content <span class="text-danger">*</span>
+                            <span id="multiSelectHint" class="text-muted fw-normal small ms-1" style="display:none">
+                                (hold Ctrl / ⌘ to select multiple)
+                            </span>
+                        </label>
+                        <div id="loadingSpinner" class="text-muted small mb-1" style="display:none">
+                            <span class="spinner-border spinner-border-sm me-1"></span> Loading content...
+                        </div>
+                        <select id="selContentIds" class="form-select" size="8"
+                                onchange="onContentSelected()">
+                        </select>
+                        <div id="emptyHint" class="text-muted small mt-1" style="display:none">
+                            No content available for this type.
+                        </div>
+                    </div>
+
+                    <div id="previewSection" class="mt-3" style="display:none">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox"
+                                   name="IsPreview" id="chkIsPreview" value="true" />
+                            <label class="form-check-label" for="chkIsPreview">
+                                Mark as <strong>free preview</strong> (visible without enrollment)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="selectionSummary" class="alert alert-success py-2 mt-3 small" style="display:none">
+                        <i class="bi bi-check-circle me-1"></i>
+                        <strong id="selectionCount">0</strong> item(s) selected
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success" id="btnAddContent" disabled>
+                        <i class="bi bi-plus-lg me-1"></i> Add to Learning Path
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .btn-xs { padding: 0.1rem 0.35rem; font-size: 0.75rem; line-height: 1.4; }
+    #nodeTree .card:hover { box-shadow: 0 .25rem .75rem rgba(0,0,0,.1) !important; }
+</style>
+
+<script>
+    let _cpCache = {};
+
+    function openAddContent(moduleNodeId, moduleName) {
+        document.getElementById('hidParentNodeId').value = moduleNodeId ?? '';
+        const banner = document.getElementById('targetModuleInfo');
+        if (moduleNodeId) {
+            banner.classList.remove('d-none');
+            document.getElementById('targetModuleName').textContent = moduleName || 'selected module';
+        } else {
+            banner.classList.add('d-none');
+        }
+        document.getElementById('selNodeType').value = '';
+        document.getElementById('hidNodeType').value = '';
+        document.getElementById('hidContentIds').value = '';
+        document.getElementById('contentPickerSection').style.display = 'none';
+        document.getElementById('previewSection').style.display = 'none';
+        document.getElementById('selectionSummary').style.display = 'none';
+        document.getElementById('btnAddContent').disabled = true;
+        new bootstrap.Modal(document.getElementById('addContentModal')).show();
+    }
+
+    function onContentTypeChange(nodeType) {
+        document.getElementById('hidNodeType').value = nodeType;
+        document.getElementById('hidContentIds').value = '';
+        document.getElementById('selectionSummary').style.display = 'none';
+        document.getElementById('btnAddContent').disabled = true;
+        document.getElementById('emptyHint').style.display = 'none';
+        const section = document.getElementById('contentPickerSection');
+        section.style.display = nodeType ? 'block' : 'none';
+        document.getElementById('previewSection').style.display = nodeType ? 'block' : 'none';
+        if (!nodeType) return;
+        const sel  = document.getElementById('selContentIds');
+        const hint = document.getElementById('multiSelectHint');
+        sel.multiple = (nodeType === 'AS');
+        hint.style.display = (nodeType === 'AS') ? 'inline' : 'none';
+        loadContent(nodeType);
+    }
+
+    async function loadContent(nodeType) {
+        const sel     = document.getElementById('selContentIds');
+        const spinner = document.getElementById('loadingSpinner');
+        const empty   = document.getElementById('emptyHint');
+        const urlMap  = {
+            'AS': '/api/content-picker/assessments',
+            'VL': '/api/content-picker/videos',
+            'SC': '/api/content-picker/content-files?fileType=0',
+            'PD': '/api/content-picker/content-files?fileType=2',
+            'HT': '/api/content-picker/content-files?fileType=1'
+        };
+        const url = urlMap[nodeType];
+        if (!url) return;
+        if (_cpCache[url]) { populateList(sel, _cpCache[url], empty); return; }
+        spinner.style.display = 'block';
+        sel.innerHTML = '';
+        try {
+            const resp = await fetch(url, { credentials: 'same-origin' });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const json = await resp.json();
+            // ApiResponse<T> wraps array under .data property
+            const items = Array.isArray(json) ? json : (json.data ?? []);
+            _cpCache[url] = items;
+            populateList(sel, items, empty);
+        } catch (err) {
+            sel.innerHTML = '<option disabled>Error: ' + err.message + '</option>';
+        } finally {
+            spinner.style.display = 'none';
+        }
+    }
+
+    function populateList(sel, items, emptyHint) {
+        sel.innerHTML = '';
+        if (!items || !items.length) { emptyHint.style.display = 'block'; return; }
+        emptyHint.style.display = 'none';
+        items.forEach(function(item) {
+            var opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = item.title + (item.subTitle ? '  [' + item.subTitle + ']' : '');
+            sel.appendChild(opt);
+        });
+    }
+
+    function onContentSelected() {
+        const sel  = document.getElementById('selContentIds');
+        const ids  = Array.from(sel.selectedOptions).map(function(o) { return o.value; });
+        document.getElementById('hidContentIds').value = ids.join(',');
+        document.getElementById('selectionSummary').style.display = ids.length > 0 ? 'block' : 'none';
+        document.getElementById('selectionCount').textContent = ids.length;
+        document.getElementById('btnAddContent').disabled = ids.length === 0;
+    }
+</script>

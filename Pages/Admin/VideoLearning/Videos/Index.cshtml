@@ -1,0 +1,157 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Videos";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0"><i class="bi bi-camera-video me-2 text-primary"></i>Videos</h4>
+    <a asp-page="Edit" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i> Add Video
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="mb-3">
+    <form method="get" class="row g-2 align-items-center">
+        <div class="col-auto">
+            <select name="domainId" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">All Domains</option>
+                @foreach (var d in Model.Domains)
+                {
+                    <option value="@d.Id" selected="@(Model.FilterRequest.DomainId == d.Id)">@d.Name</option>
+                }
+            </select>
+        </div>
+        <div class="col-auto">
+            <select name="categoryId" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">All Categories</option>
+                @foreach (var c in Model.Categories)
+                {
+                    <option value="@c.Id" selected="@(Model.FilterRequest.CategoryId == c.Id)">@c.Name</option>
+                }
+            </select>
+        </div>
+        <div class="col-auto">
+            <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">All Statuses</option>
+                @foreach (VideoStatus s in Enum.GetValues<VideoStatus>())
+                {
+                    <option value="@((int)s)" selected="@(Model.FilterRequest.Status == s)">@s</option>
+                }
+            </select>
+        </div>
+        <div class="col">
+            <div class="input-group input-group-sm">
+                <input type="text" name="search" value="@Model.FilterRequest.Search" class="form-control" placeholder="Search title…" />
+                <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Title</th>
+                    <th>Domain / Category</th>
+                    <th class="text-center">Duration</th>
+                    <th class="text-center">Free Preview</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var v in Model.Videos.Items)
+                {
+                    <tr>
+                        <td>
+                            @if (!string.IsNullOrEmpty(v.ThumbnailPath))
+                            {
+                                <img src="@v.ThumbnailPath" class="me-2 rounded" style="width:48px;height:32px;object-fit:cover;" />
+                            }
+                            <span class="fw-semibold">@v.Title</span>
+                        </td>
+                        <td class="small text-muted">@v.DomainName / @v.CategoryName</td>
+                        <td class="text-center text-muted small">
+                            @{ var dur = TimeSpan.FromSeconds(v.DurationSeconds); }
+                            @(v.DurationSeconds > 0 ? $"{(int)dur.TotalMinutes}:{dur.Seconds:D2}" : "—")
+                        </td>
+                        <td class="text-center">
+                            @if (v.IsFreePreview)
+                            {
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">Free</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary-subtle text-secondary border">Paid</span>
+                            }
+                        </td>
+                        <td class="text-center">
+                            @{
+                                var (bg, txt) = v.Status switch
+                                {
+                                    VideoStatus.Published => ("bg-success", "Published"),
+                                    VideoStatus.Archived  => ("bg-warning text-dark", "Archived"),
+                                    _                     => ("bg-secondary", "Draft")
+                                };
+                            }
+                            <span class="badge @bg">@txt</span>
+                        </td>
+                        <td class="text-center">
+                            <a asp-page="Edit" asp-route-id="@v.Id" class="btn btn-outline-primary btn-sm" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            @if (v.Status == VideoStatus.Draft)
+                            {
+                                <form method="post" asp-page-handler="Publish" asp-route-id="@v.Id" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-outline-success btn-sm" title="Publish"><i class="bi bi-check-circle"></i></button>
+                                </form>
+                            }
+                            else if (v.Status == VideoStatus.Published)
+                            {
+                                <form method="post" asp-page-handler="Unpublish" asp-route-id="@v.Id" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-outline-warning btn-sm" title="Unpublish"><i class="bi bi-pause-circle"></i></button>
+                                </form>
+                            }
+                            <form method="post" asp-page-handler="Delete" asp-route-id="@v.Id" class="d-inline"
+                                  onsubmit="return confirm('Delete video \'@v.Title\'?')">
+                                @Html.AntiForgeryToken()
+                                <button class="btn btn-outline-danger btn-sm" title="Delete"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Videos.Items.Any())
+                {
+                    <tr><td colspan="6" class="text-center text-muted py-4">No videos found.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (Model.Videos.TotalCount > Model.Videos.PageSize)
+    {
+        <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+            <small class="text-muted">Showing @Model.Videos.Items.Count of @Model.Videos.TotalCount</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    @for (int i = 1; i <= (int)Math.Ceiling((double)Model.Videos.TotalCount / Model.Videos.PageSize); i++)
+                    {
+                        <li class="page-item @(i == Model.FilterRequest.Page ? "active" : "")">
+                            <a class="page-link" asp-page="Index"
+                               asp-route-page="@i"
+                               asp-route-domainId="@Model.FilterRequest.DomainId"
+                               asp-route-categoryId="@Model.FilterRequest.CategoryId"
+                               asp-route-status="@Model.FilterRequest.Status"
+                               asp-route-search="@Model.FilterRequest.Search">@i</a>
+                        </li>
+                    }
+                </ul>
+            </nav>
+        </div>
+    }
+</div>

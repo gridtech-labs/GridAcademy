@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - GridAcademy Admin</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/admin.css" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+<div class="d-flex" id="wrapper">
+
+    <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
+    <nav id="sidebar" class="bg-dark text-white d-flex flex-column">
+        <div class="p-3 border-bottom border-secondary">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-grid-3x3-gap-fill text-primary fs-5"></i>
+                <div>
+                    <div class="fw-bold lh-1">GridAcademy</div>
+                    <small class="text-muted" style="font-size:0.7rem">Admin Panel</small>
+                </div>
+            </div>
+        </div>
+
+        @if (User.IsInRole("Admin") || User.IsInRole("Instructor"))
+        {
+        <ul class="nav flex-column py-2">
+            <!-- Dashboard -->
+            <li class="nav-item">
+                <a asp-page="/Admin/Index"
+                   class="nav-link text-white @(ViewContext.RouteData.Values["page"]?.ToString() == "/Admin/Index" ? "active" : "")">
+                    <i class="bi bi-speedometer2 me-2"></i>Dashboard
+                </a>
+            </li>
+
+            @{
+                var inUserMgmt = Context.Request.Path.StartsWithSegments("/Admin/Users") ||
+                                 Context.Request.Path.StartsWithSegments("/Admin/UserMgmt");
+                var inContent  = Context.Request.Path.StartsWithSegments("/Admin/Content") ||
+                                 Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Videos") ||
+                                 Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/ContentFiles") ||
+                                 Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Categories");
+                var inExams    = Context.Request.Path.StartsWithSegments("/Admin/Exams");
+                var inProgram  = Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Domains") ||
+                                 Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Programs") ||
+                                 Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Coupons") ||
+                                 Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Channels") ||
+                                 Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Enrollments");
+            }
+
+            <!-- ── USER MANAGEMENT ─────────────────────── -->
+            @if (User.IsInRole("Admin"))
+            {
+            <li class="nav-item mt-2">
+                <a href="#userMgmtMenu" data-bs-toggle="collapse"
+                   class="nav-link text-white d-flex justify-content-between align-items-center @(inUserMgmt ? "" : "collapsed")"
+                   aria-expanded="@(inUserMgmt ? "true" : "false")">
+                    <span><i class="bi bi-people me-2"></i>User Management</span>
+                    <i class="bi bi-chevron-down small"></i>
+                </a>
+                <div class="collapse @(inUserMgmt ? "show" : "")" id="userMgmtMenu">
+                    <ul class="nav flex-column ms-3 mt-1">
+                        <li class="nav-item">
+                            <a asp-page="/Admin/Users/Index"
+                               class="nav-link py-1 @(Context.Request.Path.StartsWithSegments("/Admin/Users") ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-person-lines-fill me-2"></i>Users
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <span class="nav-link py-1 text-white-50" style="cursor:default">
+                                <i class="bi bi-shield me-2"></i>System Roles
+                                <span class="badge bg-secondary ms-1" style="font-size:.65rem">soon</span>
+                            </span>
+                        </li>
+                        <li class="nav-item">
+                            <span class="nav-link py-1 text-white-50" style="cursor:default">
+                                <i class="bi bi-briefcase me-2"></i>Job Roles
+                                <span class="badge bg-secondary ms-1" style="font-size:.65rem">soon</span>
+                            </span>
+                        </li>
+                        <li class="nav-item">
+                            <span class="nav-link py-1 text-white-50" style="cursor:default">
+                                <i class="bi bi-diagram-3 me-2"></i>Groups
+                                <span class="badge bg-secondary ms-1" style="font-size:.65rem">soon</span>
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+            }
+
+            <!-- ── CONTENT MANAGEMENT ──────────────────── -->
+            <li class="nav-item mt-1">
+                <a href="#contentMenu" data-bs-toggle="collapse"
+                   class="nav-link text-white d-flex justify-content-between align-items-center @(inContent ? "" : "collapsed")"
+                   aria-expanded="@(inContent ? "true" : "false")">
+                    <span><i class="bi bi-layers me-2"></i>Content Management</span>
+                    <i class="bi bi-chevron-down small"></i>
+                </a>
+                <div class="collapse @(inContent ? "show" : "")" id="contentMenu">
+                    <ul class="nav flex-column ms-3 mt-1">
+                        @{
+                            var inMasters   = Context.Request.Path.StartsWithSegments("/Admin/Content/Masters");
+                            var inQuestions = Context.Request.Path.StartsWithSegments("/Admin/Content/Questions");
+                            var inTests     = Context.Request.Path.StartsWithSegments("/Admin/Content/Tests");
+                            var inImport    = Context.Request.Path.StartsWithSegments("/Admin/Content/Import");
+                            var inVideos    = Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Videos");
+                            var inCFiles    = Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/ContentFiles");
+                            var inCats      = Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Categories");
+                        }
+                        <li class="nav-item">
+                            <a asp-page="/Admin/Content/Masters/Index"
+                               class="nav-link py-1 @(inMasters ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-collection me-2"></i>Masters
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a asp-page="/Admin/VideoLearning/Categories/Index"
+                               class="nav-link py-1 @(inCats ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-folder me-2"></i>Categories
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a asp-page="/Admin/VideoLearning/Videos/Index"
+                               class="nav-link py-1 @(inVideos ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-camera-video me-2"></i>Videos
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a asp-page="/Admin/VideoLearning/ContentFiles/Index"
+                               class="nav-link py-1 @(inCFiles ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-file-earmark-richtext me-2"></i>Content Files
+                                <small class="text-white-50 ms-1">SCORM · HTML · PDF</small>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a asp-page="/Admin/Content/Questions/Index"
+                               class="nav-link py-1 @(inQuestions ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-patch-question me-2"></i>Questions
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a asp-page="/Admin/Content/Tests/Index"
+                               class="nav-link py-1 @(inTests ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-journal-check me-2"></i>Tests / Assessments
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a asp-page="/Admin/Content/Import/Index"
+                               class="nav-link py-1 @(inImport ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-cloud-upload me-2"></i>Import
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
+            <!-- ── EXAMS ───────────────────────────────── -->
+            <li class="nav-item mt-1">
+                <a href="#examsMenu" data-bs-toggle="collapse"
+                   class="nav-link text-white d-flex justify-content-between align-items-center @(inExams ? "" : "collapsed")"
+                   aria-expanded="@(inExams ? "true" : "false")">
+                    <span><i class="bi bi-mortarboard me-2"></i>Exams</span>
+                    <i class="bi bi-chevron-down small"></i>
+                </a>
+                <div class="collapse @(inExams ? "show" : "")" id="examsMenu">
+                    <ul class="nav flex-column ms-3 mt-1">
+                        <li class="nav-item">
+                            <a asp-page="/Admin/Exams/Index"
+                               class="nav-link py-1 @(inExams ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-mortarboard me-2"></i>All Exams
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a asp-page="/Admin/Exams/Edit"
+                               class="nav-link py-1 text-white-50">
+                                <i class="bi bi-plus-circle me-2"></i>New Exam
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
+            <!-- ── PROGRAM MANAGEMENT ─────────────────── -->
+            <li class="nav-item mt-1">
+                <a href="#programMenu" data-bs-toggle="collapse"
+                   class="nav-link text-white d-flex justify-content-between align-items-center @(inProgram ? "" : "collapsed")"
+                   aria-expanded="@(inProgram ? "true" : "false")">
+                    <span><i class="bi bi-box-seam me-2"></i>Program Management</span>
+                    <i class="bi bi-chevron-down small"></i>
+                </a>
+                <div class="collapse @(inProgram ? "show" : "")" id="programMenu">
+                    <ul class="nav flex-column ms-3 mt-1">
+                        @{
+                            var inDomains  = Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Domains");
+
+                            var inPrograms = Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Programs");
+                            var inCoupons  = Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Coupons");
+                            var inChans    = Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Channels");
+                            var inEnrolls  = Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Enrollments");
+                        }
+                        <li class="nav-item">
+                            <a asp-page="/Admin/VideoLearning/Domains/Index"
+                               class="nav-link py-1 @(inDomains ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-globe me-2"></i>Domains
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a asp-page="/Admin/VideoLearning/Programs/Index"
+                               class="nav-link py-1 @(inPrograms ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-box-seam me-2"></i>Programs
+                            </a>
+                        </li>
+                        @if (User.IsInRole("Admin"))
+                        {
+                            <li class="nav-item">
+                                <a asp-page="/Admin/VideoLearning/Coupons/Index"
+                                   class="nav-link py-1 @(inCoupons ? "text-white active" : "text-white-50")">
+                                    <i class="bi bi-ticket-perforated me-2"></i>Coupons / Offers
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a asp-page="/Admin/VideoLearning/Channels/Index"
+                                   class="nav-link py-1 @(inChans ? "text-white active" : "text-white-50")">
+                                    <i class="bi bi-share me-2"></i>Sales Channels
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a asp-page="/Admin/VideoLearning/Enrollments/Index"
+                                   class="nav-link py-1 @(inEnrolls ? "text-white active" : "text-white-50")">
+                                    <i class="bi bi-person-check me-2"></i>Enrollments
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </li>
+        </ul>
+        }
+        @if (!User.IsInRole("Admin") && !User.IsInRole("Instructor"))
+        {
+        <ul class="nav flex-column py-2">
+            <li class="nav-item">
+                <a asp-page="/Admin/Index" class="nav-link text-white">
+                    <i class="bi bi-speedometer2 me-2"></i>Dashboard
+                </a>
+            </li>
+        </ul>
+        }
+
+        <!-- Sidebar footer -->
+        <div class="p-3 border-top border-secondary">
+            <small class="text-muted" style="font-size:0.7rem">GridAcademy LMS v1.0</small>
+        </div>
+    </nav>
+
+    <!-- ── Main content ─────────────────────────────────────────────────── -->
+    <div id="page-content-wrapper" class="flex-grow-1">
+
+        <!-- Top navbar -->
+        <nav class="navbar navbar-light bg-white border-bottom px-3 py-2">
+            <button class="btn btn-sm btn-outline-secondary" id="sidebarToggle" title="Toggle sidebar">
+                <i class="bi bi-list"></i>
+            </button>
+
+            <span class="ms-3 text-muted small">@ViewData["Title"]</span>
+
+            <div class="ms-auto d-flex align-items-center gap-2">
+                @{
+                    var role = User.FindFirst(ClaimTypes.Role)?.Value ?? "";
+                    var badgeCss = role switch
+                    {
+                        "Admin"      => "danger",
+                        "Instructor" => "warning text-dark",
+                        _            => "secondary"
+                    };
+                }
+                <span class="badge bg-@badgeCss">@role</span>
+                <span class="text-muted small d-none d-md-inline">@User.Identity?.Name</span>
+
+                <form method="post" asp-page="/Account/Logout" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span class="d-none d-md-inline ms-1">Logout</span>
+                    </button>
+                </form>
+            </div>
+        </nav>
+
+        <!-- Flash messages -->
+        <div class="px-4 pt-3">
+            @if (TempData["Success"] is string success)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i>@success
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+            @if (TempData["Error"] is string error)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>@error
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+        </div>
+
+        <!-- Page body -->
+        <div class="container-fluid px-4 py-3">
+            @RenderBody()
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap 5.3.2 JS — local copy (no CDN dependency) -->
+<script src="~/lib/bootstrap/js/bootstrap.bundle.5.3.2.min.js" asp-append-version="true"></script>
+<script>
+    if (!window.bootstrap) {
+        document.write('<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"><\/script>');
+    }
+</script>
+<script>
+    document.getElementById('sidebarToggle')?.addEventListener('click', function () {
+        document.getElementById('wrapper').classList.toggle('sidebar-collapsed');
+    });
+</script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
