@@ -15,8 +15,26 @@ public static class DbSeeder
 {
     public static async Task SeedAsync(AppDbContext db, ILogger logger)
     {
-        // Apply any pending migrations automatically
-        await db.Database.MigrateAsync();
+        // Apply any pending migrations automatically.
+        // On Railway (and other cloud platforms) the database container may not be
+        // fully ready when the app starts. Retry with exponential back-off.
+        const int maxRetries = 10;
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                await db.Database.MigrateAsync();
+                break; // success
+            }
+            catch (Exception ex) when (attempt < maxRetries)
+            {
+                var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt)); // 2s, 4s, 8s …
+                logger.LogWarning(
+                    "Database not ready (attempt {Attempt}/{Max}): {Message}. Retrying in {Delay}s…",
+                    attempt, maxRetries, ex.Message, delay.TotalSeconds);
+                await Task.Delay(delay);
+            }
+        }
 
         // ── Users ─────────────────────────────────────────────────────────
         const string adminEmail      = "admin@gridacademy.com";
