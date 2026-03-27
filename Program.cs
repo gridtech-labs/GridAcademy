@@ -38,15 +38,26 @@ static string BuildConnectionString(IConfiguration cfg)
     var url = Environment.GetEnvironmentVariable("DATABASE_URL");
     if (!string.IsNullOrEmpty(url))
     {
-        // Parse  postgresql://user:pass@host:port/dbname
+        // Railway provides DATABASE_URL as: postgresql://user:pass@host:port/dbname
+        // Internal Railway connections (.railway.internal) don't need SSL.
+        // External connections need SSL Mode=Require.
+        // Using Prefer covers both cases automatically.
         var uri      = new Uri(url);
         var userInfo = uri.UserInfo.Split(':', 2);
         var user     = Uri.UnescapeDataString(userInfo[0]);
         var pass     = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
         var db       = uri.AbsolutePath.TrimStart('/');
-        return $"Host={uri.Host};Port={uri.Port};Database={db};" +
+        var host     = uri.Host;
+        var port     = uri.Port > 0 ? uri.Port : 5432;
+
+        // For Railway internal hostnames, disable SSL; for external, prefer SSL
+        var sslMode = host.EndsWith(".railway.internal") ? "Disable" : "Prefer";
+
+        return $"Host={host};Port={port};Database={db};" +
                $"Username={user};Password={pass};" +
-               "SSL Mode=Require;Trust Server Certificate=true;";
+               $"SSL Mode={sslMode};Trust Server Certificate=true;" +
+               "Pooling=true;Minimum Pool Size=1;Maximum Pool Size=20;" +
+               "Connection Idle Lifetime=300;";
     }
     return cfg.GetConnectionString("DefaultConnection")
            ?? throw new InvalidOperationException("No database connection string found.");
