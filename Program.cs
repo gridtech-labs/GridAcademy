@@ -17,9 +17,10 @@ var builder = WebApplication.CreateBuilder(args);
 var config  = builder.Configuration;
 
 // ── Port binding ─────────────────────────────────────────────────────────────
-// Railway sets PORT env var. We configure Kestrel directly so it co-exists
-// with the MaxRequestBodySize limit below without conflict.
-var listenPort = int.Parse(Environment.GetEnvironmentVariable("PORT") ?? "8080");
+// Railway injects PORT at runtime. Use TryParse so an empty/missing value
+// never throws — default to 8080 which matches EXPOSE in the Dockerfile.
+var listenPort = int.TryParse(Environment.GetEnvironmentVariable("PORT"), out var p) ? p : 8080;
+Console.WriteLine($"[Startup] Binding to port {listenPort}");
 
 // Increase request size limit for video uploads (2 GB)
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options => {
@@ -27,7 +28,7 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(optio
 });
 builder.WebHost.ConfigureKestrel(serverOptions => {
     serverOptions.Limits.MaxRequestBodySize = 2L * 1024 * 1024 * 1024;
-    serverOptions.ListenAnyIP(listenPort); // ← single place to bind
+    serverOptions.ListenAnyIP(listenPort);
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -65,7 +66,17 @@ static string BuildConnectionString(IConfiguration cfg)
            ?? throw new InvalidOperationException("No database connection string found.");
 }
 
-var connectionString = BuildConnectionString(config);
+string connectionString;
+try
+{
+    connectionString = BuildConnectionString(config);
+    Console.WriteLine($"[Startup] DB connection string built OK (host masked).");
+}
+catch (Exception ex)
+{
+    Console.Error.WriteLine($"[Startup] FATAL: Could not build DB connection string: {ex.Message}");
+    throw;
+}
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
