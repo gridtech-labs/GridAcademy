@@ -38,13 +38,16 @@ builder.WebHost.ConfigureKestrel(serverOptions => {
 // ═══════════════════════════════════════════════════════════════════════════
 static string BuildConnectionString(IConfiguration cfg)
 {
-    var url = Environment.GetEnvironmentVariable("DATABASE_URL");
+    // Railway provides several DB URL variables. Priority:
+    //   1. DATABASE_PUBLIC_URL  – public proxy, ALWAYS DNS-resolvable (preferred for Railway)
+    //   2. DATABASE_URL         – may be private (.railway.internal), fails without private networking
+    //   3. PGHOST/PGPORT/...    – individual Postgres variables (Railway also provides these)
+    //   4. appsettings          – local dev fallback
+    var url = Environment.GetEnvironmentVariable("DATABASE_PUBLIC_URL")
+           ?? Environment.GetEnvironmentVariable("DATABASE_URL");
+
     if (!string.IsNullOrEmpty(url))
     {
-        // Railway provides DATABASE_URL as: postgresql://user:pass@host:port/dbname
-        // Internal Railway connections (.railway.internal) don't need SSL.
-        // External connections need SSL Mode=Require.
-        // Using Prefer covers both cases automatically.
         var uri      = new Uri(url);
         var userInfo = uri.UserInfo.Split(':', 2);
         var user     = Uri.UnescapeDataString(userInfo[0]);
@@ -52,18 +55,40 @@ static string BuildConnectionString(IConfiguration cfg)
         var db       = uri.AbsolutePath.TrimStart('/');
         var host     = uri.Host;
         var port     = uri.Port > 0 ? uri.Port : 5432;
-
-        // For Railway internal hostnames, disable SSL; for external, prefer SSL
-        var sslMode = host.EndsWith(".railway.internal") ? "Disable" : "Prefer";
-
+        var sslMode  = host.EndsWith(".railway.internal") ? "Disable" : "Prefer";
+        Console.WriteLine($"[Startup] DB host={host}:{port} ssl={sslMode}");
         return $"Host={host};Port={port};Database={db};" +
                $"Username={user};Password={pass};" +
                $"SSL Mode={sslMode};Trust Server Certificate=true;" +
                "Pooling=true;Minimum Pool Size=1;Maximum Pool Size=20;" +
                "Connection Idle Lifetime=300;";
     }
-    return cfg.GetConnectionString("DefaultConnection")
-           ?? throw new InvalidOperationException("No database connection string found.");
+
+    // Fallback: individual PG* env vars (also provided by Railway Postgres plugin)
+    var pgHost = Environment.GetEnvironmentVariable("PGHOST");
+    var pgPort = Environment.GetEnvironmentVariable("PGPORT") ?? "5432";
+    var pgUser = Environment.GetEnvironmentVariable("PGUSER");
+    var pgPass = Environment.GetEnvironmentVariable("PGPASSWORD");
+    var pgDb   = Environment.GetEnvironmentVariable("PGDATABASE");
+    if (!string.IsNullOrEmpty(pgHost) && !string.IsNullOrEmpty(pgUser))
+    {
+        Console.WriteLine($"[Startup] DB host={pgHost}:{pgPort} (from PG* vars)");
+        return $"Host={pgHost};Port={pgPort};Database={pgDb ?? "railway"};" +
+               $"Username={pgUser};Password={pgPass ?? ""};" +
+               "SSL Mode=Prefer;Trust Server Certificate=true;" +
+               "Pooling=true;Minimum Pool Size=1;Maximum Pool Size=20;";
+    }
+
+    // Local dev: appsettings.json DefaultConnection
+    var localCs = cfg.GetConnectionString("DefaultConnection");
+    if (!string.IsNullOrEmpty(localCs))
+    {
+        Console.WriteLine("[Startup] DB: using appsettings DefaultConnection (local dev)");
+        return localCs;
+    }
+
+    throw new InvalidOperationException(
+        "No DB connection found. Set DATABASE_PUBLIC_URL in Railway Variables.");
 }
 
 string connectionString;
