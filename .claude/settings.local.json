@@ -217,7 +217,10 @@
       "Bash(cmd /c \"where git\")",
       "Bash(cmd /c \"echo %PATH%\")",
       "Bash(powershell -NoProfile -Command \":*)",
-      "Bash(powershell -NoProfile -Command \"cd ''D:\\\\Bkp\\\\GRID\\\\GridAcademy''; git add .gitattributes; git commit -m ''Initial commit: GridAcademy API + Admin Panel with Railway deployment config''; git log --oneline -3\")"
+      "Bash(powershell -NoProfile -Command \"cd ''D:\\\\Bkp\\\\GRID\\\\GridAcademy''; git add .gitattributes; git commit -m ''Initial commit: GridAcademy API + Admin Panel with Railway deployment config''; git log --oneline -3\")",
+      "Bash(powershell -NoProfile -Command \"cd ''D:\\\\Bkp\\\\GRID\\\\GridAcademy''; git remote -v; git config user.name; git config user.email\")",
+      "Bash(powershell -NoProfile -Command \"cmdkey /list | Select-String ''github''\")",
+      "Bash(powershell -NoProfile -Command \"cmdkey /delete:''git:https://github.com''; Write-Output ''Removed cached credential''\")"
     ]
   }
 }
