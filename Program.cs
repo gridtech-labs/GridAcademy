@@ -286,13 +286,28 @@ builder.Services.AddCors(options =>
 // ═══════════════════════════════════════════════════════════════════════════
 var app = builder.Build();
 
-// ── Migrate DB + Seed on startup ───────────────────────────────────────────
-using (var scope = app.Services.CreateScope())
+// ── Migrate DB + Seed — runs in background so HTTP server starts immediately ──
+// Railway's health check probes GET / within ~60s. If migration blocks startup
+// the health check times out and Railway reports "connection refused".
+// Running migration in a background task lets Kestrel bind first.
+_ = Task.Run(async () =>
 {
-    var db     = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    await DbSeeder.SeedAsync(db, logger);
-}
+    await Task.Delay(TimeSpan.FromSeconds(3)); // let Kestrel bind
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var db     = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        Console.WriteLine("[Migration] Starting DB migration in background…");
+        await DbSeeder.SeedAsync(db, logger);
+        Console.WriteLine("[Migration] DB migration + seed completed successfully.");
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"[Migration] FAILED: {ex.Message}");
+        Console.Error.WriteLine(ex.ToString());
+    }
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MIDDLEWARE PIPELINE  (order matters!)

@@ -18,7 +18,13 @@ public static class DbSeeder
         // Apply any pending migrations automatically.
         // On Railway (and other cloud platforms) the database container may not be
         // fully ready when the app starts. Retry with exponential back-off.
-        const int maxRetries = 10;
+        // Fixed 5-second delay between retries (max 20 attempts = ~100s total).
+        // Exponential back-off caused Railway's health check to time out when
+        // the app blocked startup waiting 128 s between retries.
+        // Migration now runs in background (Program.cs) so the HTTP server is
+        // already listening; longer retries are fine but 5 s is sufficient.
+        const int maxRetries  = 20;
+        const int retryDelaySec = 5;
         for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
             try
@@ -28,11 +34,10 @@ public static class DbSeeder
             }
             catch (Exception ex) when (attempt < maxRetries)
             {
-                var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt)); // 2s, 4s, 8s …
                 logger.LogWarning(
                     "Database not ready (attempt {Attempt}/{Max}): {Message}. Retrying in {Delay}s…",
-                    attempt, maxRetries, ex.Message, delay.TotalSeconds);
-                await Task.Delay(delay);
+                    attempt, maxRetries, ex.Message, retryDelaySec);
+                await Task.Delay(TimeSpan.FromSeconds(retryDelaySec));
             }
         }
 
