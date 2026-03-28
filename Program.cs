@@ -163,19 +163,70 @@ builder.Services.AddAuthorization();
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 3. HANGFIRE — Background jobs (PostgreSQL storage)
+//    Hangfire.PostgreSql opens a synchronous connection in its constructor —
+//    if it crashes the whole app crashes before HTTP binds.
+//    Fix: use DATABASE_PUBLIC_URL (public proxy, always DNS-resolvable) and
+//    fall back to InMemory storage so the app always starts.
 // ═══════════════════════════════════════════════════════════════════════════
-builder.Services.AddHangfire(cfg => cfg
-    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-    .UseSimpleAssemblyNameTypeSerializer()
-    .UseRecommendedSerializerSettings()
-    .UsePostgreSqlStorage(options =>
-        options.UseNpgsqlConnection(connectionString)));
 
-builder.Services.AddHangfireServer(options =>
+// Build a Hangfire-specific connection string that prefers the PUBLIC URL
+// (postgres.railway.internal requires Private Networking which is off by default)
+static string BuildHangfireConnectionString(string fallback)
 {
-    options.WorkerCount = 5;
-    options.Queues      = ["default", "critical"];
-});
+    // Prefer public URL — always DNS-resolvable from Railway containers
+    var pubUrl = Environment.GetEnvironmentVariable("DATABASE_PUBLIC_URL");
+    if (!string.IsNullOrWhiteSpace(pubUrl))
+    {
+        try
+        {
+            var u    = new Uri(pubUrl);
+            var ui   = u.UserInfo.Split(':', 2);
+            var user = Uri.UnescapeDataString(ui[0]);
+            var pass = ui.Length > 1 ? Uri.UnescapeDataString(ui[1]) : "";
+            var db   = u.AbsolutePath.TrimStart('/');
+            Console.WriteLine($"[Hangfire] Using public DB host={u.Host}:{u.Port}");
+            return $"Host={u.Host};Port={u.Port};Database={db};" +
+                   $"Username={user};Password={pass};" +
+                   "SSL Mode=Prefer;Trust Server Certificate=true;";
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Hangfire] Could not parse DATABASE_PUBLIC_URL: {ex.Message}");
+        }
+    }
+    Console.WriteLine("[Hangfire] Falling back to EF connection string for Hangfire.");
+    return fallback;
+}
+
+var hangfireCs = BuildHangfireConnectionString(connectionString);
+
+try
+{
+    builder.Services.AddHangfire(cfg => cfg
+        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+        .UseSimpleAssemblyNameTypeSerializer()
+        .UseRecommendedSerializerSettings()
+        .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(hangfireCs)));
+
+    builder.Services.AddHangfireServer(options =>
+    {
+        options.WorkerCount = 5;
+        options.Queues      = ["default", "critical"];
+    });
+
+    Console.WriteLine("[Hangfire] PostgreSQL storage configured.");
+}
+catch (Exception ex)
+{
+    // Fallback: InMemory storage so the HTTP server still starts
+    Console.Error.WriteLine($"[Hangfire] PostgreSQL unavailable ({ex.Message}). Using InMemory storage.");
+    builder.Services.AddHangfire(cfg => cfg
+        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+        .UseSimpleAssemblyNameTypeSerializer()
+        .UseRecommendedSerializerSettings()
+        .UseInMemoryStorage());
+    builder.Services.AddHangfireServer();
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 4. APPLICATION SERVICES
@@ -331,13 +382,20 @@ app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Hangfire dashboard at /hangfire
-app.UseHangfireDashboard("/hangfire", new DashboardOptions
+// Hangfire dashboard at /hangfire — wrapped in try/catch in case storage unavailable
+try
 {
-    // In production: add HangfireAdminAuthFilter here
-});
-
-JobScheduler.RegisterAll();
+    app.UseHangfireDashboard("/hangfire", new DashboardOptions
+    {
+        // In production: add HangfireAdminAuthFilter here
+    });
+    JobScheduler.RegisterAll();
+    Console.WriteLine("[Hangfire] Dashboard registered at /hangfire");
+}
+catch (Exception ex)
+{
+    Console.Error.WriteLine($"[Hangfire] Dashboard unavailable: {ex.Message}. Background jobs disabled.");
+}
 
 app.MapControllers();
 app.MapRazorPages();    // Admin panel routes
