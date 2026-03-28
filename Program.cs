@@ -36,7 +36,7 @@ builder.WebHost.ConfigureKestrel(serverOptions => {
 //    Railway provides DATABASE_URL as:  postgresql://user:pass@host:port/db
 //    Fall back to appsettings ConnectionStrings:DefaultConnection for local dev.
 // ═══════════════════════════════════════════════════════════════════════════
-static string BuildConnectionString(IConfiguration cfg)
+static string BuildConnectionString(IConfiguration cfg, bool isProduction)
 {
     // Railway provides several DB URL variables. Priority:
     //   1. DATABASE_PUBLIC_URL  – public proxy, ALWAYS DNS-resolvable (preferred for Railway)
@@ -79,12 +79,15 @@ static string BuildConnectionString(IConfiguration cfg)
                "Pooling=true;Minimum Pool Size=1;Maximum Pool Size=20;";
     }
 
-    // Railway hardcoded fallback: appsettings.json RailwayConnection
-    var railwayCs = cfg.GetConnectionString("RailwayConnection");
-    if (!string.IsNullOrEmpty(railwayCs) && !railwayCs.Contains("REPLACE_WITH_PGPASSWORD"))
+    // Railway hardcoded fallback: only used in Production to avoid local dev hitting the prod DB
+    if (isProduction)
     {
-        Console.WriteLine("[Startup] DB: using appsettings RailwayConnection (Railway public)");
-        return railwayCs;
+        var railwayCs = cfg.GetConnectionString("RailwayConnection");
+        if (!string.IsNullOrEmpty(railwayCs) && !railwayCs.Contains("REPLACE_WITH_PGPASSWORD"))
+        {
+            Console.WriteLine("[Startup] DB: using appsettings RailwayConnection (Railway public)");
+            return railwayCs;
+        }
     }
 
     // Local dev: appsettings.json DefaultConnection
@@ -102,7 +105,7 @@ static string BuildConnectionString(IConfiguration cfg)
 string connectionString;
 try
 {
-    connectionString = BuildConnectionString(config);
+    connectionString = BuildConnectionString(config, builder.Environment.IsProduction());
     Console.WriteLine($"[Startup] DB connection string built OK (host masked).");
 }
 catch (Exception ex)
