@@ -1,0 +1,191 @@
+@using System.Security.Claims
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - GridAcademy Provider</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/admin.css" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+<div class="d-flex" id="wrapper">
+
+    <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
+    <nav id="sidebar" class="text-white d-flex flex-column" style="background-color:#1a3c34">
+        <div class="p-3 border-bottom border-secondary">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-building text-success fs-5"></i>
+                <div>
+                    <div class="fw-bold lh-1">GridAcademy</div>
+                    <small class="text-muted" style="font-size:0.7rem">Provider Portal</small>
+                </div>
+            </div>
+        </div>
+
+        @{
+            var inDashboard   = Context.Request.Path.StartsWithSegments("/Provider/Dashboard");
+            var inSeries      = Context.Request.Path.StartsWithSegments("/Provider/Series");
+            var inTests       = Context.Request.Path.StartsWithSegments("/Provider/Tests");
+            var inCommissions = Context.Request.Path.StartsWithSegments("/Provider/Commissions");
+            var inProfile     = Context.Request.Path.StartsWithSegments("/Provider/Profile");
+        }
+
+        <ul class="nav flex-column py-2">
+            <!-- Dashboard -->
+            <li class="nav-item">
+                <a asp-page="/Provider/Dashboard"
+                   class="nav-link text-white @(inDashboard ? "active" : "")">
+                    <i class="bi bi-speedometer2 me-2"></i>Dashboard
+                </a>
+            </li>
+
+            <!-- My Series (collapse) -->
+            <li class="nav-item mt-1">
+                <a href="#seriesMenu" data-bs-toggle="collapse"
+                   class="nav-link text-white d-flex justify-content-between align-items-center @(inSeries ? "" : "collapsed")"
+                   aria-expanded="@(inSeries ? "true" : "false")">
+                    <span><i class="bi bi-collection-play me-2"></i>My Series</span>
+                    <i class="bi bi-chevron-down small"></i>
+                </a>
+                <div class="collapse @(inSeries ? "show" : "")" id="seriesMenu">
+                    <ul class="nav flex-column ms-3 mt-1">
+                        <li class="nav-item">
+                            <a asp-page="/Provider/Series/Index"
+                               class="nav-link py-1 @(Context.Request.Path.StartsWithSegments("/Provider/Series") && !Context.Request.Path.StartsWithSegments("/Provider/Series/Create") && !Context.Request.Path.StartsWithSegments("/Provider/Series/Edit") ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-list-ul me-2"></i>All Series
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a asp-page="/Provider/Series/Create"
+                               class="nav-link py-1 @(Context.Request.Path.StartsWithSegments("/Provider/Series/Create") ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-plus-circle me-2"></i>Create New
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
+            <!-- Tests (collapse) -->
+            <li class="nav-item mt-1">
+                <a href="#testsMenu" data-bs-toggle="collapse"
+                   class="nav-link text-white d-flex justify-content-between align-items-center @(inTests ? "" : "collapsed")"
+                   aria-expanded="@(inTests ? "true" : "false")">
+                    <span><i class="bi bi-journal-check me-2"></i>Tests</span>
+                    <i class="bi bi-chevron-down small"></i>
+                </a>
+                <div class="collapse @(inTests ? "show" : "")" id="testsMenu">
+                    <ul class="nav flex-column ms-3 mt-1">
+                        <li class="nav-item">
+                            <a asp-page="/Provider/Tests/Index"
+                               class="nav-link py-1 @(Context.Request.Path.StartsWithSegments("/Provider/Tests") && !Context.Request.Path.StartsWithSegments("/Provider/Tests/Create") ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-list-check me-2"></i>My Tests
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a asp-page="/Provider/Tests/Create"
+                               class="nav-link py-1 @(Context.Request.Path.StartsWithSegments("/Provider/Tests/Create") ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-plus-circle me-2"></i>Create Test
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
+            <!-- Commissions -->
+            <li class="nav-item mt-1">
+                <a asp-page="/Provider/Commissions/Index"
+                   class="nav-link text-white @(inCommissions ? "active" : "")">
+                    <i class="bi bi-cash-coin me-2"></i>Commissions
+                </a>
+            </li>
+
+            <!-- Profile -->
+            <li class="nav-item mt-1">
+                <a asp-page="/Provider/Profile"
+                   class="nav-link text-white @(inProfile ? "active" : "")">
+                    <i class="bi bi-person-gear me-2"></i>Profile
+                </a>
+            </li>
+        </ul>
+
+        <!-- Sidebar footer -->
+        <div class="mt-auto p-3 border-top border-secondary">
+            <small class="text-muted" style="font-size:0.7rem">GridAcademy LMS v1.0</small>
+        </div>
+    </nav>
+
+    <!-- ── Main content ─────────────────────────────────────────────────── -->
+    <div id="page-content-wrapper" class="flex-grow-1">
+
+        <!-- Top navbar -->
+        <nav class="navbar navbar-light bg-white border-bottom px-3 py-2">
+            <button class="btn btn-sm btn-outline-secondary" id="sidebarToggle" title="Toggle sidebar">
+                <i class="bi bi-list"></i>
+            </button>
+
+            <span class="ms-3 text-muted small">@ViewData["Title"]</span>
+
+            <div class="ms-auto d-flex align-items-center gap-2">
+                @{
+                    var role = User.FindFirst(ClaimTypes.Role)?.Value ?? "";
+                    var badgeCss = role switch
+                    {
+                        "Provider" => "success",
+                        _          => "secondary"
+                    };
+                }
+                <span class="badge bg-@badgeCss">@role</span>
+                <span class="text-muted small d-none d-md-inline">@User.Identity?.Name</span>
+
+                <form method="post" asp-page="/Account/Logout" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span class="d-none d-md-inline ms-1">Logout</span>
+                    </button>
+                </form>
+            </div>
+        </nav>
+
+        <!-- Flash messages -->
+        <div class="px-4 pt-3">
+            @if (TempData["Success"] is string success)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i>@success
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+            @if (TempData["Error"] is string error)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>@error
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+        </div>
+
+        <!-- Page body -->
+        <div class="container-fluid px-4 py-3">
+            @RenderBody()
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap 5.3.2 JS — local copy (no CDN dependency) -->
+<script src="~/lib/bootstrap/js/bootstrap.bundle.5.3.2.min.js" asp-append-version="true"></script>
+<script>
+    if (!window.bootstrap) {
+        document.write('<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"><\/script>');
+    }
+</script>
+<script>
+    document.getElementById('sidebarToggle')?.addEventListener('click', function () {
+        document.getElementById('wrapper').classList.toggle('sidebar-collapsed');
+    });
+</script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace GridAcademy.Pages.Admin.Content.Tests;
 
-[Authorize(Roles = "Admin,Instructor")]
+[Authorize(Roles = "Admin,Instructor,Provider")]
 public class EditModel : PageModel
 {
     private readonly ITestService   _tests;

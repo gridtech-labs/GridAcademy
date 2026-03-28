@@ -1,0 +1,131 @@
+@page
+@model GridAcademy.Pages.Provider.Series.CreateModel
+@using GridAcademy.Data.Entities.Marketplace
+@{
+    ViewData["Title"] = "Create Test Series";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0 fw-semibold">
+        <i class="bi bi-plus-circle text-success me-2"></i>Create Test Series
+    </h4>
+    <a asp-page="/Provider/Series/Index" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Back to Series
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <form method="post">
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        <label asp-for="Form.Title" class="form-label fw-medium">Title <span class="text-danger">*</span></label>
+                        <input asp-for="Form.Title" class="form-control" placeholder="e.g. SSC CGL Complete Mock Test Series 2025" />
+                        <span asp-validation-for="Form.Title" class="text-danger small"></span>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Form.ExamTypeId" class="form-label fw-medium">Exam Type <span class="text-danger">*</span></label>
+                            <select asp-for="Form.ExamTypeId" class="form-select">
+                                <option value="0">-- Select Exam Type --</option>
+                                @foreach (var et in Model.ExamTypes)
+                                {
+                                    <option value="@et.Id">@et.Name</option>
+                                }
+                            </select>
+                            <span asp-validation-for="Form.ExamTypeId" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Form.SeriesType" class="form-label fw-medium">Series Type</label>
+                            <select asp-for="Form.SeriesType" class="form-select">
+                                <option value="@((int)SeriesType.FullMock)">Full Mock</option>
+                                <option value="@((int)SeriesType.Sectional)">Sectional</option>
+                                <option value="@((int)SeriesType.PreviousYear)">Previous Year</option>
+                                <option value="@((int)SeriesType.MiniMock)">Mini Mock</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Form.PriceInr" class="form-label fw-medium">Price (INR)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">&#8377;</span>
+                                <input asp-for="Form.PriceInr" class="form-control" type="number" min="0" step="0.01" />
+                            </div>
+                            <div class="form-text">Set 0 for a free series.</div>
+                            <span asp-validation-for="Form.PriceInr" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Form.Language" class="form-label fw-medium">Language</label>
+                            <select asp-for="Form.Language" class="form-select">
+                                <option value="English">English</option>
+                                <option value="Hindi">Hindi</option>
+                                <option value="Bilingual">Bilingual</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input asp-for="Form.IsFirstTestFree" class="form-check-input" type="checkbox" />
+                            <label asp-for="Form.IsFirstTestFree" class="form-check-label">
+                                Is First Test Free (allow students to try first test without purchasing)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Form.ShortDescription" class="form-label fw-medium">Short Description</label>
+                        <textarea asp-for="Form.ShortDescription" class="form-control" rows="2"
+                                  placeholder="Brief summary shown on listing cards (max 500 chars)..."
+                                  maxlength="500"></textarea>
+                        <span asp-validation-for="Form.ShortDescription" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Form.FullDescription" class="form-label fw-medium">Full Description</label>
+                        <textarea asp-for="Form.FullDescription" class="form-control" rows="6"
+                                  placeholder="Detailed description of this series. Supports rich text."></textarea>
+                        <div class="form-text">Supports rich text HTML.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="Form.ThumbnailUrl" class="form-label fw-medium">Thumbnail URL</label>
+                        <input asp-for="Form.ThumbnailUrl" class="form-control"
+                               placeholder="https://example.com/thumbnail.jpg" />
+                        <div class="form-text">Recommended size: 800x450 (16:9 ratio).</div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-plus-circle me-2"></i>Create Series
+                        </button>
+                        <a asp-page="/Provider/Series/Index" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="alert alert-info border-0 shadow-sm">
+            <i class="bi bi-lightbulb me-2"></i>
+            <strong>Next Steps:</strong>
+            <ol class="mb-0 mt-2 small ps-3">
+                <li>Create your series here</li>
+                <li>Add tests to the series on the next page</li>
+                <li>Submit for admin review</li>
+                <li>Once approved, it goes live!</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

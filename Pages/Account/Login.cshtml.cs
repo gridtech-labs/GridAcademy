@@ -33,6 +33,8 @@ public class LoginModel : PageModel
         {
             if (User.IsInRole("User"))
                 return Redirect("/Student/Dashboard");
+            if (User.IsInRole("Provider"))
+                return RedirectToPage("/Provider/Dashboard");
             return RedirectToPage("/Admin/Index");
         }
 
@@ -81,9 +83,12 @@ public class LoginModel : PageModel
 
         _logger.LogInformation("Login: {Email} ({Role})", user.Email, user.Role);
 
-        // Students go to the student portal; Admin/Instructor go to the admin panel
+        // Route to appropriate portal by role
         if (user.Role == "User")
             return Redirect("/Student/Dashboard");
+
+        if (user.Role == "Provider")
+            return RedirectToPage("/Provider/Dashboard");
 
         return RedirectToPage("/Admin/Index");
     }
