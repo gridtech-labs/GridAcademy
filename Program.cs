@@ -79,6 +79,14 @@ static string BuildConnectionString(IConfiguration cfg)
                "Pooling=true;Minimum Pool Size=1;Maximum Pool Size=20;";
     }
 
+    // Railway hardcoded fallback: appsettings.json RailwayConnection
+    var railwayCs = cfg.GetConnectionString("RailwayConnection");
+    if (!string.IsNullOrEmpty(railwayCs) && !railwayCs.Contains("REPLACE_WITH_PGPASSWORD"))
+    {
+        Console.WriteLine("[Startup] DB: using appsettings RailwayConnection (Railway public)");
+        return railwayCs;
+    }
+
     // Local dev: appsettings.json DefaultConnection
     var localCs = cfg.GetConnectionString("DefaultConnection");
     if (!string.IsNullOrEmpty(localCs))
@@ -88,7 +96,7 @@ static string BuildConnectionString(IConfiguration cfg)
     }
 
     throw new InvalidOperationException(
-        "No DB connection found. Set DATABASE_PUBLIC_URL in Railway Variables.");
+        "No DB connection found. Set DATABASE_PUBLIC_URL in Railway Variables or RailwayConnection in appsettings.json.");
 }
 
 string connectionString;
