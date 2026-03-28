@@ -33,6 +33,7 @@
                     <option value="">All Roles</option>
                     <option value="Admin"      selected="@(Model.Role == "Admin")">Admin</option>
                     <option value="Instructor" selected="@(Model.Role == "Instructor")">Instructor</option>
+                    <option value="Provider"   selected="@(Model.Role == "Provider")">Provider</option>
                     <option value="User"       selected="@(Model.Role == "User")">Student</option>
                 </select>
             </div>
@@ -89,6 +90,7 @@
                                         {
                                             "Admin"      => "badge-admin",
                                             "Instructor" => "badge-instructor",
+                                            "Provider"   => "bg-success",
                                             _            => "badge-user"
                                         };
                                     }

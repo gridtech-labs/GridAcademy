@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using GridAcademy.Data;
+using GridAcademy.Data.Entities.Marketplace;
 using GridAcademy.DTOs.Users;
 using GridAcademy.Helpers;
 using GridAcademy.Services;
@@ -25,9 +26,11 @@ public class EditModel : PageModel
     [BindProperty]
     public EditUserInput Input { get; set; } = new();
 
-    // Displayed read-only on the form
     public string Email    { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
+
+    // Populated when the user has a Provider profile
+    public ProviderProfileInfo? ProviderProfile { get; set; }
 
     public async Task<IActionResult> OnGetAsync(Guid id)
     {
@@ -46,28 +49,32 @@ public class EditModel : PageModel
             IsActive  = user.IsActive
         };
 
+        await LoadProviderProfileAsync(id);
         return Page();
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
-        // Re-load email for display if we return Page()
         var existing = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == Input.Id);
         if (existing is null) return NotFound();
         Email    = existing.Email;
         FullName = existing.FullName;
 
-        if (!ModelState.IsValid) return Page();
+        if (!ModelState.IsValid)
+        {
+            await LoadProviderProfileAsync(Input.Id);
+            return Page();
+        }
 
         try
         {
-            // Optional password change — if field is blank, skip it
             if (!string.IsNullOrWhiteSpace(Input.NewPassword))
             {
                 var pwError = PasswordHelper.Validate(Input.NewPassword);
                 if (pwError is not null)
                 {
                     ModelState.AddModelError(nameof(Input.NewPassword), pwError);
+                    await LoadProviderProfileAsync(Input.Id);
                     return Page();
                 }
 
@@ -93,10 +100,77 @@ public class EditModel : PageModel
         catch (Exception ex)
         {
             ModelState.AddModelError(string.Empty, ex.Message);
+            await LoadProviderProfileAsync(Input.Id);
             return Page();
         }
     }
+
+    // ── Provider approval handlers ────────────────────────────────────────────
+
+    public async Task<IActionResult> OnPostApproveProviderAsync(Guid userId)
+    {
+        var provider = await _db.MpProviders.FirstOrDefaultAsync(p => p.UserId == userId);
+        if (provider is null)
+        {
+            TempData["Error"] = "Provider profile not found.";
+            return RedirectToPage(new { id = userId });
+        }
+
+        provider.Status    = ProviderStatus.Verified;
+        provider.UpdatedAt = DateTime.UtcNow;
+
+        // Make sure their user account is active
+        var user = await _db.Users.FindAsync(userId);
+        if (user is not null) user.IsActive = true;
+
+        await _db.SaveChangesAsync();
+
+        TempData["Success"] = $"{provider.InstituteName} has been approved as a Provider.";
+        return RedirectToPage(new { id = userId });
+    }
+
+    public async Task<IActionResult> OnPostRejectProviderAsync(Guid userId)
+    {
+        var provider = await _db.MpProviders.FirstOrDefaultAsync(p => p.UserId == userId);
+        if (provider is null)
+        {
+            TempData["Error"] = "Provider profile not found.";
+            return RedirectToPage(new { id = userId });
+        }
+
+        provider.Status    = ProviderStatus.Suspended;
+        provider.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        TempData["Success"] = $"{provider.InstituteName} has been suspended/rejected.";
+        return RedirectToPage(new { id = userId });
+    }
+
+    // ── Helper ────────────────────────────────────────────────────────────────
+
+    private async Task LoadProviderProfileAsync(Guid userId)
+    {
+        var p = await _db.MpProviders.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.UserId == userId);
+
+        if (p is not null)
+        {
+            ProviderProfile = new ProviderProfileInfo(
+                p.InstituteName, p.City, p.State, p.Bio,
+                p.Status.ToString(), p.AgreedToTerms, p.CreatedAt);
+        }
+    }
 }
+
+public record ProviderProfileInfo(
+    string   InstituteName,
+    string?  City,
+    string?  State,
+    string?  Bio,
+    string   Status,
+    bool     AgreedToTerms,
+    DateTime CreatedAt
+);
 
 public class EditUserInput
 {

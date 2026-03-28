@@ -44,6 +44,7 @@
                             <label asp-for="Input.Role" class="form-label fw-semibold">Role</label>
                             <select asp-for="Input.Role" class="form-select">
                                 <option value="User">Student</option>
+                                <option value="Provider">Provider</option>
                                 <option value="Instructor">Instructor</option>
                                 <option value="Admin">Admin</option>
                             </select>
@@ -80,6 +81,100 @@
         </div>
     </div>
 </div>
+
+@* ── Provider approval panel ─────────────────────────────────────── *@
+@if (Model.ProviderProfile is not null)
+{
+    var p = Model.ProviderProfile;
+    var statusBadge = p.Status switch {
+        "Pending"   => "warning text-dark",
+        "Verified"  => "success",
+        "Suspended" => "danger",
+        _           => "secondary"
+    };
+    <div class="col-12 col-lg-7 mt-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white d-flex align-items-center gap-2 py-3">
+                <i class="bi bi-building text-success"></i>
+                <h6 class="mb-0 fw-bold">Provider Profile</h6>
+                <span class="badge bg-@statusBadge ms-auto">@p.Status</span>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <p class="text-muted small mb-0">Institute Name</p>
+                        <p class="fw-semibold mb-0">@p.InstituteName</p>
+                    </div>
+                    <div class="col-6">
+                        <p class="text-muted small mb-0">Location</p>
+                        <p class="fw-semibold mb-0">@(p.City != null ? $"{p.City}, {p.State}" : "—")</p>
+                    </div>
+                    <div class="col-12">
+                        <p class="text-muted small mb-0">Bio</p>
+                        <p class="mb-0">@(p.Bio ?? "—")</p>
+                    </div>
+                    <div class="col-6">
+                        <p class="text-muted small mb-0">Agreed to Terms</p>
+                        <p class="mb-0">
+                            @if (p.AgreedToTerms)
+                            { <span class="badge bg-success-subtle text-success"><i class="bi bi-check2 me-1"></i>Yes</span> }
+                            else
+                            { <span class="badge bg-danger-subtle text-danger">No</span> }
+                        </p>
+                    </div>
+                    <div class="col-6">
+                        <p class="text-muted small mb-0">Registered</p>
+                        <p class="mb-0">@p.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</p>
+                    </div>
+                </div>
+
+                @if (p.Status == "Pending")
+                {
+                    <div class="alert alert-warning py-2 small mb-3">
+                        <i class="bi bi-clock me-1"></i>
+                        This provider is pending approval. Approve to give them access to the Provider Portal.
+                    </div>
+                    <div class="d-flex gap-2">
+                        <form method="post" asp-page-handler="ApproveProvider">
+                            <input type="hidden" name="userId" value="@Model.Input.Id" />
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-check-circle me-1"></i>Approve Provider
+                            </button>
+                        </form>
+                        <form method="post" asp-page-handler="RejectProvider">
+                            <input type="hidden" name="userId" value="@Model.Input.Id" />
+                            <button type="submit" class="btn btn-outline-danger"
+                                onclick="return confirm('Reject this provider application?')">
+                                <i class="bi bi-x-circle me-1"></i>Reject
+                            </button>
+                        </form>
+                    </div>
+                }
+                else if (p.Status == "Verified")
+                {
+                    <div class="d-flex gap-2">
+                        <form method="post" asp-page-handler="RejectProvider">
+                            <input type="hidden" name="userId" value="@Model.Input.Id" />
+                            <button type="submit" class="btn btn-outline-danger btn-sm"
+                                onclick="return confirm('Suspend this provider?')">
+                                <i class="bi bi-slash-circle me-1"></i>Suspend Provider
+                            </button>
+                        </form>
+                    </div>
+                }
+                else if (p.Status == "Suspended")
+                {
+                    <form method="post" asp-page-handler="ApproveProvider">
+                        <input type="hidden" name="userId" value="@Model.Input.Id" />
+                        <button type="submit" class="btn btn-success btn-sm">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Reinstate Provider
+                        </button>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+}
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
