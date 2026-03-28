@@ -17,10 +17,16 @@ var builder = WebApplication.CreateBuilder(args);
 var config  = builder.Configuration;
 
 // ── Port binding ─────────────────────────────────────────────────────────────
-// Railway injects PORT at runtime. Use TryParse so an empty/missing value
-// never throws — default to 8080 which matches EXPOSE in the Dockerfile.
-var listenPort = int.TryParse(Environment.GetEnvironmentVariable("PORT"), out var p) ? p : 8080;
-Console.WriteLine($"[Startup] Binding to port {listenPort}");
+// Railway injects PORT at runtime — override Kestrel only when PORT is set.
+// In local dev PORT is NOT set, so launchSettings.json (http://localhost:5000)
+// is used automatically without any override.
+var portEnv = Environment.GetEnvironmentVariable("PORT");
+var railwayPort = int.TryParse(portEnv, out var p) ? p : (int?)null;
+
+if (railwayPort.HasValue)
+    Console.WriteLine($"[Startup] Binding to port {railwayPort} (from PORT env var)");
+else
+    Console.WriteLine("[Startup] No PORT env var — using launchSettings / default (localhost:5000)");
 
 // Increase request size limit for video uploads (2 GB)
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options => {
@@ -28,7 +34,9 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(optio
 });
 builder.WebHost.ConfigureKestrel(serverOptions => {
     serverOptions.Limits.MaxRequestBodySize = 2L * 1024 * 1024 * 1024;
-    serverOptions.ListenAnyIP(listenPort);
+    // Only override port on Railway; locally let launchSettings.json handle it
+    if (railwayPort.HasValue)
+        serverOptions.ListenAnyIP(railwayPort.Value);
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
