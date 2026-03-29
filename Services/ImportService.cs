@@ -688,4 +688,260 @@ public class ImportService : IImportService
         public int?                MarksId         { get; set; }
         public int?                NegMarksId      { get; set; }
     }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // RRB ALP EXCEL IMPORT
+    // Format: QID | Question | Option A | Option B | Option C | Option D |
+    //         Correct Answer | Subject | Topic | Difficulty | Marks |
+    //         Negative Marks | Language
+    // Sheets: Master_Question_Bank + CBT1_Paper + CBT2_Paper + Mock_Test_1..10
+    // ════════════════════════════════════════════════════════════════════════
+
+    public async Task<ImportResultDto> ImportRrbAlpAsync(Stream stream, Guid? importedBy = null)
+    {
+        var result  = new ImportResultDto { Source = "RRB ALP Excel" };
+        var masters = await LoadRrbAlpMastersAsync();
+
+        if (masters.RrbExamTypeId == 0)
+        {
+            result.Errors.Add(new ImportRowError
+            {
+                Row = 0, Field = "Setup",
+                Message = "RRB ALP exam type not found. Restart the application once to seed it."
+            });
+            return result;
+        }
+
+        // Copy stream to memory — XLWorkbook needs a seekable stream
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        ms.Position = 0;
+
+        using var wb = new XLWorkbook(ms);
+
+        // ── 1. Import Master Question Bank ───────────────────────────────────
+        if (wb.Worksheets.Any(w => w.Name == "Master_Question_Bank"))
+        {
+            var ws     = wb.Worksheet("Master_Question_Bank");
+            int lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
+            result.TotalRows = lastRow - 1;
+
+            for (int r = 2; r <= lastRow; r++)
+            {
+                try
+                {
+                    var qText = ws.Cell(r, 2).GetString().Trim();
+                    if (string.IsNullOrWhiteSpace(qText)) { result.Skipped++; continue; }
+
+                    var optA   = ws.Cell(r, 3).GetString().Trim();
+                    var optB   = ws.Cell(r, 4).GetString().Trim();
+                    var optC   = ws.Cell(r, 5).GetString().Trim();
+                    var optD   = ws.Cell(r, 6).GetString().Trim();
+                    var correct = ws.Cell(r, 7).GetString().Trim().ToUpper();
+                    var subjName = ws.Cell(r, 8).GetString().Trim();
+                    var topicName = ws.Cell(r, 9).GetString().Trim();
+                    var difficulty = ws.Cell(r, 10).GetString().Trim();
+                    var marksVal   = ws.Cell(r, 11).GetString().Trim();
+                    var negVal     = ws.Cell(r, 12).GetString().Trim();
+
+                    // Resolve subject
+                    if (!masters.SubjectIds.TryGetValue(subjName, out var subjectId))
+                    {
+                        result.Errors.Add(new ImportRowError { Row = r, Field = "Subject", Message = $"'{subjName}' not found in master data" });
+                        result.Skipped++; continue;
+                    }
+
+                    // Resolve or create topic
+                    var topicKey = $"{subjectId}:{topicName}";
+                    if (!masters.TopicIds.TryGetValue(topicKey, out var topicId))
+                    {
+                        var newTopic = new Topic { Name = topicName, SubjectId = subjectId, SortOrder = 99 };
+                        _db.Topics.Add(newTopic);
+                        await _db.SaveChangesAsync();
+                        topicId = newTopic.Id;
+                        masters.TopicIds[topicKey] = topicId;
+                    }
+
+                    // Resolve difficulty
+                    if (!masters.DifficultyIds.TryGetValue(difficulty, out var diffId))
+                        diffId = masters.DifficultyIds.Values.First();
+
+                    // Resolve marks by value
+                    if (!decimal.TryParse(marksVal, System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out var marksDecimal))
+                        marksDecimal = 1;
+                    var marksId = masters.MarksIds.TryGetValue(marksDecimal, out var mid) ? mid : masters.MarksIds.Values.First();
+
+                    // Resolve negative marks (file stores positive value e.g. 0.33 = deduct 0.33)
+                    if (!decimal.TryParse(negVal, System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out var negDecimal))
+                        negDecimal = 0;
+                    var negKey     = -Math.Round(negDecimal, 2);
+                    var negMarksId = masters.NegMarksIds.TryGetValue(negKey, out var nid)
+                        ? nid
+                        : masters.NegMarksIds.OrderBy(kv => Math.Abs(kv.Key - negKey)).First().Value;
+
+                    var entity = new Question
+                    {
+                        Text              = qText,
+                        QuestionType      = QuestionType.MCQ,
+                        Status            = QuestionStatus.Published,
+                        SubjectId         = subjectId,
+                        TopicId           = topicId,
+                        DifficultyLevelId = diffId,
+                        ComplexityLevelId = masters.DefaultComplexityId,
+                        MarksId           = marksId,
+                        NegativeMarksId   = negMarksId,
+                        ExamTypeId        = masters.RrbExamTypeId,
+                        CreatedBy         = importedBy,
+                        UpdatedBy         = importedBy
+                    };
+
+                    int sortOrder = 0;
+                    foreach (var (label, text) in new[] { ('A', optA), ('B', optB), ('C', optC), ('D', optD) })
+                    {
+                        if (!string.IsNullOrWhiteSpace(text))
+                            entity.Options.Add(new QuestionOption
+                            {
+                                Label     = label,
+                                Text      = text,
+                                IsCorrect = correct == label.ToString(),
+                                SortOrder = sortOrder++
+                            });
+                    }
+
+                    _db.Questions.Add(entity);
+                    result.Imported++;
+
+                    // Batch save every 200 questions to avoid memory issues
+                    if (result.Imported % 200 == 0)
+                        await _db.SaveChangesAsync();
+                }
+                catch (Exception ex)
+                {
+                    result.Errors.Add(new ImportRowError { Row = r, Field = "Row", Message = ex.Message });
+                    result.Skipped++;
+                }
+            }
+
+            if (result.Imported > 0) await _db.SaveChangesAsync();
+        }
+
+        // ── 2. Create Test papers from CBT / Mock_Test sheets ────────────────
+        var testSheetDefs = new List<(string SheetName, string TestTitle, int Duration)>
+        {
+            ("CBT1_Paper",   "RRB ALP – CBT Stage 1 Practice Paper",  60),
+            ("CBT2_Paper",   "RRB ALP – CBT Stage 2 Practice Paper",  90),
+        };
+        for (int i = 1; i <= 10; i++)
+            testSheetDefs.Add(($"Mock_Test_{i}", $"RRB ALP – Mock Test {i}", 60));
+
+        foreach (var (sheetName, testTitle, duration) in testSheetDefs)
+        {
+            if (!wb.Worksheets.Any(w => w.Name == sheetName)) continue;
+
+            try
+            {
+                var ws      = wb.Worksheet(sheetName);
+                int lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
+
+                // Group by subject → count per subject
+                var subjectGroups = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                for (int r = 2; r <= lastRow; r++)
+                {
+                    var subj = ws.Cell(r, 8).GetString().Trim();
+                    if (!string.IsNullOrWhiteSpace(subj))
+                        subjectGroups[subj] = subjectGroups.GetValueOrDefault(subj) + 1;
+                }
+
+                if (subjectGroups.Count == 0) continue;
+
+                // Create Test
+                var test = new GridAcademy.Data.Entities.Assessment.Test
+                {
+                    Title                  = testTitle,
+                    Instructions           = "<p>This is a computer-based mock test for RRB ALP. Each question carries 1 mark. Negative marking of 1/3 mark applies for wrong answers.</p>",
+                    DurationMinutes        = duration,
+                    PassingPercent         = 40,
+                    NegativeMarkingEnabled = true,
+                    ExamTypeId             = masters.RrbExamTypeId,
+                    Status                 = GridAcademy.Data.Entities.Assessment.TestStatus.Published,
+                    CreatedBy              = importedBy,
+                    UpdatedBy              = importedBy
+                };
+                _db.Tests.Add(test);
+                await _db.SaveChangesAsync();
+
+                // Create one section per subject
+                int sectionOrder = 1;
+                foreach (var (subjName, count) in subjectGroups.OrderBy(kv => kv.Key))
+                {
+                    if (!masters.SubjectIds.TryGetValue(subjName, out var subjectId)) continue;
+
+                    _db.TestSections.Add(new GridAcademy.Data.Entities.Assessment.TestSection
+                    {
+                        TestId                    = test.Id,
+                        Name                      = subjName,
+                        SubjectId                 = subjectId,
+                        QuestionCount             = count,
+                        MarksPerQuestion          = 1m,
+                        NegativeMarksPerQuestion  = -0.33m,
+                        SortOrder                 = sectionOrder++
+                    });
+                }
+                await _db.SaveChangesAsync();
+
+                result.TestsCreated++;
+                result.TestNames.Add(testTitle);
+            }
+            catch (Exception ex)
+            {
+                result.Errors.Add(new ImportRowError { Row = 0, Field = sheetName, Message = $"Test creation failed: {ex.Message}" });
+            }
+        }
+
+        return result;
+    }
+
+    // ── RRB ALP master cache ─────────────────────────────────────────────────
+
+    private record RrbMasterCache
+    {
+        public Dictionary<string, int>     SubjectIds        { get; init; } = [];
+        public Dictionary<string, int>     TopicIds          { get; init; } = [];  // key = "subjectId:topicName"
+        public Dictionary<string, int>     DifficultyIds     { get; init; } = [];
+        public Dictionary<decimal, int>    MarksIds          { get; init; } = [];
+        public Dictionary<decimal, int>    NegMarksIds       { get; init; } = [];
+        public int                         DefaultComplexityId { get; init; }
+        public int                         RrbExamTypeId     { get; init; }
+    }
+
+    private async Task<RrbMasterCache> LoadRrbAlpMastersAsync()
+    {
+        var subjects    = await _db.Subjects.AsNoTracking().ToListAsync();
+        var topics      = await _db.Topics.AsNoTracking().ToListAsync();
+        var difficulties = await _db.DifficultyLevels.AsNoTracking().ToListAsync();
+        var complexities = await _db.ComplexityLevels.AsNoTracking().ToListAsync();
+        var marksList   = await _db.MarksMaster.AsNoTracking().ToListAsync();
+        var negMarksList = await _db.NegativeMarksMaster.AsNoTracking().ToListAsync();
+        var examTypes   = await _db.ExamTypes.AsNoTracking().ToListAsync();
+
+        var rrbType = examTypes.FirstOrDefault(e =>
+            e.Name.Equals("RRB ALP", StringComparison.OrdinalIgnoreCase));
+
+        var mediumComplexity = complexities.FirstOrDefault(c =>
+            c.Name.Equals("Medium", StringComparison.OrdinalIgnoreCase))
+            ?? complexities.First();
+
+        return new RrbMasterCache
+        {
+            SubjectIds   = subjects.ToDictionary(s => s.Name, s => s.Id, StringComparer.OrdinalIgnoreCase),
+            TopicIds     = topics.ToDictionary(t => $"{t.SubjectId}:{t.Name}", t => t.Id, StringComparer.OrdinalIgnoreCase),
+            DifficultyIds = difficulties.ToDictionary(d => d.Name, d => d.Id, StringComparer.OrdinalIgnoreCase),
+            MarksIds     = marksList.ToDictionary(m => m.Value, m => m.Id),
+            NegMarksIds  = negMarksList.ToDictionary(m => m.Value, m => m.Id),
+            DefaultComplexityId = mediumComplexity.Id,
+            RrbExamTypeId = rrbType?.Id ?? 0
+        };
+    }
 }

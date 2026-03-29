@@ -13,4 +13,13 @@ public interface IImportService
     /// extracts questions with LaTeX math already in place, and saves them as Draft.
     /// </summary>
     Task<ImportResultDto> ImportPdfOcrAsync(Stream stream, Guid? importedBy = null);
+
+    /// <summary>
+    /// Imports questions and creates test papers from the GridAcademy RRB ALP
+    /// Excel format (columns: QID, Question, Option A-D, Correct Answer, Subject,
+    /// Topic, Difficulty, Marks, Negative Marks, Language).
+    /// Processes Master_Question_Bank sheet for questions and CBT1_Paper,
+    /// CBT2_Paper, Mock_Test_1..10 sheets to auto-create Test papers.
+    /// </summary>
+    Task<ImportResultDto> ImportRrbAlpAsync(Stream stream, Guid? importedBy = null);
 }

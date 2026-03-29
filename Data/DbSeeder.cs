@@ -196,6 +196,65 @@ public static class DbSeeder
             logger.LogInformation("Negative marks seeded.");
         }
 
+        // ── RRB ALP master data ───────────────────────────────────────────────
+        // Idempotent — checks by name before inserting. Safe to re-run.
+
+        // New subjects (General Science, Current Affairs, Reasoning, Technical)
+        var existingSubjectNames = await db.Subjects.Select(s => s.Name).ToListAsync();
+        var rrbSubjects = new (string Name, int Order)[]
+        {
+            ("General Science", 5), ("Current Affairs", 6),
+            ("Reasoning", 7),       ("Technical", 8)
+        };
+        bool subjectsAdded = false;
+        foreach (var (name, order) in rrbSubjects)
+        {
+            if (!existingSubjectNames.Contains(name, StringComparer.OrdinalIgnoreCase))
+            { db.Subjects.Add(new Subject { Name = name, SortOrder = order }); subjectsAdded = true; }
+        }
+        if (subjectsAdded) { await db.SaveChangesAsync(); logger.LogInformation("RRB ALP subjects seeded."); }
+
+        // New topics (keyed by subject name → topic)
+        var allSubjectMap = await db.Subjects.ToDictionaryAsync(s => s.Name, s => s.Id);
+        var existingTopicPairs = await db.Topics.Select(t => new { t.Name, t.SubjectId }).ToListAsync();
+        var rrbTopics = new (string Subject, string Name, int Order)[]
+        {
+            ("General Science", "Biology",         4), ("General Science", "Chemistry",       5),
+            ("General Science", "Physics",          6),
+            ("Current Affairs", "Awards",           1), ("Current Affairs", "International",   2),
+            ("Current Affairs", "National",         3), ("Current Affairs", "Sports",          4),
+            ("Reasoning",       "Analogy",          1), ("Reasoning",       "Coding-Decoding", 2),
+            ("Reasoning",       "Puzzle",           3), ("Reasoning",       "Series",          4),
+            ("Technical",       "Electrical",       1), ("Technical",       "Electronics",     2),
+            ("Technical",       "Mechanical",       3),
+        };
+        bool topicsAdded = false;
+        foreach (var (subjectName, topicName, order) in rrbTopics)
+        {
+            if (!allSubjectMap.TryGetValue(subjectName, out var sid)) continue;
+            if (existingTopicPairs.Any(t => t.Name == topicName && t.SubjectId == sid)) continue;
+            db.Topics.Add(new Topic { Name = topicName, SubjectId = sid, SortOrder = order });
+            topicsAdded = true;
+        }
+        if (topicsAdded) { await db.SaveChangesAsync(); logger.LogInformation("RRB ALP topics seeded."); }
+
+        // RRB ALP exam type
+        if (!await db.ExamTypes.AnyAsync(e => e.Name == "RRB ALP"))
+        {
+            var maxOrder = await db.ExamTypes.MaxAsync(e => (int?)e.SortOrder) ?? 0;
+            db.ExamTypes.Add(new ExamType { Name = "RRB ALP", SortOrder = maxOrder + 1 });
+            await db.SaveChangesAsync();
+            logger.LogInformation("RRB ALP exam type seeded.");
+        }
+
+        // -0.33 mark (RRB 1/3 negative marking)
+        if (!await db.NegativeMarksMaster.AnyAsync(n => n.Name == "-0.33 Mark"))
+        {
+            db.NegativeMarksMaster.Add(new NegativeMarksMaster { Name = "-0.33 Mark", Value = -0.33m, SortOrder = 2 });
+            await db.SaveChangesAsync();
+            logger.LogInformation("-0.33 Mark negative marking seeded.");
+        }
+
         // ── Exam Levels ───────────────────────────────────────────────────
         if (!await db.ExamLevels.AnyAsync())
         {

@@ -160,6 +160,13 @@ public class IndexModel : PageModel
             return _import.ImportPdfOcrAsync(stream, userId);
         }, maxMb: 20);  // larger limit — PDF OCR uploads go to Mathpix directly
 
+    public async Task<IActionResult> OnPostRrbAlpAsync(IFormFile? file)
+        => await HandleImport(file, "rrbalp", stream =>
+        {
+            var userId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : (Guid?)null;
+            return _import.ImportRrbAlpAsync(stream, userId);
+        }, maxMb: 25);
+
     private async Task<IActionResult> HandleImport(
         IFormFile? file, string source,
         Func<Stream, Task<ImportResultDto>> importFn,

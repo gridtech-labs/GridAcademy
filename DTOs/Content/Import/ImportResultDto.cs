@@ -13,5 +13,7 @@ public class ImportResultDto
     public int                  Imported     { get; set; }
     public int                  Skipped      { get; set; }
     public List<ImportRowError> Errors       { get; set; } = [];
-    public string               Source       { get; set; } = ""; // "CSV" | "Excel" | "PDF"
+    public string               Source       { get; set; } = "";
+    public int                  TestsCreated { get; set; }
+    public List<string>         TestNames    { get; set; } = [];
 }

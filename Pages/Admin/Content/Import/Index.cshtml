@@ -50,6 +50,13 @@
             }
         </button>
     </li>
+    <li class="nav-item">
+        <button class="nav-link @(src == "rrbalp" ? "active" : "")"
+                data-bs-toggle="tab" data-bs-target="#tab-rrbalp" type="button">
+            <i class="bi bi-train-front me-1"></i>RRB ALP
+            <span class="badge bg-primary ms-1" style="font-size:.65rem">Custom Format</span>
+        </button>
+    </li>
 </ul>
 
 <div class="tab-content">
@@ -159,6 +166,44 @@
         </div>
     </div>
 
+    <!-- ── RRB ALP tab pane ───────────────────────────────────────────────── -->
+    <div class="tab-pane fade @(src == "rrbalp" ? "show active" : "")" id="tab-rrbalp">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold py-3 d-flex align-items-center gap-2">
+                <i class="bi bi-train-front text-primary"></i> RRB ALP Question Bank Import
+                <span class="badge bg-success">Auto-creates 12 Test Papers</span>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info d-flex gap-3 align-items-start mb-3">
+                    <i class="bi bi-info-circle-fill fs-5 flex-shrink-0 mt-1"></i>
+                    <div class="small">
+                        <strong>What this importer does:</strong>
+                        <ul class="mb-1 mt-1 ps-3">
+                            <li>Reads the <strong>Master_Question_Bank</strong> sheet → imports all questions as <em>Published</em></li>
+                            <li>Reads <strong>CBT1_Paper</strong>, <strong>CBT2_Paper</strong> sheets → creates 2 stage-wise practice tests</li>
+                            <li>Reads <strong>Mock_Test_1 … Mock_Test_10</strong> → creates 10 mock test papers</li>
+                            <li>Auto-seeds subjects/topics if any are missing</li>
+                        </ul>
+                        <strong>Required column order:</strong>
+                        <code>QID | Question | Option A | Option B | Option C | Option D | Correct Answer | Subject | Topic | Difficulty | Marks | Negative Marks | Language</code>
+                    </div>
+                </div>
+                <form method="post" asp-page-handler="RrbAlp" enctype="multipart/form-data">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Select Excel File (.xlsx)</label>
+                        <input type="file" name="file" class="form-control" accept=".xlsx" required />
+                        <div class="form-text">Max file size: 25 MB. Must have sheets: Master_Question_Bank, CBT1_Paper, CBT2_Paper, Mock_Test_1..10</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary"
+                            onclick="this.disabled=true;this.innerHTML='<span class=\'spinner-border spinner-border-sm me-2\'></span>Importing 1800+ questions… please wait';this.form.submit()">
+                        <i class="bi bi-cloud-upload me-1"></i>Import RRB ALP Question Bank
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <!-- ── Import Results ────────────────────────────────────────────────────── -->
@@ -171,6 +216,18 @@
             <small class="text-muted">@r.TotalRows row(s) processed</small>
         </div>
         <div class="card-body">
+            @if (r.TestsCreated > 0)
+            {
+                <div class="alert alert-success d-flex gap-2 align-items-center mb-3">
+                    <i class="bi bi-check-circle-fill fs-5"></i>
+                    <div>
+                        <strong>@r.TestsCreated test paper(s) created automatically:</strong>
+                        <ul class="mb-0 mt-1 ps-3 small">
+                            @foreach (var name in r.TestNames) { <li>@name</li> }
+                        </ul>
+                    </div>
+                </div>
+            }
             <div class="row g-3 mb-4">
                 <div class="col-4">
                     <div class="text-center p-3 bg-success-subtle rounded border border-success-subtle">
