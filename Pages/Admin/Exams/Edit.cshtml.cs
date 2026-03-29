@@ -1,4 +1,5 @@
 using GridAcademy.Data;
+using GridAcademy.Helpers;
 using GridAcademy.Data.Entities.Content;
 using GridAcademy.Data.Entities.Exam;
 using GridAcademy.DTOs.Exam;
@@ -142,22 +143,8 @@ public class EditModel(IExamService svc, AppDbContext db, IWebHostEnvironment en
 
     // ── Helpers ────────────────────────────────────────────────────────────
 
-    private async Task<string> SaveUploadAsync(IFormFile file, string subfolder)
-    {
-        var allowed = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg" };
-        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-        if (!allowed.Contains(ext)) throw new InvalidOperationException($"File type '{ext}' not allowed.");
-
-        var uploadDir = Path.Combine(env.WebRootPath, "uploads", "exams", subfolder);
-        Directory.CreateDirectory(uploadDir);
-
-        var fileName = $"{Guid.NewGuid():N}{ext}";
-        var filePath = Path.Combine(uploadDir, fileName);
-        await using var stream = System.IO.File.Create(filePath);
-        await file.CopyToAsync(stream);
-
-        return $"/uploads/exams/{subfolder}/{fileName}";
-    }
+    private Task<string> SaveUploadAsync(IFormFile file, string subfolder)
+        => UploadHelper.SaveAsync(file, env, $"exams/{subfolder}");
 
     private SaveExamPageRequest BuildRequest() => new(
         Title, Slug, ShortDescription, Overview, Eligibility, Syllabus,

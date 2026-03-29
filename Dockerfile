@@ -18,8 +18,11 @@ RUN dotnet publish "GridAcademy.csproj" \
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 
-# Create uploads directory (persisted via Railway volume or ephemeral)
-RUN mkdir -p /app/wwwroot/uploads
+# Create uploads directory.
+# For persistent uploads on Railway: add a Volume at /app/uploads
+# and set env var UPLOADS_PATH=/app/uploads in the service settings.
+# Without a volume, uploads are ephemeral and lost on redeploy.
+RUN mkdir -p /app/uploads /app/wwwroot/uploads
 
 COPY --from=build /app/publish .
 

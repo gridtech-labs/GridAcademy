@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using GridAcademy.Helpers;
 using GridAcademy.Data.Entities.Content;
 using GridAcademy.DTOs.Content.Masters;
 using GridAcademy.DTOs.Content.Questions;
@@ -231,14 +232,10 @@ public class CreateModel : PageModel
         if (string.IsNullOrEmpty(ext)) ext = ".jpg";
         var fileName = $"{Guid.NewGuid()}{ext}";
 
-        var dir = Path.Combine(_env.WebRootPath, "uploads", "questions");
-        Directory.CreateDirectory(dir);
+        var url = await UploadHelper.SaveAsync(file, _env, "questions",
+            [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"]);
 
-        var filePath = Path.Combine(dir, fileName);
-        await using var stream = System.IO.File.Create(filePath);
-        await file.CopyToAsync(stream);
-
-        return new JsonResult(new { url = $"/uploads/questions/{fileName}" });
+        return new JsonResult(new { url });
     }
 
     private async Task LoadDropdownsAsync()

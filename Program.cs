@@ -355,7 +355,32 @@ _ = Task.Run(async () =>
 
 app.UseMiddleware<ExceptionMiddleware>();
 
-app.UseStaticFiles();   // Serve wwwroot (admin.css, etc.)
+app.UseStaticFiles();   // Serve wwwroot (admin.css, samples, etc.)
+
+// Serve uploaded files — supports both wwwroot/uploads (local dev) AND
+// a Railway persistent volume mounted at /app/uploads (production).
+// Set UPLOADS_PATH env var in Railway to /app/uploads and add a Volume there.
+{
+    var uploadsEnv  = Environment.GetEnvironmentVariable("UPLOADS_PATH");
+    var uploadsRoot = !string.IsNullOrEmpty(uploadsEnv)
+        ? uploadsEnv
+        : Path.Combine(builder.Environment.WebRootPath, "uploads");
+
+    Directory.CreateDirectory(uploadsRoot);
+
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsRoot),
+        RequestPath  = "/uploads",
+        OnPrepareResponse = ctx =>
+        {
+            // Cache images for 7 days in browser / CDN
+            ctx.Context.Response.Headers["Cache-Control"] = "public,max-age=604800";
+        }
+    });
+
+    Console.WriteLine($"[Uploads] Serving from: {uploadsRoot}");
+}
 
 // Swagger at /swagger (root is now the admin panel)
 app.UseSwagger();
