@@ -10,9 +10,14 @@
         <h4 class="fw-bold mb-0"><i class="bi bi-cloud-upload me-2 text-primary"></i>Import Questions</h4>
         <p class="text-muted small mb-0">Bulk-upload questions from CSV, Excel, or PDF files</p>
     </div>
-    <a href="/api/import/template/csv" class="btn btn-sm btn-outline-success" download>
-        <i class="bi bi-download me-1"></i>Download CSV Template
-    </a>
+    <div class="d-flex gap-2">
+        <a href="/samples/questions-template.csv" class="btn btn-sm btn-outline-success" download="questions-template.csv">
+            <i class="bi bi-filetype-csv me-1"></i>CSV Template
+        </a>
+        <a asp-page-handler="ExcelTemplate" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i>Excel Template
+        </a>
+    </div>
 </div>
 
 <!-- ── Source tabs ────────────────────────────────────────────────────────── -->
@@ -216,6 +221,60 @@
         </div>
     </div>
 }
+
+<!-- ── Question Type Reference ───────────────────────────────────────────── -->
+<div class="card shadow-sm mt-4">
+    <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-info-circle text-primary me-2"></i>Valid Values Reference
+    </div>
+    <div class="card-body">
+        <div class="row g-4">
+            <div class="col-md-6">
+                <h6 class="fw-semibold mb-2">QuestionType</h6>
+                <table class="table table-sm table-bordered align-middle mb-0">
+                    <thead class="table-light"><tr><th>Value</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>MCQ</code></td><td>Single Correct — one answer from A–D</td></tr>
+                        <tr><td><code>MSQ</code></td><td>Multiple Select — comma-separate CorrectOptions e.g. <code>A,C</code></td></tr>
+                        <tr><td><code>NAT</code></td><td>Numerical Answer — leave options blank, fill NumericalAnswer</td></tr>
+                        <tr><td><code>TrueFalse</code></td><td>OptionA=True, OptionB=False, CorrectOptions=A or B</td></tr>
+                        <tr><td><code>FillInBlanks</code></td><td>Options are choices, CorrectOptions = correct letter</td></tr>
+                        <tr><td><code>AssertionReason</code></td><td>Assertion + Reason evaluated together</td></tr>
+                        <tr><td><code>PassageBased</code></td><td>Comprehension / paragraph based</td></tr>
+                        <tr><td><code>MatrixMatch</code></td><td>Matrix match (many-to-many)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="col-md-3">
+                <h6 class="fw-semibold mb-2">Marks</h6>
+                <ul class="list-unstyled small mb-3">
+                    <li><code>1 Mark</code></li><li><code>2 Marks</code></li>
+                    <li><code>3 Marks</code></li><li><code>4 Marks</code></li>
+                </ul>
+                <h6 class="fw-semibold mb-2">NegativeMarks</h6>
+                <ul class="list-unstyled small mb-3">
+                    <li><code>No Negative</code></li><li><code>-0.25 Marks</code></li>
+                    <li><code>-1 Mark</code></li><li><code>-2 Marks</code></li>
+                </ul>
+            </div>
+            <div class="col-md-3">
+                <h6 class="fw-semibold mb-2">DifficultyLevel</h6>
+                <ul class="list-unstyled small mb-3">
+                    <li><code>Easy</code></li><li><code>Medium</code></li><li><code>Hard</code></li>
+                </ul>
+                <h6 class="fw-semibold mb-2">ComplexityLevel</h6>
+                <ul class="list-unstyled small mb-3">
+                    <li><code>Low</code></li><li><code>Medium</code></li><li><code>High</code></li>
+                </ul>
+                <h6 class="fw-semibold mb-2">ExamType</h6>
+                <ul class="list-unstyled small">
+                    <li><code>JEE Main</code></li><li><code>JEE Advanced</code></li>
+                    <li><code>NEET</code></li><li><code>Board</code></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
 <script>
