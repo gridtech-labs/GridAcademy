@@ -2,6 +2,7 @@ using GridAcademy.Common;
 using GridAcademy.Data;
 using GridAcademy.Data.Entities.Marketplace;
 using GridAcademy.DTOs.Marketplace;
+using GridAcademy.Helpers;
 using Microsoft.EntityFrameworkCore;
 
 namespace GridAcademy.Services.Marketplace;
@@ -167,7 +168,7 @@ public class StorefrontService : IStorefrontService
             series.SeriesType.ToString(),
             series.ShortDescription,
             series.FullDescription,
-            series.ThumbnailUrl,
+            MediaUrlHelper.Abs(series.ThumbnailUrl),
             series.PriceInr,
             series.IsFirstTestFree,
             series.Language,
@@ -242,6 +243,6 @@ public class StorefrontService : IStorefrontService
         s.PurchaseCount,
         s.AvgRating,
         s.ReviewCount,
-        s.ThumbnailUrl,
+        MediaUrlHelper.Abs(s.ThumbnailUrl),
         s.PublishedAt);
 }

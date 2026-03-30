@@ -1,6 +1,7 @@
 using GridAcademy.Data;
 using GridAcademy.Data.Entities.Exam;
 using GridAcademy.DTOs.Exam;
+using GridAcademy.Helpers;
 using Microsoft.EntityFrameworkCore;
 
 namespace GridAcademy.Services;
@@ -13,7 +14,7 @@ public class ExamService(AppDbContext db) : IExamService
         new(l.Id, l.Name, l.IsActive, l.SortOrder, count);
 
     private static ExamPageCardDto MapCard(ExamPage e) => new(
-        e.Id, e.Slug, e.Title, e.ShortDescription, e.ThumbnailUrl,
+        e.Id, e.Slug, e.Title, e.ShortDescription, MediaUrlHelper.Abs(e.ThumbnailUrl),
         e.ExamLevel?.Name, e.ExamType?.Name, e.ConductingBody,
         e.Tests.Count, e.IsFeatured, e.Status, e.CreatedAt);
 
@@ -22,7 +23,7 @@ public class ExamService(AppDbContext db) : IExamService
         e.Overview, e.Eligibility, e.Syllabus, e.ExamPattern,
         e.ImportantDates, e.AdmitCard, e.ResultInfo, e.CutOff, e.HowToApply,
         e.ConductingBody, e.OfficialWebsite, e.NotificationUrl,
-        e.ThumbnailUrl, e.BannerUrl,
+        MediaUrlHelper.Abs(e.ThumbnailUrl), MediaUrlHelper.Abs(e.BannerUrl),
         e.ExamLevel?.Name, e.ExamType?.Name,
         e.MetaTitle, e.MetaDescription,
         e.IsFeatured, e.ViewCount,

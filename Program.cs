@@ -110,6 +110,9 @@ static string BuildConnectionString(IConfiguration cfg, bool isProduction)
         "No DB connection found. Set DATABASE_PUBLIC_URL in Railway Variables or RailwayConnection in appsettings.json.");
 }
 
+// Configure media URL helper (makes /uploads/... absolute for production)
+GridAcademy.Helpers.MediaUrlHelper.Configure(config);
+
 string connectionString;
 try
 {
