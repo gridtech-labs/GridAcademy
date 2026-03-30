@@ -1,0 +1,95 @@
+@page
+@model GridAcademy.Pages.Admin.Marketplace.Providers.IndexModel
+@{
+    ViewData["Title"] = "Providers — Marketplace";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-building me-2 text-primary"></i>Providers</h4>
+        <p class="text-muted small mb-0">Manage registered coaching institutes and educators</p>
+    </div>
+</div>
+
+@if (TempData["SuccessMsg"] is string ok)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="bi bi-check-circle me-2"></i>@ok
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (!Model.Providers.Any())
+{
+    <div class="card shadow-sm">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-building display-4 text-muted"></i>
+            <h5 class="mt-3 text-muted">No providers yet</h5>
+            <p class="text-muted small">Providers register via the frontend at <code>/register/provider</code></p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Institute</th>
+                        <th>Email</th>
+                        <th>City</th>
+                        <th class="text-center">Series</th>
+                        <th class="text-center">Status</th>
+                        <th>Joined</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var p in Model.Providers)
+                {
+                    <tr>
+                        <td class="fw-semibold">@p.InstituteName</td>
+                        <td class="text-muted small">@p.UserEmail</td>
+                        <td class="text-muted small">@(p.City ?? "—")</td>
+                        <td class="text-center">@p.SeriesCount</td>
+                        <td class="text-center">
+                            @switch (p.Status)
+                            {
+                                case GridAcademy.Data.Entities.Marketplace.ProviderStatus.Verified:
+                                    <span class="badge bg-success">Verified</span>
+                                    break;
+                                case GridAcademy.Data.Entities.Marketplace.ProviderStatus.Pending:
+                                    <span class="badge bg-warning text-dark">Pending</span>
+                                    break;
+                                default:
+                                    <span class="badge bg-danger">Suspended</span>
+                                    break;
+                            }
+                        </td>
+                        <td class="text-muted small">@p.CreatedAt.ToString("dd MMM yyyy")</td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                @if (p.Status == GridAcademy.Data.Entities.Marketplace.ProviderStatus.Pending)
+                                {
+                                    <form method="post" asp-page-handler="Approve" asp-route-id="@p.Id">
+                                        @Html.AntiForgeryToken()
+                                        <button class="btn btn-success btn-sm">Approve</button>
+                                    </form>
+                                }
+                                @if (p.Status == GridAcademy.Data.Entities.Marketplace.ProviderStatus.Verified)
+                                {
+                                    <form method="post" asp-page-handler="Suspend" asp-route-id="@p.Id">
+                                        @Html.AntiForgeryToken()
+                                        <button class="btn btn-outline-danger btn-sm">Suspend</button>
+                                    </form>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

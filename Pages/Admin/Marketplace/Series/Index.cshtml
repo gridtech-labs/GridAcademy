@@ -1,0 +1,258 @@
+@page
+@model GridAcademy.Pages.Admin.Marketplace.Series.IndexModel
+@{
+    ViewData["Title"] = "Test Series — Marketplace";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-shop me-2 text-primary"></i>Test Series</h4>
+        <p class="text-muted small mb-0">Publish test papers to the student storefront</p>
+    </div>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#createForm">
+        <i class="bi bi-plus-lg me-1"></i>New Series
+    </button>
+</div>
+
+@if (TempData["SuccessMsg"] is string ok)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="bi bi-check-circle me-2"></i>@ok
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["ErrorMsg"] is string err)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="bi bi-exclamation-triangle me-2"></i>@err
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- ── CREATE FORM ────────────────────────────────────────────────────────── -->
+<div class="collapse mb-4" id="createForm">
+    <div class="card shadow-sm border-primary">
+        <div class="card-header bg-primary text-white fw-semibold py-3">
+            <i class="bi bi-plus-circle me-2"></i>Create New Test Series
+        </div>
+        <div class="card-body">
+            <form method="post" asp-page-handler="Create">
+                @Html.AntiForgeryToken()
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Title <span class="text-danger">*</span></label>
+                        <input asp-for="NewTitle" class="form-control" placeholder="e.g. RRB ALP Complete Mock Test Series 2025" required />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Exam Type <span class="text-danger">*</span></label>
+                        <select asp-for="NewExamTypeId" class="form-select" required>
+                            <option value="">— Select —</option>
+                            @foreach (var (id, name) in Model.ExamTypes)
+                            {
+                                <option value="@id">@name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Series Type</label>
+                        <select asp-for="NewSeriesType" class="form-select">
+                            <option value="0">Full Mock</option>
+                            <option value="1">Sectional</option>
+                            <option value="2">Previous Year</option>
+                            <option value="3">Mini Mock</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Short Description</label>
+                        <textarea asp-for="NewShortDesc" class="form-control" rows="2"
+                            placeholder="e.g. 12 full-length CBT mock tests for RRB ALP with detailed solutions"></textarea>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Price (&#8377;)</label>
+                        <input asp-for="NewPrice" type="number" min="0" step="1" class="form-control" value="0" />
+                        <div class="form-text">Set 0 for free</div>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end pb-1">
+                        <div class="form-check">
+                            <input asp-for="NewFirstTestFree" class="form-check-input" type="checkbox" />
+                            <label asp-for="NewFirstTestFree" class="form-check-label">First test free preview</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end pb-1">
+                        <div class="form-check">
+                            <input asp-for="PublishNow" class="form-check-input" type="checkbox" checked />
+                            <label asp-for="PublishNow" class="form-check-label fw-semibold text-success">Publish immediately</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tests picker -->
+                <div class="mt-3">
+                    <label class="form-label fw-semibold">Select Tests to include</label>
+                    <div class="border rounded p-3 bg-light" style="max-height:280px;overflow-y:auto">
+                        @if (!Model.AllTests.Any())
+                        {
+                            <p class="text-muted small mb-0">No published tests found. Go to Content &rarr; Tests and publish some tests first.</p>
+                        }
+                        @foreach (var (id, title) in Model.AllTests)
+                        {
+                            <div class="form-check mb-1">
+                                <input class="form-check-input" type="checkbox" name="NewTestIds" value="@id" id="t_@id" />
+                                <label class="form-check-label small" for="t_@id">@title</label>
+                            </div>
+                        }
+                    </div>
+                    <div class="form-text">Hold scroll and check all tests for this series.</div>
+                </div>
+
+                <div class="mt-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-cloud-upload me-1"></i>Create Series
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#createForm">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ── SERIES LIST ─────────────────────────────────────────────────────────── -->
+@if (!Model.AllSeries.Any())
+{
+    <div class="card shadow-sm">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-shop display-4 text-muted"></i>
+            <h5 class="mt-3 text-muted">No test series yet</h5>
+            <p class="text-muted small">Click <strong>New Series</strong> above to create your first marketplace listing.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="d-flex flex-column gap-3">
+        @foreach (var s in Model.AllSeries)
+        {
+            var statusBadge = s.Status switch {
+                GridAcademy.Data.Entities.Marketplace.SeriesStatus.Published => "bg-success",
+                GridAcademy.Data.Entities.Marketplace.SeriesStatus.Draft     => "bg-secondary",
+                GridAcademy.Data.Entities.Marketplace.SeriesStatus.PendingReview => "bg-warning text-dark",
+                _ => "bg-danger"
+            };
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1 me-3">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <h6 class="fw-bold mb-0">@s.Title</h6>
+                                <span class="badge @statusBadge">@s.Status</span>
+                                <span class="badge bg-light text-dark border">@s.SeriesType</span>
+                                @if (s.PriceInr == 0)
+                                {
+                                    <span class="badge bg-info text-dark">FREE</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-primary">&#8377;@s.PriceInr</span>
+                                }
+                            </div>
+                            <div class="text-muted small">
+                                <i class="bi bi-mortarboard me-1"></i>@s.ExamTypeName
+                                &nbsp;&middot;&nbsp;
+                                <i class="bi bi-journal-check me-1"></i>@s.TestCount test(s)
+                                @if (s.PublishedAt.HasValue)
+                                {
+                                    <text>&nbsp;&middot;&nbsp;<i class="bi bi-calendar me-1"></i>Published @s.PublishedAt.Value.ToString("dd MMM yyyy")</text>
+                                }
+                                &nbsp;&middot;&nbsp;<code class="small">/tests/@s.Slug</code>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 flex-shrink-0">
+                            @if (s.Status != GridAcademy.Data.Entities.Marketplace.SeriesStatus.Published)
+                            {
+                                <form method="post" asp-page-handler="Publish" asp-route-id="@s.Id">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-success btn-sm">
+                                        <i class="bi bi-globe me-1"></i>Publish
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <form method="post" asp-page-handler="Unpublish" asp-route-id="@s.Id">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm">
+                                        <i class="bi bi-eye-slash me-1"></i>Unpublish
+                                    </button>
+                                </form>
+                            }
+                            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="collapse"
+                                    data-bs-target="#tests_@s.Id">
+                                <i class="bi bi-list-check me-1"></i>Tests
+                            </button>
+                            <form method="post" asp-page-handler="Delete" asp-route-id="@s.Id"
+                                  onsubmit="return confirm('Delete this series? This cannot be undone.')">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Tests collapse -->
+                    <div class="collapse mt-3" id="tests_@s.Id">
+                        <div class="border rounded p-2 bg-light">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-semibold small">Included Tests</span>
+                                <!-- Quick add test -->
+                                <form method="post" asp-page-handler="AddTest" class="d-flex gap-2 align-items-center">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="seriesId" value="@s.Id" />
+                                    <select name="testId" class="form-select form-select-sm" style="width:auto;min-width:200px">
+                                        <option value="">— Add a test —</option>
+                                        @foreach (var (tid, ttitle) in Model.AllTests.Where(t => !s.Tests.Any(st => st.TestId == t.Id)))
+                                        {
+                                            <option value="@tid">@ttitle</option>
+                                        }
+                                    </select>
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">Add</button>
+                                </form>
+                            </div>
+                            @if (!s.Tests.Any())
+                            {
+                                <p class="text-muted small mb-0">No tests linked yet.</p>
+                            }
+                            else
+                            {
+                                <table class="table table-sm mb-0">
+                                    <tbody>
+                                    @foreach (var t in s.Tests)
+                                    {
+                                        <tr>
+                                            <td class="small">@t.Title</td>
+                                            <td class="text-center" style="width:100px">
+                                                @if (t.IsFreePreview) { <span class="badge bg-info text-dark">Free Preview</span> }
+                                            </td>
+                                            <td class="text-end" style="width:80px">
+                                                <form method="post" asp-page-handler="RemoveTest" asp-route-id="@t.LinkId">
+                                                    @Html.AntiForgeryToken()
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1"
+                                                            onclick="return confirm('Remove this test from the series?')">
+                                                        <i class="bi bi-x"></i>
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                    </tbody>
+                                </table>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}

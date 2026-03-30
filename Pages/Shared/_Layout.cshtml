@@ -157,6 +157,42 @@
                 </div>
             </li>
 
+            <!-- ── MARKETPLACE ───────────────────────────────── -->
+            @{
+                var inMarketplace = Context.Request.Path.StartsWithSegments("/Admin/Marketplace");
+            }
+            <li class="nav-item mt-1">
+                <a href="#marketplaceMenu" data-bs-toggle="collapse"
+                   class="nav-link text-white d-flex justify-content-between align-items-center @(inMarketplace ? "" : "collapsed")"
+                   aria-expanded="@(inMarketplace ? "true" : "false")">
+                    <span><i class="bi bi-shop me-2"></i>Marketplace</span>
+                    <i class="bi bi-chevron-down small"></i>
+                </a>
+                <div class="collapse @(inMarketplace ? "show" : "")" id="marketplaceMenu">
+                    <ul class="nav flex-column ms-3 mt-1">
+                        @{
+                            var inSeries    = Context.Request.Path.StartsWithSegments("/Admin/Marketplace/Series");
+                            var inProviders = Context.Request.Path.StartsWithSegments("/Admin/Marketplace/Providers");
+                        }
+                        <li class="nav-item">
+                            <a asp-page="/Admin/Marketplace/Series/Index"
+                               class="nav-link py-1 @(inSeries ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-collection-play me-2"></i>Test Series
+                            </a>
+                        </li>
+                        @if (User.IsInRole("Admin"))
+                        {
+                            <li class="nav-item">
+                                <a asp-page="/Admin/Marketplace/Providers/Index"
+                                   class="nav-link py-1 @(inProviders ? "text-white active" : "text-white-50")">
+                                    <i class="bi bi-building me-2"></i>Providers
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </li>
+
             <!-- ── EXAMS ───────────────────────────────── -->
             <li class="nav-item mt-1">
                 <a href="#examsMenu" data-bs-toggle="collapse"
