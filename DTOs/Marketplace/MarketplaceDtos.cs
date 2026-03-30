@@ -201,6 +201,7 @@ public record CmsBannerDto(
 public record ExamCategoryDto(
     int    Id,
     string Name,
+    string Slug,       // URL-safe slug e.g. "rrb-alp", "ssc-cgl"
     string? Emoji,
     int    SeriesCount
 );
@@ -208,6 +209,7 @@ public record ExamCategoryDto(
 public record TestSeriesSearchRequest(
     string?    Query,
     int?       ExamTypeId,
+    string?    CategorySlug,          // e.g. "rrb-alp" — matched against slugified ExamType.Name
     SeriesType? SeriesType,
     decimal?   MinPrice,
     decimal?   MaxPrice,

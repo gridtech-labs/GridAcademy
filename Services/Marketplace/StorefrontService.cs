@@ -30,7 +30,8 @@ public class StorefrontService : IStorefrontService
             .Select(e => new ExamCategoryDto(
                 e.Id,
                 e.Name,
-                null,   // Emoji can be added as a field later
+                e.Name.ToLower().Replace(" ", "-").Replace("/", "-"),
+                null,
                 _db.MpTestSeries.Count(s => s.ExamTypeId == e.Id && s.Status == SeriesStatus.Published && s.IsActive)))
             .OrderBy(e => e.Id)
             .ToListAsync(ct);
@@ -79,6 +80,10 @@ public class StorefrontService : IStorefrontService
 
         if (req.ExamTypeId.HasValue)
             query = query.Where(s => s.ExamTypeId == req.ExamTypeId.Value);
+
+        if (!string.IsNullOrEmpty(req.CategorySlug))
+            query = query.Where(s => s.ExamType.Name.ToLower().Replace(" ", "-").Replace("/", "-") == req.CategorySlug
+                                  || s.ExamType.Name.ToLower().Contains(req.CategorySlug.Replace("-", " ")));
 
         if (req.SeriesType.HasValue)
             query = query.Where(s => s.SeriesType == req.SeriesType.Value);
