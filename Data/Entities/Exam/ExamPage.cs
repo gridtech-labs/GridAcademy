@@ -51,6 +51,10 @@ public class ExamPage
     public string? ThumbnailUrl     { get; set; }   // stored path e.g. /uploads/exams/xxx.jpg
     public string? BannerUrl        { get; set; }
 
+    // ── Pricing (Marketplace) ──────────────────────────────────────────────
+    /// <summary>0 = Free. Greater than 0 = Paid. Shown as price on the frontend marketplace.</summary>
+    public decimal PriceInr         { get; set; } = 0;
+
     // ── Display ───────────────────────────────────────────────────────────
     public bool IsFeatured          { get; set; } = false;
     public bool IsActive            { get; set; } = true;

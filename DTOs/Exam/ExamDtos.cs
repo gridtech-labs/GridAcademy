@@ -13,11 +13,13 @@ public record ExamPageCardDto(
     string Title,
     string? ShortDescription,
     string? ThumbnailUrl,
+    string? BannerUrl,
     string? ExamLevelName,
     string? ExamTypeName,
     string? ConductingBody,
     int  TestCount,
     bool IsFeatured,
+    decimal PriceInr,
     ExamPageStatus Status,
     DateTime CreatedAt);
 
@@ -46,6 +48,7 @@ public record ExamPageDetailDto(
     string? MetaTitle,
     string? MetaDescription,
     bool IsFeatured,
+    decimal PriceInr,
     int ViewCount,
     List<ExamTestDto> Tests,
     DateTime UpdatedAt);
@@ -83,6 +86,7 @@ public record SaveExamPageRequest(
     bool IsActive,
     ExamPageStatus Status,
     int SortOrder,
+    decimal PriceInr,
     string? MetaTitle,
     string? MetaDescription);
 

@@ -14,9 +14,10 @@ public class ExamService(AppDbContext db) : IExamService
         new(l.Id, l.Name, l.IsActive, l.SortOrder, count);
 
     private static ExamPageCardDto MapCard(ExamPage e) => new(
-        e.Id, e.Slug, e.Title, e.ShortDescription, MediaUrlHelper.Abs(e.ThumbnailUrl),
+        e.Id, e.Slug, e.Title, e.ShortDescription,
+        MediaUrlHelper.Abs(e.ThumbnailUrl), MediaUrlHelper.Abs(e.BannerUrl),
         e.ExamLevel?.Name, e.ExamType?.Name, e.ConductingBody,
-        e.Tests.Count, e.IsFeatured, e.Status, e.CreatedAt);
+        e.Tests.Count, e.IsFeatured, e.PriceInr, e.Status, e.CreatedAt);
 
     private static ExamPageDetailDto MapDetail(ExamPage e) => new(
         e.Id, e.Slug, e.Title, e.ShortDescription,
@@ -26,7 +27,7 @@ public class ExamService(AppDbContext db) : IExamService
         MediaUrlHelper.Abs(e.ThumbnailUrl), MediaUrlHelper.Abs(e.BannerUrl),
         e.ExamLevel?.Name, e.ExamType?.Name,
         e.MetaTitle, e.MetaDescription,
-        e.IsFeatured, e.ViewCount,
+        e.IsFeatured, e.PriceInr, e.ViewCount,
         e.Tests.OrderBy(t => t.SortOrder)
                .Select(t => new ExamTestDto(t.TestId, t.Test?.Title ?? "", t.Test?.Status.ToString() ?? "", t.IsFree, t.SortOrder))
                .ToList(),
@@ -190,7 +191,7 @@ public class ExamService(AppDbContext db) : IExamService
         e.ThumbnailUrl = r.ThumbnailUrl; e.BannerUrl = r.BannerUrl;
         e.ExamLevelId = r.ExamLevelId; e.ExamTypeId = r.ExamTypeId;
         e.IsFeatured = r.IsFeatured; e.IsActive = r.IsActive;
-        e.Status = r.Status; e.SortOrder = r.SortOrder;
+        e.Status = r.Status; e.SortOrder = r.SortOrder; e.PriceInr = r.PriceInr;
         e.MetaTitle = r.MetaTitle; e.MetaDescription = r.MetaDescription;
         return e;
     }
