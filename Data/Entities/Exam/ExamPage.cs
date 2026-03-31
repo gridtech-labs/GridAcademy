@@ -47,6 +47,10 @@ public class ExamPage
     public int? ExamLevelId         { get; set; }   // FK → ExamLevel
     public int? ExamTypeId          { get; set; }   // FK → Content.ExamType (Engineering, Civil, etc.)
 
+    /// <summary>Frontend filter category. Values: Railway, UPSC, Banking, SSC, GATE, Defence</summary>
+    [MaxLength(50)]
+    public string? Category         { get; set; }
+
     // ── Media ─────────────────────────────────────────────────────────────
     public string? ThumbnailUrl     { get; set; }   // stored path e.g. /uploads/exams/xxx.jpg
     public string? BannerUrl        { get; set; }

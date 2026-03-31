@@ -249,6 +249,23 @@
                         <input asp-for="SortOrder" type="number" class="form-control" />
                     </div>
 
+                    @* Category *@
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-tag me-1 text-info"></i>Category
+                        </label>
+                        <select asp-for="Category" class="form-select">
+                            <option value="">-- None --</option>
+                            <option value="Railway">🚂 Railway</option>
+                            <option value="UPSC">🏛️ UPSC</option>
+                            <option value="Banking">🏦 Banking</option>
+                            <option value="SSC">👮 SSC</option>
+                            <option value="GATE">🔬 GATE</option>
+                            <option value="Defence">📐 Defence</option>
+                        </select>
+                        <div class="form-text">Used for frontend category filter pills.</div>
+                    </div>
+
                     @* Pricing *@
                     <div class="mb-3">
                         <label class="form-label fw-semibold">

@@ -16,7 +16,7 @@ public class ExamService(AppDbContext db) : IExamService
     private static ExamPageCardDto MapCard(ExamPage e) => new(
         e.Id, e.Slug, e.Title, e.ShortDescription,
         MediaUrlHelper.Abs(e.ThumbnailUrl), MediaUrlHelper.Abs(e.BannerUrl),
-        e.ExamLevel?.Name, e.ExamType?.Name, e.ConductingBody,
+        e.ExamLevel?.Name, e.ExamType?.Name, e.ConductingBody, e.Category,
         e.Tests.Count, e.IsFeatured, e.PriceInr, e.Status, e.CreatedAt);
 
     private static ExamPageDetailDto MapDetail(ExamPage e) => new(
@@ -26,7 +26,7 @@ public class ExamService(AppDbContext db) : IExamService
         e.ConductingBody, e.OfficialWebsite, e.NotificationUrl,
         MediaUrlHelper.Abs(e.ThumbnailUrl), MediaUrlHelper.Abs(e.BannerUrl),
         e.ExamLevel?.Name, e.ExamType?.Name,
-        e.MetaTitle, e.MetaDescription,
+        e.MetaTitle, e.MetaDescription, e.Category,
         e.IsFeatured, e.PriceInr, e.ViewCount,
         e.Tests.OrderBy(t => t.SortOrder)
                .Select(t => new ExamTestDto(t.TestId, t.Test?.Title ?? "", t.Test?.Status.ToString() ?? "", t.IsFree, t.SortOrder))
@@ -82,11 +82,12 @@ public class ExamService(AppDbContext db) : IExamService
 
     // ── Exam Pages ─────────────────────────────────────────────────────────
 
-    public async Task<List<ExamPageCardDto>> GetExamPagesAsync(bool activeOnly = false, int? levelId = null, string? search = null)
+    public async Task<List<ExamPageCardDto>> GetExamPagesAsync(bool activeOnly = false, int? levelId = null, string? search = null, string? category = null)
     {
         var q = BaseQuery().AsQueryable();
         if (activeOnly) q = q.Where(e => e.IsActive && e.Status == ExamPageStatus.Published);
         if (levelId.HasValue) q = q.Where(e => e.ExamLevelId == levelId.Value);
+        if (!string.IsNullOrWhiteSpace(category)) q = q.Where(e => e.Category == category);
         if (!string.IsNullOrWhiteSpace(search))
             q = q.Where(e => e.Title.ToLower().Contains(search.ToLower()) ||
                              (e.ConductingBody != null && e.ConductingBody.ToLower().Contains(search.ToLower())));
@@ -192,6 +193,7 @@ public class ExamService(AppDbContext db) : IExamService
         e.ExamLevelId = r.ExamLevelId; e.ExamTypeId = r.ExamTypeId;
         e.IsFeatured = r.IsFeatured; e.IsActive = r.IsActive;
         e.Status = r.Status; e.SortOrder = r.SortOrder; e.PriceInr = r.PriceInr;
+        e.Category = r.Category;
         e.MetaTitle = r.MetaTitle; e.MetaDescription = r.MetaDescription;
         return e;
     }

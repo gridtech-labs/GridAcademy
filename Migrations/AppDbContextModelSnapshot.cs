@@ -1207,6 +1207,10 @@ namespace GridAcademy.Migrations
                     b.Property<decimal>("PriceInr")
                         .HasColumnType("numeric");
 
+                    b.Property<string>("Category")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<string>("ResultInfo")
                         .HasColumnType("text");
 

@@ -36,6 +36,7 @@ public class EditModel(IExamService svc, AppDbContext db, IWebHostEnvironment en
     [BindProperty] public int?    ExamLevelId      { get; set; }
     [BindProperty] public int?    ExamTypeId       { get; set; }
     [BindProperty] public decimal PriceInr         { get; set; } = 0;
+    [BindProperty] public string? Category         { get; set; }
     [BindProperty] public bool    IsFeatured       { get; set; }
     [BindProperty] public bool    IsActive         { get; set; } = true;
     [BindProperty] public ExamPageStatus Status    { get; set; } = ExamPageStatus.Draft;
@@ -66,6 +67,7 @@ public class EditModel(IExamService svc, AppDbContext db, IWebHostEnvironment en
             ConductingBody = dto.ConductingBody; OfficialWebsite = dto.OfficialWebsite;
             NotificationUrl = dto.NotificationUrl; ThumbnailUrl = dto.ThumbnailUrl;
             BannerUrl = dto.BannerUrl; IsFeatured = dto.IsFeatured; PriceInr = dto.PriceInr;
+            Category = dto.Category;
             MetaTitle = dto.MetaTitle; MetaDescription = dto.MetaDescription;
         }
         return Page();
@@ -152,7 +154,7 @@ public class EditModel(IExamService svc, AppDbContext db, IWebHostEnvironment en
         ExamPattern, ImportantDates, AdmitCard, ResultInfo, CutOff, HowToApply,
         ConductingBody, OfficialWebsite, NotificationUrl,
         ThumbnailUrl, BannerUrl, ExamLevelId, ExamTypeId,
-        IsFeatured, IsActive, Status, SortOrder, PriceInr, MetaTitle, MetaDescription);
+        IsFeatured, IsActive, Status, SortOrder, PriceInr, Category, MetaTitle, MetaDescription);
 
     private async Task LoadDropdownsAsync()
     {
