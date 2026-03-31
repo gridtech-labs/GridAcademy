@@ -20,12 +20,61 @@
     </div>
 </div>
 
+<!-- ── Destination Selector ────────────────────────────────────────────────── -->
+<div class="card shadow-sm mb-4 border-primary border-opacity-25">
+    <div class="card-header bg-primary-subtle fw-semibold py-3">
+        <i class="bi bi-arrow-right-square me-2"></i>Import Destination
+    </div>
+    <div class="card-body py-3">
+        <div class="d-flex flex-wrap gap-4 align-items-start">
+            <!-- Radio: Global Bank -->
+            <div class="form-check mt-1">
+                <input class="form-check-input" type="radio" name="destination" id="destGlobal"
+                       value="global" checked onchange="onDestinationChange(this.value)">
+                <label class="form-check-label" for="destGlobal">
+                    <span class="fw-semibold">Global Question Bank</span>
+                    <span class="d-block text-muted small">Questions go into the shared bank (default)</span>
+                </label>
+            </div>
+
+            <!-- Radio: Map to Test -->
+            <div class="form-check mt-1">
+                <input class="form-check-input" type="radio" name="destination" id="destTest"
+                       value="test" onchange="onDestinationChange(this.value)">
+                <label class="form-check-label" for="destTest">
+                    <span class="fw-semibold">Map to a Specific Test</span>
+                    <span class="d-block text-muted small">Also link directly to a test's question set</span>
+                </label>
+            </div>
+
+            <!-- Test dropdown — shown when "Map to Test" is selected -->
+            <div id="testSelectWrapper" class="flex-grow-1" style="display:none; min-width:260px;">
+                <select id="testSelectDropdown" class="form-select form-select-sm"
+                        onchange="onTestSelected(this.value)">
+                    <option value="">— select a test —</option>
+                    @foreach (var t in Model.AvailableTests)
+                    {
+                        <option value="@t.Id">@t.Title</option>
+                    }
+                </select>
+                @if (!Model.AvailableTests.Any())
+                {
+                    <div class="form-text text-warning">
+                        <i class="bi bi-exclamation-triangle me-1"></i>No tests found.
+                        <a asp-page="/Admin/Tests/Create" class="text-decoration-none">Create a test first.</a>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ── Source tabs ────────────────────────────────────────────────────────── -->
 <ul class="nav nav-tabs mb-3" id="importTabs">
-    @foreach (var (id, label, icon, accept) in new[] {
-        ("csv",   "CSV",   "bi-filetype-csv",  ".csv,text/csv"),
-        ("excel", "Excel", "bi-file-earmark-spreadsheet", ".xlsx,.xls"),
-        ("pdf",   "PDF",   "bi-file-earmark-pdf", ".pdf"),
+    @foreach (var (id, label, icon) in new[] {
+        ("csv",   "CSV",   "bi-filetype-csv"),
+        ("excel", "Excel", "bi-file-earmark-spreadsheet"),
+        ("pdf",   "PDF",   "bi-file-earmark-pdf"),
     })
     {
         <li class="nav-item">
@@ -35,7 +84,6 @@
             </button>
         </li>
     }
-    <!-- OCR tab — always shown; badge indicates configured / not configured -->
     <li class="nav-item">
         <button class="nav-link @(src == "ocr" ? "active" : "")"
                 data-bs-toggle="tab" data-bs-target="#tab-ocr" type="button">
@@ -75,14 +123,17 @@
                 <div class="card-header bg-white fw-semibold py-3">Upload @label</div>
                 <div class="card-body">
                     <p class="text-muted small mb-3"><i class="bi bi-info-circle me-1"></i>@hint</p>
-                    <form method="post" asp-page-handler="@handler" enctype="multipart/form-data">
+                    <form method="post" asp-page-handler="@handler" enctype="multipart/form-data"
+                          class="import-form" data-source="@id">
                         @Html.AntiForgeryToken()
+                        <!-- Hidden TestId — populated by JS from destination selector -->
+                        <input type="hidden" name="TestId" class="testid-field" value="" />
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Select File</label>
                             <input type="file" name="file" class="form-control" accept="@accept" required />
                             <div class="form-text">Maximum file size: 10 MB</div>
                         </div>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary import-submit-btn">
                             <i class="bi bi-upload me-1"></i>Import
                         </button>
                     </form>
@@ -109,7 +160,6 @@
 
                 @if (!Model.MathpixConfigured)
                 {
-                    <!-- ── Setup instructions ──────────────────────────────── -->
                     <div class="alert alert-warning d-flex gap-3 align-items-start">
                         <i class="bi bi-exclamation-triangle-fill fs-4 flex-shrink-0"></i>
                         <div>
@@ -132,7 +182,6 @@
                     </div>
                 }
 
-                <!-- ── How it works ───────────────────────────────────────── -->
                 <div class="alert alert-info small mb-3 d-flex gap-2 align-items-start">
                     <i class="bi bi-lightbulb flex-shrink-0 mt-1"></i>
                     <div>
@@ -147,21 +196,22 @@
                 </div>
 
                 <form method="post" asp-page-handler="Ocr" enctype="multipart/form-data"
-                      class="@(!Model.MathpixConfigured ? "opacity-50 pe-none" : "")"  >
+                      class="import-form @(!Model.MathpixConfigured ? "opacity-50 pe-none" : "")"
+                      data-source="ocr">
                     @Html.AntiForgeryToken()
+                    <input type="hidden" name="TestId" class="testid-field" value="" />
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Select PDF File</label>
                         <input type="file" name="file" class="form-control" accept=".pdf"
                                @(!Model.MathpixConfigured ? "disabled" : "") required />
                         <div class="form-text">Maximum file size: 20 MB</div>
                     </div>
-                    <button type="submit" class="btn btn-primary"
+                    <button type="submit" class="btn btn-primary import-submit-btn"
                             @(!Model.MathpixConfigured ? "disabled" : "")
-                            onclick="this.disabled=true;this.innerHTML='<span class=\'spinner-border spinner-border-sm me-2\'></span>Processing… (may take up to 1 min)';this.form.submit()">
+                            onclick="if(!this.disabled){this.disabled=true;this.innerHTML='<span class=\'spinner-border spinner-border-sm me-2\'></span>Processing…';this.form.submit();}return false;">
                         <i class="bi bi-cpu me-1"></i>Import with OCR
                     </button>
                 </form>
-
             </div>
         </div>
     </div>
@@ -216,6 +266,16 @@
             <small class="text-muted">@r.TotalRows row(s) processed</small>
         </div>
         <div class="card-body">
+            @if (!string.IsNullOrEmpty(r.MappedTestName))
+            {
+                <div class="alert alert-success d-flex gap-2 align-items-center mb-3">
+                    <i class="bi bi-check-circle-fill fs-5"></i>
+                    <div>
+                        <strong>@r.Imported question(s) successfully added to "@r.MappedTestName".</strong>
+                        <span class="d-block text-muted small">Questions are also saved to the global question bank.</span>
+                    </div>
+                </div>
+            }
             @if (r.TestsCreated > 0)
             {
                 <div class="alert alert-success d-flex gap-2 align-items-center mb-3">
@@ -335,11 +395,46 @@
 
 @section Scripts {
 <script>
-    // Restore active tab
-    (function () {
-        const src = '@src';
-        const el = document.querySelector(`[data-bs-target="#tab-${src}"]`);
-        if (el) bootstrap.Tab.getOrCreateInstance(el).show();
-    })();
+(function () {
+    // ── Restore active tab ────────────────────────────────────────────────
+    const src = '@src';
+    const el  = document.querySelector(`[data-bs-target="#tab-${src}"]`);
+    if (el) bootstrap.Tab.getOrCreateInstance(el).show();
+
+    // ── Destination selector logic ────────────────────────────────────────
+    window.onDestinationChange = function (value) {
+        const wrapper = document.getElementById('testSelectWrapper');
+        const dropdown = document.getElementById('testSelectDropdown');
+
+        if (value === 'test') {
+            wrapper.style.display = '';
+            // Disable submit buttons until a test is chosen (unless already chosen)
+            updateSubmitButtons(dropdown.value);
+        } else {
+            wrapper.style.display = 'none';
+            // Clear any previously set testId and re-enable
+            syncTestIdToForms('');
+            updateSubmitButtons('__global__'); // non-empty → enable
+        }
+    };
+
+    window.onTestSelected = function (testId) {
+        syncTestIdToForms(testId);
+        updateSubmitButtons(testId);
+    };
+
+    function syncTestIdToForms(testId) {
+        document.querySelectorAll('.testid-field').forEach(f => f.value = testId);
+    }
+
+    function updateSubmitButtons(testId) {
+        const dest = document.querySelector('input[name="destination"]:checked')?.value;
+        const enabled = dest !== 'test' || testId !== '';
+        document.querySelectorAll('.import-submit-btn').forEach(btn => {
+            btn.disabled = !enabled;
+            btn.title = !enabled ? 'Please select a test first.' : '';
+        });
+    }
+})();
 </script>
 }

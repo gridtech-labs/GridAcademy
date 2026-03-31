@@ -263,7 +263,8 @@
       "Bash(xargs grep:*)",
       "Bash(head -20 grep -n \"ThumbnailUrl\\\\|BannerUrl\" \"D:/Bkp/GRID/GridAcademy/Services/Marketplace/StorefrontService.cs\")",
       "Bash(head -10 grep -n \"GetHomepageAsync\\\\|HomepageDto\" \"D:/Bkp/GRID/GridAcademy/Services/Marketplace/StorefrontService.cs\")",
-      "Bash(head -10 grep -n \"ExamCardDto\\\\|ExamCard\\\\|ListAsync\\\\|activeOnly\" \"D:/Bkp/GRID/GridAcademy/Services/ExamService.cs\")"
+      "Bash(head -10 grep -n \"ExamCardDto\\\\|ExamCard\\\\|ListAsync\\\\|activeOnly\" \"D:/Bkp/GRID/GridAcademy/Services/ExamService.cs\")",
+      "Bash(head -20 grep -n \"TestQuestion\\\\|test_question\" \"D:/Bkp/GRID/GridAcademy/Data/AppDbContext.cs\")"
     ]
   }
 }

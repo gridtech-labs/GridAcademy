@@ -61,6 +61,7 @@ public class AppDbContext : DbContext
     public DbSet<AttemptQuestion>       AttemptQuestions      => Set<AttemptQuestion>();
     public DbSet<AttemptAnswer>         AttemptAnswers        => Set<AttemptAnswer>();
     public DbSet<AttemptSectionResult>  AttemptSectionResults => Set<AttemptSectionResult>();
+    public DbSet<TestQuestion>          TestQuestions         => Set<TestQuestion>();
 
     // ── Video Learning ──────────────────────────────────────────
     public DbSet<VlDomain>             VlDomains             => Set<VlDomain>();
@@ -353,6 +354,22 @@ public class AppDbContext : DbContext
             e.HasOne(s => s.Subject).WithMany().HasForeignKey(s => s.SubjectId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(s => s.DifficultyLevel).WithMany().HasForeignKey(s => s.DifficultyLevelId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
             e.HasIndex(s => new { s.TestId, s.SortOrder }).HasDatabaseName("ix_test_sections_test_sort");
+        });
+
+        // ── TestQuestion ───────────────────────────────────────────────────────────
+        modelBuilder.Entity<TestQuestion>(e =>
+        {
+            e.ToTable("test_questions");
+            e.HasKey(q => q.Id);
+            e.Property(q => q.Id).HasColumnName("id").UseIdentityByDefaultColumn();
+            e.Property(q => q.TestId).HasColumnName("test_id");
+            e.Property(q => q.QuestionId).HasColumnName("question_id");
+            e.Property(q => q.SortOrder).HasColumnName("sort_order").HasDefaultValue(0);
+            e.Property(q => q.AddedAt).HasColumnName("added_at").HasColumnType("timestamptz");
+            e.HasOne(q => q.Test).WithMany().HasForeignKey(q => q.TestId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(q => q.Question).WithMany().HasForeignKey(q => q.QuestionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(q => q.TestId).HasDatabaseName("IX_test_questions_TestId");
+            e.HasIndex(q => q.QuestionId).HasDatabaseName("IX_test_questions_QuestionId");
         });
 
         // ── TestAssignment ─────────────────────────────────────────────────────────

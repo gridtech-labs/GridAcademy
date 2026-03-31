@@ -24,39 +24,39 @@ public class ImportController : ControllerBase
     /// <summary>Import questions from a CSV file.</summary>
     [HttpPost("csv")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> ImportCsv(IFormFile file)
+    public async Task<IActionResult> ImportCsv(IFormFile file, [FromForm] Guid? testId = null)
     {
         if (file == null || file.Length == 0) return BadRequest(ApiResponse.Fail("No file provided."));
         if (file.Length > MaxFileSizeBytes)   return BadRequest(ApiResponse.Fail("File exceeds 10 MB limit."));
 
         using var stream = file.OpenReadStream();
-        var result = await _svc.ImportCsvAsync(stream, CurrentUserId);
+        var result = await _svc.ImportCsvAsync(stream, CurrentUserId, testId);
         return Ok(ApiResponse<object>.Ok(result));
     }
 
     /// <summary>Import questions from an Excel (.xlsx) file.</summary>
     [HttpPost("excel")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> ImportExcel(IFormFile file)
+    public async Task<IActionResult> ImportExcel(IFormFile file, [FromForm] Guid? testId = null)
     {
         if (file == null || file.Length == 0) return BadRequest(ApiResponse.Fail("No file provided."));
         if (file.Length > MaxFileSizeBytes)   return BadRequest(ApiResponse.Fail("File exceeds 10 MB limit."));
 
         using var stream = file.OpenReadStream();
-        var result = await _svc.ImportExcelAsync(stream, CurrentUserId);
+        var result = await _svc.ImportExcelAsync(stream, CurrentUserId, testId);
         return Ok(ApiResponse<object>.Ok(result));
     }
 
     /// <summary>Import questions by parsing a JEE/NEET-pattern PDF.</summary>
     [HttpPost("pdf")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> ImportPdf(IFormFile file)
+    public async Task<IActionResult> ImportPdf(IFormFile file, [FromForm] Guid? testId = null)
     {
         if (file == null || file.Length == 0) return BadRequest(ApiResponse.Fail("No file provided."));
         if (file.Length > MaxFileSizeBytes)   return BadRequest(ApiResponse.Fail("File exceeds 10 MB limit."));
 
         using var stream = file.OpenReadStream();
-        var result = await _svc.ImportPdfAsync(stream, CurrentUserId);
+        var result = await _svc.ImportPdfAsync(stream, CurrentUserId, testId);
         return Ok(ApiResponse<object>.Ok(result));
     }
 
@@ -67,13 +67,13 @@ public class ImportController : ControllerBase
     /// </summary>
     [HttpPost("pdf-ocr")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> ImportPdfOcr(IFormFile file)
+    public async Task<IActionResult> ImportPdfOcr(IFormFile file, [FromForm] Guid? testId = null)
     {
         if (file == null || file.Length == 0) return BadRequest(ApiResponse.Fail("No file provided."));
         if (file.Length > MaxFileSizeBytes)   return BadRequest(ApiResponse.Fail("File exceeds 10 MB limit."));
 
         using var stream = file.OpenReadStream();
-        var result = await _svc.ImportPdfOcrAsync(stream, CurrentUserId);
+        var result = await _svc.ImportPdfOcrAsync(stream, CurrentUserId, testId);
         return Ok(ApiResponse<object>.Ok(result));
     }
 

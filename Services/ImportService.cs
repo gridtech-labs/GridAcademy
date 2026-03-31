@@ -30,7 +30,7 @@ public class ImportService : IImportService
     // CSV IMPORT
     // ════════════════════════════════════════════════════════════════════════
 
-    public async Task<ImportResultDto> ImportCsvAsync(Stream stream, Guid? importedBy = null)
+    public async Task<ImportResultDto> ImportCsvAsync(Stream stream, Guid? importedBy = null, Guid? testId = null)
     {
         var result = new ImportResultDto { Source = "CSV" };
         var masters = await LoadMastersAsync();
@@ -65,7 +65,19 @@ public class ImportService : IImportService
             rowNum++;
         }
 
-        if (result.Imported > 0) await _db.SaveChangesAsync();
+        if (result.Imported > 0)
+        {
+            var addedQuestions = _db.ChangeTracker.Entries<Question>()
+                .Where(e => e.State == EntityState.Added)
+                .Select(e => e.Entity)
+                .ToList();
+
+            await _db.SaveChangesAsync();
+
+            if (testId.HasValue && addedQuestions.Count > 0)
+                await MapToTestAsync(addedQuestions.Select(q => q.Id), testId.Value, result);
+        }
+
         return result;
     }
 
@@ -73,7 +85,7 @@ public class ImportService : IImportService
     // EXCEL IMPORT
     // ════════════════════════════════════════════════════════════════════════
 
-    public async Task<ImportResultDto> ImportExcelAsync(Stream stream, Guid? importedBy = null)
+    public async Task<ImportResultDto> ImportExcelAsync(Stream stream, Guid? importedBy = null, Guid? testId = null)
     {
         var result  = new ImportResultDto { Source = "Excel" };
         var masters = await LoadMastersAsync();
@@ -122,7 +134,19 @@ public class ImportService : IImportService
             rowNum++;
         }
 
-        if (result.Imported > 0) await _db.SaveChangesAsync();
+        if (result.Imported > 0)
+        {
+            var addedQuestions = _db.ChangeTracker.Entries<Question>()
+                .Where(e => e.State == EntityState.Added)
+                .Select(e => e.Entity)
+                .ToList();
+
+            await _db.SaveChangesAsync();
+
+            if (testId.HasValue && addedQuestions.Count > 0)
+                await MapToTestAsync(addedQuestions.Select(q => q.Id), testId.Value, result);
+        }
+
         return result;
     }
 
@@ -130,7 +154,7 @@ public class ImportService : IImportService
     // PDF IMPORT (JEE / NEET pattern)
     // ════════════════════════════════════════════════════════════════════════
 
-    public async Task<ImportResultDto> ImportPdfAsync(Stream stream, Guid? importedBy = null)
+    public async Task<ImportResultDto> ImportPdfAsync(Stream stream, Guid? importedBy = null, Guid? testId = null)
     {
         var result  = new ImportResultDto { Source = "PDF" };
         var masters = await LoadMastersAsync();
@@ -203,7 +227,19 @@ public class ImportService : IImportService
             rowNum++;
         }
 
-        if (result.Imported > 0) await _db.SaveChangesAsync();
+        if (result.Imported > 0)
+        {
+            var addedQuestions = _db.ChangeTracker.Entries<Question>()
+                .Where(e => e.State == EntityState.Added)
+                .Select(e => e.Entity)
+                .ToList();
+
+            await _db.SaveChangesAsync();
+
+            if (testId.HasValue && addedQuestions.Count > 0)
+                await MapToTestAsync(addedQuestions.Select(q => q.Id), testId.Value, result);
+        }
+
         return result;
     }
 
@@ -211,7 +247,7 @@ public class ImportService : IImportService
     // PDF IMPORT — OCR path via Mathpix API
     // ════════════════════════════════════════════════════════════════════════
 
-    public async Task<ImportResultDto> ImportPdfOcrAsync(Stream stream, Guid? importedBy = null)
+    public async Task<ImportResultDto> ImportPdfOcrAsync(Stream stream, Guid? importedBy = null, Guid? testId = null)
     {
         var result  = new ImportResultDto { Source = "PDF (Mathpix OCR)" };
         var masters = await LoadMastersAsync();
@@ -299,7 +335,19 @@ public class ImportService : IImportService
             rowNum++;
         }
 
-        if (result.Imported > 0) await _db.SaveChangesAsync();
+        if (result.Imported > 0)
+        {
+            var addedQuestions = _db.ChangeTracker.Entries<Question>()
+                .Where(e => e.State == EntityState.Added)
+                .Select(e => e.Entity)
+                .ToList();
+
+            await _db.SaveChangesAsync();
+
+            if (testId.HasValue && addedQuestions.Count > 0)
+                await MapToTestAsync(addedQuestions.Select(q => q.Id), testId.Value, result);
+        }
+
         return result;
     }
 
@@ -901,6 +949,51 @@ public class ImportService : IImportService
         }
 
         return result;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // TEST DROPDOWN & MAPPING
+    // ════════════════════════════════════════════════════════════════════════
+
+    public async Task<List<(Guid Id, string Title)>> GetTestsForDropdownAsync()
+        => await _db.Tests
+            .AsNoTracking()
+            .OrderBy(t => t.Title)
+            .Select(t => new ValueTuple<Guid, string>(t.Id, t.Title))
+            .ToListAsync();
+
+    /// <summary>
+    /// Links the supplied question IDs to the specified test via TestQuestion rows,
+    /// skipping any that are already linked. Sets result.MappedTestName.
+    /// </summary>
+    private async Task MapToTestAsync(IEnumerable<Guid> questionIds, Guid testId, ImportResultDto result)
+    {
+        var test = await _db.Tests.AsNoTracking().FirstOrDefaultAsync(t => t.Id == testId);
+        if (test == null) return;
+
+        // IDs already linked to this test
+        var existing = (await _db.TestQuestions
+            .Where(tq => tq.TestId == testId)
+            .Select(tq => tq.QuestionId)
+            .ToListAsync())
+            .ToHashSet();
+
+        // Start sort order after last existing entry
+        int nextOrder = existing.Count + 1;
+
+        foreach (var qId in questionIds)
+        {
+            if (existing.Contains(qId)) continue;
+            _db.TestQuestions.Add(new GridAcademy.Data.Entities.Assessment.TestQuestion
+            {
+                TestId     = testId,
+                QuestionId = qId,
+                SortOrder  = nextOrder++
+            });
+        }
+
+        await _db.SaveChangesAsync();
+        result.MappedTestName = test.Title;
     }
 
     // ── RRB ALP master cache ─────────────────────────────────────────────────

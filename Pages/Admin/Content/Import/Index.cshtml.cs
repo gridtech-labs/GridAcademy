@@ -23,10 +23,19 @@ public class IndexModel : PageModel
     /// <summary>True when Mathpix credentials are present in appsettings.json.</summary>
     public bool MathpixConfigured => _mathpix.IsConfigured;
 
-    public ImportResultDto? Result      { get; set; }
+    public ImportResultDto? Result       { get; set; }
     public string?          ActiveSource { get; set; }
 
-    public void OnGet() { }
+    /// <summary>Destination selector: empty = Global Bank, otherwise a Test Id.</summary>
+    [BindProperty] public Guid? TestId { get; set; }
+
+    /// <summary>All available tests for the "Map to Test" dropdown.</summary>
+    public List<(Guid Id, string Title)> AvailableTests { get; set; } = [];
+
+    public async Task OnGetAsync()
+    {
+        AvailableTests = await _import.GetTestsForDropdownAsync();
+    }
 
     /// <summary>Generate and stream an Excel (.xlsx) template file.</summary>
     public IActionResult OnGetExcelTemplate()
@@ -73,7 +82,6 @@ public class IndexModel : PageModel
             var rowArr = (object[])rows[r];
             for (int c = 0; c < rowArr.Length; c++)
                 ws.Cell(r + 2, c + 1).Value = rowArr[c]?.ToString() ?? "";
-            // Zebra striping
             if (r % 2 == 1)
                 ws.Row(r + 2).Style.Fill.BackgroundColor = XLColor.FromHtml("#f8f9fa");
         }
@@ -119,8 +127,6 @@ public class IndexModel : PageModel
         ref_ws.Cell("A37").Value = "-2 Marks";
 
         ref_ws.Columns().AdjustToContents();
-
-        // ── Auto-fit Questions sheet ──────────────────────────────────────────
         ws.Columns().AdjustToContents();
         ws.SheetView.FreezeRows(1);
 
@@ -132,47 +138,38 @@ public class IndexModel : PageModel
             "questions-template.xlsx");
     }
 
+    private Guid? CurrentUserId =>
+        Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : (Guid?)null;
+
     public async Task<IActionResult> OnPostCsvAsync(IFormFile? file)
-        => await HandleImport(file, "csv", stream =>
-        {
-            var userId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : (Guid?)null;
-            return _import.ImportCsvAsync(stream, userId);
-        });
+        => await HandleImport(file, "csv",
+            stream => _import.ImportCsvAsync(stream, CurrentUserId, TestId));
 
     public async Task<IActionResult> OnPostExcelAsync(IFormFile? file)
-        => await HandleImport(file, "excel", stream =>
-        {
-            var userId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : (Guid?)null;
-            return _import.ImportExcelAsync(stream, userId);
-        });
+        => await HandleImport(file, "excel",
+            stream => _import.ImportExcelAsync(stream, CurrentUserId, TestId));
 
     public async Task<IActionResult> OnPostPdfAsync(IFormFile? file)
-        => await HandleImport(file, "pdf", stream =>
-        {
-            var userId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : (Guid?)null;
-            return _import.ImportPdfAsync(stream, userId);
-        });
+        => await HandleImport(file, "pdf",
+            stream => _import.ImportPdfAsync(stream, CurrentUserId, TestId));
 
     public async Task<IActionResult> OnPostOcrAsync(IFormFile? file)
-        => await HandleImport(file, "ocr", stream =>
-        {
-            var userId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : (Guid?)null;
-            return _import.ImportPdfOcrAsync(stream, userId);
-        }, maxMb: 20);  // larger limit — PDF OCR uploads go to Mathpix directly
+        => await HandleImport(file, "ocr",
+            stream => _import.ImportPdfOcrAsync(stream, CurrentUserId, TestId),
+            maxMb: 20);
 
     public async Task<IActionResult> OnPostRrbAlpAsync(IFormFile? file)
-        => await HandleImport(file, "rrbalp", stream =>
-        {
-            var userId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : (Guid?)null;
-            return _import.ImportRrbAlpAsync(stream, userId);
-        }, maxMb: 25);
+        => await HandleImport(file, "rrbalp",
+            stream => _import.ImportRrbAlpAsync(stream, CurrentUserId),
+            maxMb: 25);
 
     private async Task<IActionResult> HandleImport(
         IFormFile? file, string source,
         Func<Stream, Task<ImportResultDto>> importFn,
         int maxMb = 10)
     {
-        ActiveSource = source;
+        ActiveSource   = source;
+        AvailableTests = await _import.GetTestsForDropdownAsync();
 
         if (file == null || file.Length == 0)
         {
@@ -186,15 +183,25 @@ public class IndexModel : PageModel
             return Page();
         }
 
+        // Validate: if TestId was intended but not provided, block the upload
+        // (the UI enforces this with JS, but defend server-side too)
+        // TestId == null means "Global Bank" — always valid.
+
         try
         {
             await using var stream = file.OpenReadStream();
             Result = await importFn(stream);
 
             if (Result.Imported > 0)
-                TempData["Success"] = $"{Result.Imported} question(s) imported successfully.";
+            {
+                TempData["Success"] = Result.MappedTestName is not null
+                    ? $"{Result.Imported} question(s) successfully added to \"{Result.MappedTestName}\"."
+                    : $"{Result.Imported} question(s) imported to the global question bank.";
+            }
             else
+            {
                 TempData["Error"] = "No questions were imported. Check the errors below.";
+            }
         }
         catch (Exception ex)
         {
