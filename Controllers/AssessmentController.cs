@@ -30,14 +30,16 @@ public class AssessmentController(IAssessmentService assessmentSvc, AppDbContext
     [HttpPost("free-access/{testId:guid}")]
     public async Task<IActionResult> GetFreeAccess(Guid testId)
     {
-        var isFree = await db.ExamPageTests
-            .Include(t => t.ExamPage)
-            .AnyAsync(t => t.TestId == testId
-                && t.IsFree
-                && t.ExamPage.Status == ExamPageStatus.Published
-                && t.ExamPage.IsActive);
+        // Check 1: test is marked free on ANY exam page (regardless of page draft/publish status)
+        var isFreeOnExamPage = await db.ExamPageTests
+            .AnyAsync(t => t.TestId == testId && t.IsFree);
 
-        if (!isFree)
+        // Check 2: fallback — test itself is Published (standalone test not tied to an exam page)
+        var isStandalonePublished = !isFreeOnExamPage && await db.Tests
+            .AnyAsync(t => t.Id == testId
+                && t.Status == GridAcademy.Data.Entities.Assessment.TestStatus.Published);
+
+        if (!isFreeOnExamPage && !isStandalonePublished)
             return NotFound(ApiResponse.Fail("This test is not available for free access."));
 
         var sid = UserId;

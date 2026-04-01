@@ -153,10 +153,13 @@ public class AssessmentService : IAssessmentService
         {
             var section = sections[sectionIndex];
 
-            // Load candidate question IDs from DB in a single query
-            var candidateIds = await BuildCandidateQuery(section)
-                .Select(q => q.Id)
-                .ToListAsync();
+            // Load candidate question IDs — checks direct mappings first, then criteria pool
+            var candidateIds = await GetCandidateIdsAsync(section);
+
+            if (candidateIds.Count == 0)
+                throw new InvalidOperationException(
+                    $"Section \"{section.Name}\" has no available questions. " +
+                    "Please import questions for this subject before taking the test.");
 
             if (candidateIds.Count < section.QuestionCount)
             {
@@ -857,13 +860,36 @@ public class AssessmentService : IAssessmentService
     }
 
     /// <summary>
-    /// Returns the EF IQueryable for candidate Published questions matching a section's criteria.
+    /// Returns candidate question IDs for a section.
+    /// Priority: direct TestQuestion mappings for the test → criteria-based pool.
     /// </summary>
+    private async Task<List<Guid>> GetCandidateIdsAsync(TestSection section)
+    {
+        // ── 1. Direct mappings via TestQuestion junction ──────────────────────
+        var directIds = await _db.TestQuestions
+            .Where(tq => tq.TestId == section.TestId)
+            .Join(_db.Questions.Where(q => q.SubjectId == section.SubjectId),
+                tq => tq.QuestionId,
+                q  => q.Id,
+                (tq, q) => q.Id)
+            .ToListAsync();
+
+        if (directIds.Count > 0)
+            return directIds;
+
+        // ── 2. Criteria-based pool (subject + optional difficulty) ────────────
+        var query = _db.Questions
+            .Where(q => q.SubjectId == section.SubjectId);
+
+        if (section.DifficultyLevelId.HasValue)
+            query = query.Where(q => q.DifficultyLevelId == section.DifficultyLevelId.Value);
+
+        return await query.Select(q => q.Id).ToListAsync();
+    }
+
+    // Keep old sync version for any callers — delegates to async helper
     private IQueryable<Question> BuildCandidateQuery(TestSection section)
     {
-        // Include both Draft and Published questions so new tests work immediately.
-        // Prefer Published first; Draft questions are included as fallback so the
-        // exam can run even before questions are formally published.
         var query = _db.Questions
             .Where(q => q.SubjectId == section.SubjectId);
 
