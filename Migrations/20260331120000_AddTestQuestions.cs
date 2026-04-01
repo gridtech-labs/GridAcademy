@@ -16,39 +16,39 @@ namespace GridAcademy.Migrations
                 name: "test_questions",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
+                    id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    TestId     = table.Column<Guid>(type: "uuid", nullable: false),
-                    QuestionId = table.Column<Guid>(type: "uuid", nullable: false),
-                    SortOrder  = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
-                    AddedAt    = table.Column<DateTime>(type: "timestamptz", nullable: false, defaultValueSql: "now()")
+                    test_id     = table.Column<Guid>(type: "uuid",       nullable: false),
+                    question_id = table.Column<Guid>(type: "uuid",       nullable: false),
+                    sort_order  = table.Column<int> (type: "integer",    nullable: false, defaultValue: 0),
+                    added_at    = table.Column<DateTime>(type: "timestamptz", nullable: false, defaultValueSql: "now()")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_test_questions", x => x.Id);
+                    table.PrimaryKey("PK_test_questions", x => x.id);
                     table.ForeignKey(
-                        name: "FK_test_questions_tests_TestId",
-                        column: x => x.TestId,
+                        name: "FK_test_questions_tests_test_id",
+                        column: x => x.test_id,
                         principalTable: "tests",
-                        principalColumn: "Id",
+                        principalColumn: "id",           // ← lowercase, matches tests.id
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_test_questions_questions_QuestionId",
-                        column: x => x.QuestionId,
+                        name: "FK_test_questions_questions_question_id",
+                        column: x => x.question_id,
                         principalTable: "questions",
-                        principalColumn: "Id",
+                        principalColumn: "id",           // ← lowercase, matches questions.id
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_test_questions_TestId",
+                name: "IX_test_questions_test_id",
                 table: "test_questions",
-                column: "TestId");
+                column: "test_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_test_questions_QuestionId",
+                name: "IX_test_questions_question_id",
                 table: "test_questions",
-                column: "QuestionId");
+                column: "question_id");
         }
 
         /// <inheritdoc />

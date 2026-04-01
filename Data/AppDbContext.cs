@@ -368,8 +368,8 @@ public class AppDbContext : DbContext
             e.Property(q => q.AddedAt).HasColumnName("added_at").HasColumnType("timestamptz");
             e.HasOne(q => q.Test).WithMany().HasForeignKey(q => q.TestId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(q => q.Question).WithMany().HasForeignKey(q => q.QuestionId).OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(q => q.TestId).HasDatabaseName("IX_test_questions_TestId");
-            e.HasIndex(q => q.QuestionId).HasDatabaseName("IX_test_questions_QuestionId");
+            e.HasIndex(q => q.TestId).HasDatabaseName("IX_test_questions_test_id");
+            e.HasIndex(q => q.QuestionId).HasDatabaseName("IX_test_questions_question_id");
         });
 
         // ── TestAssignment ─────────────────────────────────────────────────────────
