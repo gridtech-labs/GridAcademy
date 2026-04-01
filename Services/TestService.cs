@@ -128,22 +128,22 @@ public class TestService : ITestService
         if (!test.Sections.Any())
             throw new InvalidOperationException("Cannot publish a test with no sections.");
 
-        // Validate each section has enough questions in the pool (Draft + Published).
-        // The Published-only constraint is enforced at exam-start time.
+        // Validate each section has enough questions available.
+        // Uses same logic as runtime (direct TestQuestion mappings first, criteria pool fallback).
         var underFilled = new List<string>();
         foreach (var section in test.Sections)
         {
             var poolCount = await GetSectionPoolCountAsync(section.Id);
             if (poolCount < section.QuestionCount)
                 underFilled.Add(
-                    $"'{section.Name}' needs {section.QuestionCount} question(s) " +
-                    $"but only {poolCount} exist for the selected Subject/Difficulty combination");
+                    $"Section \"{section.Name}\" needs {section.QuestionCount} question(s) " +
+                    $"but only {poolCount} are available " +
+                    $"(import questions for this subject or use Content → Import → Map to Test)");
         }
 
         if (underFilled.Any())
             throw new InvalidOperationException(
-                "Not enough questions in the pool — " + string.Join("; ", underFilled) +
-                ". Add more questions or reduce the section count.");
+                "Cannot publish — insufficient questions: " + string.Join("; ", underFilled) + ".");
 
         test.Status = TestStatus.Published;
         await _db.SaveChangesAsync();
@@ -344,8 +344,19 @@ public class TestService : ITestService
             .FirstOrDefaultAsync(s => s.Id == sectionId)
             ?? throw new KeyNotFoundException($"Section {sectionId} not found.");
 
-        // Count ALL questions matching subject/difficulty regardless of Draft/Published status.
-        // The Published-only filter is enforced at exam-start time (AssessmentService.BuildCandidateQuery).
+        // Mirror the runtime logic in AssessmentService.GetCandidateIdsAsync:
+        // 1. Direct mappings via TestQuestion take precedence (questions imported/mapped to this test).
+        // 2. Fall back to criteria-based pool (subject + optional difficulty filter).
+        var directCount = await _db.TestQuestions
+            .Where(tq => tq.TestId == section.TestId)
+            .Join(_db.Questions.Where(q => q.SubjectId == section.SubjectId),
+                tq => tq.QuestionId, q => q.Id, (tq, q) => q.Id)
+            .CountAsync();
+
+        if (directCount > 0)
+            return directCount;
+
+        // Criteria-based pool (all questions matching subject/difficulty).
         var query = _db.Questions
             .Where(q => q.SubjectId == section.SubjectId);
 
