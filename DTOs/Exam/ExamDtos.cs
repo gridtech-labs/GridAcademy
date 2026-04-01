@@ -61,7 +61,9 @@ public record ExamTestDto(
     string Title,
     string StatusLabel,
     bool IsFree,
-    int SortOrder);
+    int SortOrder,
+    int DurationMinutes,
+    int TotalQuestions);
 
 // ── Save exam page (admin create/edit) ────────────────────────────────
 public record SaveExamPageRequest(

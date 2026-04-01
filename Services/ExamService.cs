@@ -29,7 +29,14 @@ public class ExamService(AppDbContext db) : IExamService
         e.MetaTitle, e.MetaDescription, e.Category,
         e.IsFeatured, e.PriceInr, e.ViewCount,
         e.Tests.OrderBy(t => t.SortOrder)
-               .Select(t => new ExamTestDto(t.TestId, t.Test?.Title ?? "", t.Test?.Status.ToString() ?? "", t.IsFree, t.SortOrder))
+               .Select(t => new ExamTestDto(
+                   t.TestId,
+                   t.Test?.Title ?? "",
+                   t.Test?.Status.ToString() ?? "",
+                   t.IsFree,
+                   t.SortOrder,
+                   t.Test?.DurationMinutes ?? 0,
+                   t.Test?.Sections?.Sum(s => s.QuestionCount) ?? 0))
                .ToList(),
         e.UpdatedAt);
 
@@ -37,7 +44,9 @@ public class ExamService(AppDbContext db) : IExamService
         db.ExamPages
           .Include(e => e.ExamLevel)
           .Include(e => e.ExamType)
-          .Include(e => e.Tests).ThenInclude(t => t.Test);
+          .Include(e => e.Tests)
+              .ThenInclude(t => t.Test)
+              .ThenInclude(t => t.Sections);
 
     // ── Exam Levels ───────────────────────────────────────────────────────
 
@@ -172,9 +181,16 @@ public class ExamService(AppDbContext db) : IExamService
     {
         return await db.ExamPageTests
             .Where(t => t.ExamPageId == examId)
-            .Include(t => t.Test)
+            .Include(t => t.Test).ThenInclude(t => t.Sections)
             .OrderBy(t => t.SortOrder)
-            .Select(t => new ExamTestDto(t.TestId, t.Test.Title, t.Test.Status.ToString(), t.IsFree, t.SortOrder))
+            .Select(t => new ExamTestDto(
+                t.TestId,
+                t.Test.Title,
+                t.Test.Status.ToString(),
+                t.IsFree,
+                t.SortOrder,
+                t.Test.DurationMinutes,
+                t.Test.Sections.Sum(s => s.QuestionCount)))
             .ToListAsync();
     }
 
