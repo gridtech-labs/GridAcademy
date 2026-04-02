@@ -18,8 +18,8 @@ public class QuestionsController : ControllerBase
     private readonly IQuestionService _svc;
     public QuestionsController(IQuestionService svc) => _svc = svc;
 
-    private Guid? CurrentUserId =>
-        Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id) ? id : null;
+    private Guid CurrentUserId =>
+        Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id) ? id : Guid.Empty;
 
     // ── List ─────────────────────────────────────────────────────────────────
 
