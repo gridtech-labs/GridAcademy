@@ -30,6 +30,7 @@ public static class DbSeeder
             try
             {
                 await db.Database.MigrateAsync();
+                await EnsureExamContentTablesAsync(db);
                 break; // success
             }
             catch (Exception ex) when (attempt < maxRetries)
@@ -278,5 +279,24 @@ public static class DbSeeder
             await db.SaveChangesAsync();
             logger.LogInformation("Default VL domain seeded.");
         }
+    }
+
+    private static async Task EnsureExamContentTablesAsync(AppDbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS content_hashes (
+                id uuid PRIMARY KEY,
+                hash_value character varying(64) NOT NULL,
+                source_url character varying(500) NOT NULL,
+                created_at timestamptz NOT NULL
+            );
+            """);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS ix_content_hashes_hash_value
+            ON content_hashes (hash_value);
+            """);
     }
 }
