@@ -1,3 +1,4 @@
+using GridAcademy.Services.ExamContent.Models;
 using GridAcademy.Services.ExamContent.Scraping.Models;
 
 namespace GridAcademy.Services.ExamContent;
@@ -5,9 +6,9 @@ namespace GridAcademy.Services.ExamContent;
 public interface IContentProcessingService
 {
     string CleanHtml(string htmlContent);
-    string ExtractSummary(string htmlContent, int wordLimit = 150);
+    string ExtractSummary(string cleanedText, int wordLimit = 180);
     string GenerateSlug(string input);
-    string GenerateContentHash(string htmlContent);
-    string NormalizeForHash(string htmlContent);
-    Task ProcessAsync(ScrapedNotification notification, string? preComputedHash = null, CancellationToken ct = default);
+    string GenerateContentHash(string content);
+
+    Task<ContentProcessingResult> ProcessAsync(ScrapedNotification notification, CancellationToken ct = default);
 }

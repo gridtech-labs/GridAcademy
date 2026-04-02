@@ -1,42 +1,35 @@
-using GridAcademy.Repositories.ExamContent;
+using GridAcademy.Services.ExamContent.Scraping.Models;
 
 namespace GridAcademy.Services.ExamContent.Scraping;
 
 public class ScraperOrchestrator(
     IEnumerable<IScraper> scrapers,
-    IExamContentRepository repository,
-    IContentProcessingService contentProcessingService,
     ILogger<ScraperOrchestrator> logger)
 {
-    public async Task RunAsync(CancellationToken ct = default)
+    public Task<List<ScrapedNotification>> RunAsync(CancellationToken ct = default) => FetchAllAsync(ct);
+
+    public async Task<List<ScrapedNotification>> FetchAllAsync(CancellationToken ct = default)
     {
+        var allNotifications = new List<ScrapedNotification>();
+
         foreach (var scraper in scrapers)
         {
             try
             {
                 var notifications = await ExecuteWithRetryAsync(scraper, ct);
-                foreach (var notification in notifications)
-                {
-                    var cleanHtml = contentProcessingService.CleanHtml(notification.ContentHtml);
-                    var hash = contentProcessingService.GenerateContentHash(cleanHtml);
-                    if (await repository.HashExistsAsync(hash, ct))
-                    {
-                        logger.LogDebug("Duplicate notification skipped from {SourceKey}: {Url}", scraper.SourceKey, notification.SourceUrl);
-                        continue;
-                    }
-
-                    notification.ContentHtml = cleanHtml;
-                    await contentProcessingService.ProcessAsync(notification, hash, ct);
-                }
+                logger.LogInformation("Fetched {Count} notifications from {SourceKey}", notifications.Count, scraper.SourceKey);
+                allNotifications.AddRange(notifications);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Scraper pipeline failed for source {SourceKey}.", scraper.SourceKey);
+                logger.LogError(ex, "Scraper fetch failed for source {SourceKey}.", scraper.SourceKey);
             }
         }
+
+        return allNotifications;
     }
 
-    private async Task<List<Scraping.Models.ScrapedNotification>> ExecuteWithRetryAsync(IScraper scraper, CancellationToken ct)
+    private async Task<List<ScrapedNotification>> ExecuteWithRetryAsync(IScraper scraper, CancellationToken ct)
     {
         const int maxAttempts = 3;
         for (var attempt = 1; attempt <= maxAttempts; attempt++)

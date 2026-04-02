@@ -930,7 +930,8 @@ public class AppDbContext : DbContext
             e.Property(x => x.UpdatedAt).HasColumnType("timestamptz");
             e.HasOne(x => x.Exam).WithMany(x => x.Notifications)
                 .HasForeignKey(x => x.ExamId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
             e.HasIndex(x => x.Slug).IsUnique().HasDatabaseName("ix_exam_notifications_slug");
             e.HasIndex(x => x.ExamId).HasDatabaseName("ix_exam_notifications_exam_id");
             e.HasIndex(x => x.NotificationType).HasDatabaseName("ix_exam_notifications_type");

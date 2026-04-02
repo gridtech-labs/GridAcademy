@@ -41,7 +41,7 @@ public class Exam
 public class ExamNotification
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid ExamId { get; set; }
+    public Guid? ExamId { get; set; }
 
     [Required, MaxLength(300)]
     public string Title { get; set; } = string.Empty;
