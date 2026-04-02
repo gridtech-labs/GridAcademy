@@ -2,10 +2,16 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using GridAcademy.Data.Entities.Exam;
+using GridAcademy.Repositories.ExamContent;
+using GridAcademy.Services.ExamContent.Scraping.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace GridAcademy.Services.ExamContent;
 
-public partial class ContentProcessingService : IContentProcessingService
+public partial class ContentProcessingService(
+    IExamContentRepository repository,
+    ILogger<ContentProcessingService> logger) : IContentProcessingService
 {
     public string CleanHtml(string htmlContent)
     {
@@ -48,6 +54,100 @@ public partial class ContentProcessingService : IContentProcessingService
         var normalizedWhitespace = MultiWhitespaceRegex().Replace(decoded, " ").Trim();
         return normalizedWhitespace.ToLowerInvariant();
     }
+
+    public async Task ProcessAsync(ScrapedNotification notification, string? preComputedHash = null, CancellationToken ct = default)
+    {
+        var exam = await ResolveExamAsync(notification.SourceUrl, ct);
+        var cleanHtml = CleanHtml(notification.ContentHtml);
+        var hashValue = preComputedHash ?? GenerateContentHash(cleanHtml);
+
+        var baseSlug = $"{GenerateSlug(notification.Title)}-{notification.NotificationType.ToString().ToLowerInvariant()}-{DateTime.UtcNow:yyyy}";
+        var slug = await EnsureUniqueNotificationSlugAsync(baseSlug, ct);
+        var summary = ExtractSummary(cleanHtml);
+
+        var entity = new ExamNotification
+        {
+            ExamId = exam.Id,
+            Title = notification.Title,
+            Slug = slug,
+            ContentHtml = cleanHtml,
+            Summary = summary,
+            NotificationType = notification.NotificationType,
+            SourceUrl = notification.SourceUrl,
+            CanonicalUrl = notification.SourceUrl,
+            MetaTitle = notification.Title,
+            MetaDescription = summary,
+            Status = PublicationStatus.Published,
+            PublishedAt = notification.PublishedDate ?? DateTime.UtcNow
+        };
+
+        await repository.AddNotificationAsync(entity, ct);
+        await repository.AddVersionAsync(new ContentVersion
+        {
+            EntityType = nameof(ExamNotification),
+            EntityId = entity.Id,
+            ContentHtml = cleanHtml
+        }, ct);
+        await repository.AddHashAsync(new ContentHash
+        {
+            HashValue = hashValue,
+            SourceUrl = notification.SourceUrl
+        }, ct);
+
+        await repository.SaveChangesAsync(ct);
+        logger.LogInformation("Processed scraped notification for {SourceUrl} into exam {ExamSlug}.", notification.SourceUrl, exam.Slug);
+    }
+
+    private async Task<Exam> ResolveExamAsync(string sourceUrl, CancellationToken ct)
+    {
+        var examSlug = ResolveExamSlug(sourceUrl);
+        var exam = await repository.QueryExams().FirstOrDefaultAsync(x => x.Slug == examSlug, ct);
+        if (exam is not null) return exam;
+
+        var created = new Exam
+        {
+            Name = ResolveExamName(examSlug),
+            Slug = examSlug,
+            Category = "Government",
+            Level = "National",
+            IsActive = true
+        };
+        await repository.AddExamAsync(created, ct);
+        await repository.SaveChangesAsync(ct);
+        return created;
+    }
+
+    private async Task<string> EnsureUniqueNotificationSlugAsync(string slugBase, CancellationToken ct)
+    {
+        var candidate = slugBase;
+        var suffix = 1;
+        while (await repository.QueryNotifications().AnyAsync(x => x.Slug == candidate, ct))
+        {
+            suffix++;
+            candidate = $"{slugBase}-{suffix}";
+        }
+
+        return candidate;
+    }
+
+    private static string ResolveExamSlug(string sourceUrl)
+    {
+        var lower = sourceUrl.ToLowerInvariant();
+        if (lower.Contains("ssc")) return "ssc";
+        if (lower.Contains("upsc")) return "upsc";
+        if (lower.Contains("rrb") || lower.Contains("railway")) return "railway";
+        if (lower.Contains("bank")) return "banking";
+        return "state-exams";
+    }
+
+    private static string ResolveExamName(string slug) => slug switch
+    {
+        "ssc" => "SSC",
+        "upsc" => "UPSC",
+        "railway" => "Railway",
+        "banking" => "Banking",
+        _ => "State Exams"
+    };
 
     [GeneratedRegex("<script[\\s\\S]*?</script>", RegexOptions.IgnoreCase)]
     private static partial Regex ScriptsRegex();

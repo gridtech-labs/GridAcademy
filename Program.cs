@@ -5,6 +5,9 @@ using GridAcademy.Jobs;
 using GridAcademy.Middleware;
 using GridAcademy.Services;
 using GridAcademy.Services.ExamContent;
+using GridAcademy.Services.ExamContent.Scraping;
+using GridAcademy.Services.ExamContent.Scraping.Options;
+using GridAcademy.Services.ExamContent.Scraping.Scrapers;
 using GridAcademy.Services.Marketplace;
 using GridAcademy.Repositories.ExamContent;
 using Hangfire;
@@ -14,6 +17,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Polly.Extensions.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 var config  = builder.Configuration;
@@ -240,12 +244,30 @@ builder.Services.AddScoped<IMathpixService, MathpixService>();
 
 builder.Services.AddScoped<InactiveUserJob>();
 builder.Services.AddScoped<EmailJob>();
+builder.Services.AddScoped<ExamScrapingJob>();
 
 // ── Exam Module ────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IExamService, ExamService>();
 builder.Services.AddScoped<IExamContentRepository, ExamContentRepository>();
 builder.Services.AddScoped<IContentProcessingService, ContentProcessingService>();
 builder.Services.AddScoped<IExamContentService, ExamContentService>();
+builder.Services.AddScoped<ScraperOrchestrator>();
+builder.Services.Configure<ScrapingOptions>(builder.Configuration.GetSection(ScrapingOptions.SectionName));
+builder.Services.AddHttpClient<IScraper, SscScraper>()
+    .SetHandlerLifetime(TimeSpan.FromMinutes(5))
+    .AddPolicyHandler(HttpPolicyExtensions
+        .HandleTransientHttpError()
+        .WaitAndRetryAsync(3, attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt))));
+builder.Services.AddHttpClient<IScraper, UpscScraper>()
+    .SetHandlerLifetime(TimeSpan.FromMinutes(5))
+    .AddPolicyHandler(HttpPolicyExtensions
+        .HandleTransientHttpError()
+        .WaitAndRetryAsync(3, attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt))));
+builder.Services.AddHttpClient<IScraper, RrbScraper>()
+    .SetHandlerLifetime(TimeSpan.FromMinutes(5))
+    .AddPolicyHandler(HttpPolicyExtensions
+        .HandleTransientHttpError()
+        .WaitAndRetryAsync(3, attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt))));
 
 // ── Marketplace Module ─────────────────────────────────────────────────────
 builder.Services.AddScoped<IOtpService,              OtpService>();
@@ -409,7 +431,8 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {
     // In production: add HangfireAdminAuthFilter here
 });
-JobScheduler.RegisterAll();
+var scrapeIntervalHours = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<ScrapingOptions>>().Value.IntervalHours;
+JobScheduler.RegisterAll(scrapeIntervalHours);
 Console.WriteLine("[Hangfire] Dashboard and jobs registered.");
 
 app.MapControllers();
