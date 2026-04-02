@@ -25,7 +25,7 @@ public class ExamContentRepository(AppDbContext db) : IExamContentRepository
     public Task<ExamNotification?> GetNotificationBySlugAsync(string slug, CancellationToken ct = default) =>
         db.ExamNotifications.AsNoTracking()
             .Include(x => x.Exam)
-            .FirstOrDefaultAsync(x => x.Slug == slug && x.Status == PublicationStatus.Published && x.Exam!.IsActive, ct);
+            .FirstOrDefaultAsync(x => x.Slug == slug && x.Status == PublicationStatus.Published && (x.Exam == null || x.Exam.IsActive), ct);
 
     public Task<ExamNotification?> GetNotificationByIdAsync(Guid id, CancellationToken ct = default) =>
         db.ExamNotifications.Include(x => x.Exam).FirstOrDefaultAsync(x => x.Id == id, ct);
