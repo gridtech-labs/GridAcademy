@@ -900,12 +900,13 @@ public class AppDbContext : DbContext
         {
             e.ToTable("exams");
             e.HasKey(x => x.Id);
-            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
-            e.Property(x => x.Slug).HasMaxLength(220).IsRequired();
-            e.Property(x => x.Category).HasMaxLength(100);
-            e.Property(x => x.Level).HasMaxLength(100);
-            e.Property(x => x.IsActive).HasDefaultValue(true);
-            e.Property(x => x.CreatedAt).HasColumnType("timestamptz");
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            e.Property(x => x.Slug).HasColumnName("slug").HasMaxLength(220).IsRequired();
+            e.Property(x => x.Category).HasColumnName("category").HasMaxLength(100);
+            e.Property(x => x.Level).HasColumnName("level").HasMaxLength(100);
+            e.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz");
             e.HasIndex(x => x.Slug).IsUnique().HasDatabaseName("ix_exams_slug");
             e.HasIndex(x => new { x.Category, x.Level }).HasDatabaseName("ix_exams_category_level");
         });
@@ -914,20 +915,22 @@ public class AppDbContext : DbContext
         {
             e.ToTable("exam_notifications");
             e.HasKey(x => x.Id);
-            e.Property(x => x.Title).HasMaxLength(300).IsRequired();
-            e.Property(x => x.Slug).HasMaxLength(320).IsRequired();
-            e.Property(x => x.ContentHtml).IsRequired();
-            e.Property(x => x.Summary).HasMaxLength(500);
-            e.Property(x => x.NotificationType).HasConversion<int>();
-            e.Property(x => x.ImportantDates).HasColumnType("jsonb");
-            e.Property(x => x.SourceUrl).HasMaxLength(500).IsRequired();
-            e.Property(x => x.CanonicalUrl).HasMaxLength(500);
-            e.Property(x => x.MetaTitle).HasMaxLength(300);
-            e.Property(x => x.MetaDescription).HasMaxLength(500);
-            e.Property(x => x.Status).HasConversion<int>().HasDefaultValue(PublicationStatus.Draft);
-            e.Property(x => x.PublishedAt).HasColumnType("timestamptz");
-            e.Property(x => x.CreatedAt).HasColumnType("timestamptz");
-            e.Property(x => x.UpdatedAt).HasColumnType("timestamptz");
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.ExamId).HasColumnName("exam_id");
+            e.Property(x => x.Title).HasColumnName("title").HasMaxLength(300).IsRequired();
+            e.Property(x => x.Slug).HasColumnName("slug").HasMaxLength(320).IsRequired();
+            e.Property(x => x.ContentHtml).HasColumnName("content_html").IsRequired();
+            e.Property(x => x.Summary).HasColumnName("summary").HasMaxLength(500);
+            e.Property(x => x.NotificationType).HasColumnName("notification_type").HasConversion<int>();
+            e.Property(x => x.ImportantDates).HasColumnName("important_dates").HasColumnType("jsonb");
+            e.Property(x => x.SourceUrl).HasColumnName("source_url").HasMaxLength(500).IsRequired();
+            e.Property(x => x.CanonicalUrl).HasColumnName("canonical_url").HasMaxLength(500);
+            e.Property(x => x.MetaTitle).HasColumnName("meta_title").HasMaxLength(300);
+            e.Property(x => x.MetaDescription).HasColumnName("meta_description").HasMaxLength(500);
+            e.Property(x => x.Status).HasColumnName("status").HasConversion<int>().HasDefaultValue(PublicationStatus.Draft);
+            e.Property(x => x.PublishedAt).HasColumnName("published_at").HasColumnType("timestamptz");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz");
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamptz");
             e.HasOne(x => x.Exam).WithMany(x => x.Notifications)
                 .HasForeignKey(x => x.ExamId)
                 .OnDelete(DeleteBehavior.SetNull)
@@ -942,9 +945,11 @@ public class AppDbContext : DbContext
         {
             e.ToTable("content_versions");
             e.HasKey(x => x.Id);
-            e.Property(x => x.EntityType).HasMaxLength(80).IsRequired();
-            e.Property(x => x.ContentHtml).IsRequired();
-            e.Property(x => x.CreatedAt).HasColumnType("timestamptz");
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.EntityType).HasColumnName("entity_type").HasMaxLength(80).IsRequired();
+            e.Property(x => x.EntityId).HasColumnName("entity_id");
+            e.Property(x => x.ContentHtml).HasColumnName("content_html").IsRequired();
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz");
             e.HasIndex(x => new { x.EntityType, x.EntityId, x.CreatedAt }).HasDatabaseName("ix_content_versions_entity");
         });
 
@@ -952,9 +957,10 @@ public class AppDbContext : DbContext
         {
             e.ToTable("content_hashes");
             e.HasKey(x => x.Id);
-            e.Property(x => x.HashValue).HasMaxLength(64).IsRequired();
-            e.Property(x => x.SourceUrl).HasMaxLength(500).IsRequired();
-            e.Property(x => x.CreatedAt).HasColumnType("timestamptz");
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.HashValue).HasColumnName("hash_value").HasMaxLength(64).IsRequired();
+            e.Property(x => x.SourceUrl).HasColumnName("source_url").HasMaxLength(500).IsRequired();
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz");
             e.HasIndex(x => x.HashValue).IsUnique().HasDatabaseName("ix_content_hashes_hash_value");
         });
     }
