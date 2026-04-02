@@ -13,13 +13,26 @@ namespace GridAcademy.Jobs;
 /// </summary>
 public static class JobScheduler
 {
-    public static void RegisterAll()
+    public static void RegisterAll(int scrapingIntervalHours = 6)
     {
         // Check for inactive users — daily at 02:00 AM UTC
         RecurringJob.AddOrUpdate<InactiveUserJob>(
             recurringJobId: "inactive-user-check",
             methodCall:     job => job.RunAsync(),
             cronExpression: "0 2 * * *",
+            options: new RecurringJobOptions
+            {
+                TimeZone = TimeZoneInfo.Utc
+            });
+
+        
+
+        // Scrape exam notifications every N hours (default 6)
+        var normalizedHours = Math.Clamp(scrapingIntervalHours, 1, 24);
+        RecurringJob.AddOrUpdate<ExamScrapingJob>(
+            recurringJobId: "exam-scraping",
+            methodCall:     job => job.RunAsync(),
+            cronExpression: $"0 */{normalizedHours} * * *",
             options: new RecurringJobOptions
             {
                 TimeZone = TimeZoneInfo.Utc

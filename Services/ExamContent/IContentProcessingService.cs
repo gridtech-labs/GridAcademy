@@ -1,3 +1,5 @@
+using GridAcademy.Services.ExamContent.Scraping.Models;
+
 namespace GridAcademy.Services.ExamContent;
 
 public interface IContentProcessingService
@@ -7,4 +9,5 @@ public interface IContentProcessingService
     string GenerateSlug(string input);
     string GenerateContentHash(string htmlContent);
     string NormalizeForHash(string htmlContent);
+    Task ProcessAsync(ScrapedNotification notification, string? preComputedHash = null, CancellationToken ct = default);
 }
