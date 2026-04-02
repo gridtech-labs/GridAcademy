@@ -4,7 +4,9 @@ using GridAcademy.Helpers;
 using GridAcademy.Jobs;
 using GridAcademy.Middleware;
 using GridAcademy.Services;
+using GridAcademy.Services.ExamContent;
 using GridAcademy.Services.Marketplace;
+using GridAcademy.Repositories.ExamContent;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -241,6 +243,9 @@ builder.Services.AddScoped<EmailJob>();
 
 // ── Exam Module ────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IExamService, ExamService>();
+builder.Services.AddScoped<IExamContentRepository, ExamContentRepository>();
+builder.Services.AddScoped<IContentProcessingService, ContentProcessingService>();
+builder.Services.AddScoped<IExamContentService, ExamContentService>();
 
 // ── Marketplace Module ─────────────────────────────────────────────────────
 builder.Services.AddScoped<IOtpService,              OtpService>();

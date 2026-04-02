@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace GridAcademy.Controllers;
 
 [ApiController]
-[Route("api/exams")]
+[Route("api/exam-pages")]
 public class ExamController(IExamService svc) : ControllerBase
 {
     // ── Public Endpoints ──────────────────────────────────────────────────
