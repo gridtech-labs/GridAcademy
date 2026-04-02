@@ -203,7 +203,7 @@ public class ExamContentService(
     private static ExamNotificationDto Map(ExamNotification notification) =>
         new(
             notification.Id,
-            notification.ExamId,
+            notification.ExamId ?? Guid.Empty,
             notification.Exam?.Name ?? string.Empty,
             notification.Title,
             notification.Slug,
