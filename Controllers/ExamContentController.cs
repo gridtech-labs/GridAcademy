@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace GridAcademy.Controllers;
 
 [ApiController]
-[Route("api/exam-content")]
+[Route("api")]
 public class ExamContentController(IExamContentService service) : ControllerBase
 {
     [HttpPost("exams")]

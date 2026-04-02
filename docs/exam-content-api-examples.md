@@ -1,7 +1,7 @@
 # Exam Content API Examples
 
 ## Create Exam
-`POST /api/exam-content/exams`
+`POST /api/exams`
 
 ```json
 {
@@ -13,7 +13,7 @@
 ```
 
 ## Create Notification
-`POST /api/exam-content/notifications`
+`POST /api/notifications`
 
 ```json
 {
@@ -31,7 +31,7 @@
 ```
 
 ## Get Notification by Slug
-`GET /api/exam-content/notifications/ssc-cgl-notification-2026-notification-2026`
+`GET /api/notifications/ssc-cgl-notification-2026-notification-2026`
 
 ```json
 {
