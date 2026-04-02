@@ -18,7 +18,7 @@ public class UpscScraper(
             return [];
 
         var doc = await LoadDocumentAsync(sourceUrl, ct);
-        var links = doc.DocumentNode.SelectNodes("//a[@href]") ?? [];
+        var links = doc.DocumentNode.SelectNodes("//a[@href]")?.AsEnumerable() ?? [];
 
         return links
             .Take(40)

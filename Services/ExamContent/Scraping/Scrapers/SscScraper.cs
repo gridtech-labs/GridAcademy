@@ -22,7 +22,7 @@ public partial class SscScraper(
         }
 
         var doc = await LoadDocumentAsync(sourceUrl, ct);
-        var linkNodes = doc.DocumentNode.SelectNodes("//a[@href]") ?? [];
+        var linkNodes = doc.DocumentNode.SelectNodes("//a[@href]")?.AsEnumerable() ?? [];
         var items = new List<ScrapedNotification>();
 
         foreach (var node in linkNodes.Take(60))
