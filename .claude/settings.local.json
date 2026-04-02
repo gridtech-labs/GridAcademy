@@ -264,7 +264,13 @@
       "Bash(head -20 grep -n \"ThumbnailUrl\\\\|BannerUrl\" \"D:/Bkp/GRID/GridAcademy/Services/Marketplace/StorefrontService.cs\")",
       "Bash(head -10 grep -n \"GetHomepageAsync\\\\|HomepageDto\" \"D:/Bkp/GRID/GridAcademy/Services/Marketplace/StorefrontService.cs\")",
       "Bash(head -10 grep -n \"ExamCardDto\\\\|ExamCard\\\\|ListAsync\\\\|activeOnly\" \"D:/Bkp/GRID/GridAcademy/Services/ExamService.cs\")",
-      "Bash(head -20 grep -n \"TestQuestion\\\\|test_question\" \"D:/Bkp/GRID/GridAcademy/Data/AppDbContext.cs\")"
+      "Bash(head -20 grep -n \"TestQuestion\\\\|test_question\" \"D:/Bkp/GRID/GridAcademy/Data/AppDbContext.cs\")",
+      "Bash(find D:BkpGRIDGridAcademy.Webgridacademy-websrc -type f -name *exam* -o -name *test*)",
+      "Bash(find D:/Bkp/GRID/GridAcademy.Web/gridacademy-web/src -name *exam* -type f)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(at the time of publish test.\":*)"
     ]
   }
 }
