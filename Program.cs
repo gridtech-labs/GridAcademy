@@ -262,6 +262,7 @@ builder.Services.AddScoped<IExamService, ExamService>();
 builder.Services.AddScoped<IExamContentRepository, ExamContentRepository>();
 builder.Services.AddScoped<IContentProcessingService, ContentProcessingService>();
 builder.Services.AddScoped<IExamContentService, ExamContentService>();
+builder.Services.AddScoped<IContentWorkflowService, ContentWorkflowService>();
 builder.Services.AddScoped<IAiApiClient, OpenAiApiClient>();
 builder.Services.AddScoped<IAIRewriteService, AIRewriteService>();
 builder.Services.AddScoped<ScraperOrchestrator>();

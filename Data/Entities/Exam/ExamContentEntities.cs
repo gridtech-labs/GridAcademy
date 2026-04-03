@@ -13,7 +13,9 @@ public enum ExamNotificationType
 public enum PublicationStatus
 {
     Draft = 0,
-    Published = 1
+    AIProcessed = 1,
+    Approved = 2,
+    Published = 3
 }
 
 public class Exam

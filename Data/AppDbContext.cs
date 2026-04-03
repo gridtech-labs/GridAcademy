@@ -940,6 +940,7 @@ public class AppDbContext : DbContext
             e.HasIndex(x => x.Slug).IsUnique().HasDatabaseName("ix_exam_notifications_slug");
             e.HasIndex(x => x.ExamId).HasDatabaseName("ix_exam_notifications_exam_id");
             e.HasIndex(x => x.NotificationType).HasDatabaseName("ix_exam_notifications_type");
+            e.HasIndex(x => x.Status).HasDatabaseName("ix_exam_notifications_status");
             e.HasIndex(x => x.IsAiProcessed).HasDatabaseName("ix_exam_notifications_is_ai_processed");
             e.HasIndex(x => x.PublishedAt).HasDatabaseName("ix_exam_notifications_published_at");
         });
