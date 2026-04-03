@@ -5,6 +5,8 @@ using GridAcademy.Jobs;
 using GridAcademy.Middleware;
 using GridAcademy.Services;
 using GridAcademy.Services.ExamContent;
+using GridAcademy.Services.ExamContent.AI;
+using GridAcademy.Services.ExamContent.Options;
 using GridAcademy.Services.ExamContent.Scraping;
 using GridAcademy.Services.ExamContent.Scraping.Options;
 using GridAcademy.Services.ExamContent.Scraping.Scrapers;
@@ -243,6 +245,13 @@ builder.Services.AddScoped<JwtHelper>();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IMathpixService, MathpixService>();
 
+builder.Services.Configure<AiRewriteOptions>(builder.Configuration.GetSection(AiRewriteOptions.SectionName));
+builder.Services.AddHttpClient("OpenAI", (sp, http) =>
+{
+    var aiOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<AiRewriteOptions>>().Value;
+    http.BaseAddress = new Uri(aiOptions.BaseUrl.TrimEnd('/'));
+});
+
 builder.Services.AddScoped<InactiveUserJob>();
 builder.Services.AddScoped<EmailJob>();
 builder.Services.AddScoped<ExamScrapingJob>();
@@ -252,6 +261,8 @@ builder.Services.AddScoped<IExamService, ExamService>();
 builder.Services.AddScoped<IExamContentRepository, ExamContentRepository>();
 builder.Services.AddScoped<IContentProcessingService, ContentProcessingService>();
 builder.Services.AddScoped<IExamContentService, ExamContentService>();
+builder.Services.AddScoped<IAiApiClient, OpenAiApiClient>();
+builder.Services.AddScoped<IAIRewriteService, AIRewriteService>();
 builder.Services.AddScoped<ScraperOrchestrator>();
 builder.Services.Configure<ScrapingOptions>(builder.Configuration.GetSection(ScrapingOptions.SectionName));
 builder.Services.AddHttpClient<IScraper, SscScraper>()

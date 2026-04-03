@@ -49,6 +49,14 @@ public class ExamContentRepository(AppDbContext db) : IExamContentRepository
             );
             """, ct);
 
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE exam_notifications
+                ADD COLUMN IF NOT EXISTS is_ai_processed boolean NOT NULL DEFAULT FALSE,
+                ADD COLUMN IF NOT EXISTS ai_processed_at timestamptz;
+            """, ct);
+
         await db.Database.ExecuteSqlRawAsync(
             """
             ALTER TABLE exam_notifications
@@ -65,6 +73,7 @@ public class ExamContentRepository(AppDbContext db) : IExamContentRepository
             CREATE UNIQUE INDEX IF NOT EXISTS ix_exam_notifications_slug ON exam_notifications(slug);
             CREATE INDEX IF NOT EXISTS ix_exam_notifications_exam_id ON exam_notifications(exam_id);
             CREATE INDEX IF NOT EXISTS ix_exam_notifications_type ON exam_notifications(notification_type);
+            CREATE INDEX IF NOT EXISTS ix_exam_notifications_is_ai_processed ON exam_notifications(is_ai_processed);
             CREATE INDEX IF NOT EXISTS ix_exam_notifications_published_at ON exam_notifications(published_at DESC);
             """, ct);
 
