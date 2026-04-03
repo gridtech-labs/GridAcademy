@@ -58,18 +58,34 @@ public class AIRewriteController(
                     var rewritten = await rewriteService.RewriteAsync(notification.ContentHtml, notification.Title, ct);
 
                     notification.ContentHtml = rewritten.ContentHtml;
-                    notification.MetaTitle = rewritten.MetaTitle;
-                    notification.MetaDescription = rewritten.MetaDescription;
+                    notification.MetaTitle = TrimToLength(rewritten.MetaTitle, 300);
+                    notification.MetaDescription = TrimToLength(rewritten.MetaDescription, 500);
                     notification.IsAiProcessed = true;
                     notification.AiProcessedAt = DateTime.UtcNow;
                     notification.Status = PublicationStatus.AIProcessed;
                     notification.UpdatedAt = DateTime.UtcNow;
 
+                    var entry = db.Entry(notification);
+                    entry.Property(x => x.ContentHtml).IsModified = true;
+                    entry.Property(x => x.MetaTitle).IsModified = true;
+                    entry.Property(x => x.MetaDescription).IsModified = true;
+                    entry.Property(x => x.IsAiProcessed).IsModified = true;
+                    entry.Property(x => x.AiProcessedAt).IsModified = true;
+                    entry.Property(x => x.Status).IsModified = true;
+                    entry.Property(x => x.UpdatedAt).IsModified = true;
+
                     await db.SaveChangesAsync(ct);
+                    await entry.ReloadAsync(ct);
 
                     processed++;
                     success = true;
-                    logger.LogInformation("AI rewrite completed for {Title}", notification.Title);
+                    logger.LogInformation(
+                        "AI rewrite completed for {Title}. NotificationId={NotificationId}, Status={Status}, IsAiProcessed={IsAiProcessed}, AiProcessedAt={AiProcessedAt}",
+                        notification.Title,
+                        notification.Id,
+                        notification.Status,
+                        notification.IsAiProcessed,
+                        notification.AiProcessedAt);
                 }
                 catch (Exception ex)
                 {
@@ -84,5 +100,14 @@ public class AIRewriteController(
         }
 
         return Ok(new AiRewriteBatchResponse(processed, failed));
+    }
+
+    private static string? TrimToLength(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        var trimmed = value.Trim();
+        return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength];
     }
 }
