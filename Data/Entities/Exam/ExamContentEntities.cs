@@ -72,6 +72,8 @@ public class ExamNotification
     public string? MetaDescription { get; set; }
 
     public DateTime? PublishedAt { get; set; }
+    public bool IsAiProcessed { get; set; } = false;
+    public DateTime? AiProcessedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public PublicationStatus Status { get; set; } = PublicationStatus.Draft;

@@ -927,6 +927,8 @@ public class AppDbContext : DbContext
             e.Property(x => x.CanonicalUrl).HasColumnName("canonical_url").HasMaxLength(500);
             e.Property(x => x.MetaTitle).HasColumnName("meta_title").HasMaxLength(300);
             e.Property(x => x.MetaDescription).HasColumnName("meta_description").HasMaxLength(500);
+            e.Property(x => x.IsAiProcessed).HasColumnName("is_ai_processed").HasDefaultValue(false);
+            e.Property(x => x.AiProcessedAt).HasColumnName("ai_processed_at").HasColumnType("timestamptz");
             e.Property(x => x.Status).HasColumnName("status").HasConversion<int>().HasDefaultValue(PublicationStatus.Draft);
             e.Property(x => x.PublishedAt).HasColumnName("published_at").HasColumnType("timestamptz");
             e.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz");
@@ -938,6 +940,7 @@ public class AppDbContext : DbContext
             e.HasIndex(x => x.Slug).IsUnique().HasDatabaseName("ix_exam_notifications_slug");
             e.HasIndex(x => x.ExamId).HasDatabaseName("ix_exam_notifications_exam_id");
             e.HasIndex(x => x.NotificationType).HasDatabaseName("ix_exam_notifications_type");
+            e.HasIndex(x => x.IsAiProcessed).HasDatabaseName("ix_exam_notifications_is_ai_processed");
             e.HasIndex(x => x.PublishedAt).HasDatabaseName("ix_exam_notifications_published_at");
         });
 
