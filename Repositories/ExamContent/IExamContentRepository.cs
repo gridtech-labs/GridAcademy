@@ -4,6 +4,8 @@ namespace GridAcademy.Repositories.ExamContent;
 
 public interface IExamContentRepository
 {
+    Task EnsureExamContentSchemaAsync(CancellationToken ct = default);
+
     Task AddExamAsync(Exam exam, CancellationToken ct = default);
     Task<bool> ExamSlugExistsAsync(string slug, CancellationToken ct = default);
     IQueryable<Exam> QueryExams();
