@@ -25,6 +25,13 @@ public class AIRewriteController(
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin,Instructor")]
     public async Task<IActionResult> RewriteDrafts([FromBody] AiRewriteRequest? request, CancellationToken ct)
     {
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE exam_notifications
+                ADD COLUMN IF NOT EXISTS is_ai_processed boolean NOT NULL DEFAULT FALSE,
+                ADD COLUMN IF NOT EXISTS ai_processed_at timestamptz;
+            """, ct);
+
         var requestedBatch = request?.BatchSize ?? _options.DefaultBatchSize;
         var batchSize = Math.Clamp(requestedBatch, 1, _options.MaxBatchSize);
 
