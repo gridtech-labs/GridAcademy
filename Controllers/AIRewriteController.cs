@@ -62,6 +62,7 @@ public class AIRewriteController(
                     notification.MetaDescription = rewritten.MetaDescription;
                     notification.IsAiProcessed = true;
                     notification.AiProcessedAt = DateTime.UtcNow;
+                    notification.Status = PublicationStatus.AIProcessed;
                     notification.UpdatedAt = DateTime.UtcNow;
 
                     await db.SaveChangesAsync(ct);

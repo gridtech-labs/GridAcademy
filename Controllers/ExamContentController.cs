@@ -112,6 +112,10 @@ public class ExamContentController(IExamContentService service) : ControllerBase
         {
             return NotFound(ApiResponse<object>.Fail(ex.Message));
         }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
     }
 
     [HttpPost("notifications/{id:guid}/draft")]
@@ -126,6 +130,10 @@ public class ExamContentController(IExamContentService service) : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(ApiResponse<object>.Fail(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
         }
     }
 

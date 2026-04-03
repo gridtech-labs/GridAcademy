@@ -25,10 +25,11 @@
   "sourceUrl": "https://ssc.gov.in/notice/abc",
   "canonicalUrl": "https://gridacademy.in/notifications/ssc-cgl-notification-2026",
   "metaTitle": "SSC CGL 2026 Notification",
-  "metaDescription": "Important SSC CGL dates, eligibility and links.",
-  "status": 1
+  "metaDescription": "Important SSC CGL dates, eligibility and links."
 }
 ```
+
+> New workflow default: newly created records are always `Draft`.
 
 ## Get Notification by Slug
 `GET /api/notifications/ssc-cgl-notification-2026-notification-2026`
@@ -46,7 +47,76 @@
     "notificationType": 1,
     "sourceUrl": "https://ssc.gov.in/notice/abc",
     "canonicalUrl": "https://gridacademy.in/notifications/ssc-cgl-notification-2026",
-    "status": 1
+    "status": 3
+  }
+}
+```
+
+## Approve AI-Processed Content (Admin)
+`POST /api/admin/content/{id}/approve`
+
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "status": "Approved"
+  }
+}
+```
+
+## Publish Approved Content (Admin)
+`POST /api/admin/content/{id}/publish`
+
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "status": "Published"
+  }
+}
+```
+
+## List Content by Status (Admin)
+`GET /api/admin/content?status=AIProcessed&page=1&pageSize=20`
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "d56a5edf-3b7f-4db0-929d-e8e393f9d3c5",
+        "title": "SSC CGL Notification 2026 Released",
+        "slug": "ssc-cgl-notification-2026-notification-2026",
+        "status": 1,
+        "isAiProcessed": true,
+        "createdAt": "2026-04-03T10:00:00Z",
+        "updatedAt": "2026-04-03T10:30:00Z",
+        "publishedAt": null
+      }
+    ],
+    "page": 1,
+    "pageSize": 20,
+    "totalRecords": 1
+  }
+}
+```
+
+## Public Content by Slug
+`GET /api/content/{slug}`
+
+```json
+{
+  "success": true,
+  "data": {
+    "title": "SSC CGL Notification 2026 Released",
+    "slug": "ssc-cgl-notification-2026-notification-2026",
+    "contentHtml": "<article><p>...</p></article>",
+    "metaTitle": "SSC CGL 2026 Notification",
+    "metaDescription": "Important SSC CGL dates, eligibility and links.",
+    "publishedAt": "2026-04-03T11:30:00Z"
   }
 }
 ```

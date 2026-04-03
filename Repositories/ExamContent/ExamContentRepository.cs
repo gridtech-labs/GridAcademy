@@ -73,8 +73,22 @@ public class ExamContentRepository(AppDbContext db) : IExamContentRepository
             CREATE UNIQUE INDEX IF NOT EXISTS ix_exam_notifications_slug ON exam_notifications(slug);
             CREATE INDEX IF NOT EXISTS ix_exam_notifications_exam_id ON exam_notifications(exam_id);
             CREATE INDEX IF NOT EXISTS ix_exam_notifications_type ON exam_notifications(notification_type);
+            CREATE INDEX IF NOT EXISTS ix_exam_notifications_status ON exam_notifications(status);
             CREATE INDEX IF NOT EXISTS ix_exam_notifications_is_ai_processed ON exam_notifications(is_ai_processed);
             CREATE INDEX IF NOT EXISTS ix_exam_notifications_published_at ON exam_notifications(published_at DESC);
+            """, ct);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE exam_notifications
+                DROP CONSTRAINT IF EXISTS ck_exam_notifications_status,
+                DROP CONSTRAINT IF EXISTS ck_exam_notifications_published_at_required;
+
+            ALTER TABLE exam_notifications
+                ADD CONSTRAINT ck_exam_notifications_status
+                    CHECK (status IN (0, 1, 2, 3)),
+                ADD CONSTRAINT ck_exam_notifications_published_at_required
+                    CHECK (status <> 3 OR published_at IS NOT NULL);
             """, ct);
 
         await db.Database.ExecuteSqlRawAsync(

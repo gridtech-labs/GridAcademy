@@ -16,8 +16,7 @@ public record CreateExamNotificationRequest(
     string SourceUrl,
     string? CanonicalUrl,
     string? MetaTitle,
-    string? MetaDescription,
-    PublicationStatus Status = PublicationStatus.Draft);
+    string? MetaDescription);
 
 public record UpdateExamNotificationRequest(
     string Title,
@@ -27,8 +26,7 @@ public record UpdateExamNotificationRequest(
     string SourceUrl,
     string? CanonicalUrl,
     string? MetaTitle,
-    string? MetaDescription,
-    PublicationStatus Status);
+    string? MetaDescription);
 
 public record ExamNotificationDto(
     Guid Id,
