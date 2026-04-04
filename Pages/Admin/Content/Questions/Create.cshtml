@@ -44,6 +44,23 @@
         /* Upload progress shimmer while image is being sent */
         .img-uploading { opacity:.45; animation: shimmer 1s infinite alternate; }
         @@keyframes shimmer { from { opacity:.3 } to { opacity:.7 } }
+
+        /* ── Font-size dropdown labels ─────────────────────────────────────── */
+        .ql-snow .ql-picker.ql-size .ql-picker-label::before,
+        .ql-snow .ql-picker.ql-size .ql-picker-item::before                { content: 'Normal'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='0.75em']::before,
+        .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='0.75em']::before { content: 'Small'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='1em']::before,
+        .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='1em']::before    { content: 'Normal'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='1.25em']::before,
+        .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='1.25em']::before { content: 'Medium'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='1.5em']::before,
+        .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='1.5em']::before  { content: 'Large'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='2em']::before,
+        .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='2em']::before    { content: 'Huge'; }
+
+        /* ── Formula tooltip: keep it inside the editor, never clip left ───── */
+        .math-editor-wrap .ql-tooltip { left: 0 !important; }
     </style>
 }
 
@@ -189,6 +206,38 @@
         <!-- ── Right column: metadata ──────────────────────────────────── -->
         <div class="col-12 col-xl-4">
 
+            <!-- ── LaTeX Quick Reference ──────────────────────────────── -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-white py-2 d-flex align-items-center justify-content-between"
+                     style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#latexRefPanel">
+                    <span class="fw-semibold">
+                        <i class="bi bi-calculator me-2 text-primary"></i>LaTeX Quick Reference
+                    </span>
+                    <i class="bi bi-chevron-down small text-muted"></i>
+                </div>
+                <div id="latexRefPanel" class="collapse">
+                    <div class="card-body p-2">
+                        <!-- Tab bar -->
+                        <div class="d-flex gap-1 mb-2 flex-wrap" id="latexTabBar">
+                            <button type="button" class="btn btn-xs btn-primary latex-tab active"
+                                    data-ltab="greek" style="font-size:.72rem;padding:.2rem .55rem">Greek</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary latex-tab"
+                                    data-ltab="math"  style="font-size:.72rem;padding:.2rem .55rem">Math</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary latex-tab"
+                                    data-ltab="trig"  style="font-size:.72rem;padding:.2rem .55rem">Trig/Calc</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary latex-tab"
+                                    data-ltab="phys"  style="font-size:.72rem;padding:.2rem .55rem">Physics</button>
+                        </div>
+                        <!-- Symbol grid — filled by JS -->
+                        <div id="latexSymGrid" class="d-flex flex-wrap gap-1"></div>
+                        <p class="text-muted mb-0 mt-2" style="font-size:.7rem">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Click to insert into the focused editor. Click inside any editor first.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
             <div class="card shadow-sm mb-3">
                 <div class="card-header bg-white fw-semibold py-3">Classification</div>
                 <div class="card-body">
@@ -283,38 +332,6 @@
                 </div>
             </div>
 
-            <!-- ── LaTeX Quick Reference ──────────────────────────────── -->
-            <div class="card shadow-sm mb-3">
-                <div class="card-header bg-white py-2 d-flex align-items-center justify-content-between"
-                     style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#latexRefPanel">
-                    <span class="fw-semibold">
-                        <i class="bi bi-calculator me-2 text-primary"></i>LaTeX Quick Reference
-                    </span>
-                    <i class="bi bi-chevron-down small text-muted"></i>
-                </div>
-                <div id="latexRefPanel" class="collapse">
-                    <div class="card-body p-2">
-                        <!-- Tab bar -->
-                        <div class="d-flex gap-1 mb-2 flex-wrap" id="latexTabBar">
-                            <button type="button" class="btn btn-xs btn-primary latex-tab active"
-                                    data-ltab="greek" style="font-size:.72rem;padding:.2rem .55rem">Greek</button>
-                            <button type="button" class="btn btn-xs btn-outline-secondary latex-tab"
-                                    data-ltab="math"  style="font-size:.72rem;padding:.2rem .55rem">Math</button>
-                            <button type="button" class="btn btn-xs btn-outline-secondary latex-tab"
-                                    data-ltab="trig"  style="font-size:.72rem;padding:.2rem .55rem">Trig/Calc</button>
-                            <button type="button" class="btn btn-xs btn-outline-secondary latex-tab"
-                                    data-ltab="phys"  style="font-size:.72rem;padding:.2rem .55rem">Physics</button>
-                        </div>
-                        <!-- Symbol grid — filled by JS -->
-                        <div id="latexSymGrid" class="d-flex flex-wrap gap-1"></div>
-                        <p class="text-muted mb-0 mt-2" style="font-size:.7rem">
-                            <i class="bi bi-info-circle me-1"></i>
-                            Click to insert into the focused editor. Click inside any editor first.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
             @if (Model.IsEdit)
             {
                 <div class="card shadow-sm mb-3">
@@ -363,7 +380,7 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
 
     // ── Toolbar configs ───────────────────────────────────────────────────────
     const fullToolbar = [
-        [{ size: ['0.75em', false, '1.25em', '1.5em', '2em'] }],
+        [{ size: ['0.75em', '1em', '1.25em', '1.5em', '2em'] }],
         ['bold', 'italic', 'underline'],
         [{ script: 'sub' }, { script: 'super' }],
         ['formula', 'image'],                  // image: insert diagram / figure

@@ -6,6 +6,125 @@ namespace GridAcademy.Repositories.ExamContent;
 
 public class ExamContentRepository(AppDbContext db) : IExamContentRepository
 {
+    public async Task EnsureExamContentSchemaAsync(CancellationToken ct = default)
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS exams (
+                id uuid PRIMARY KEY,
+                name character varying(200) NOT NULL,
+                slug character varying(220) NOT NULL,
+                category character varying(100),
+                level character varying(100),
+                is_active boolean NOT NULL DEFAULT TRUE,
+                created_at timestamptz NOT NULL
+            );
+            """, ct);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS ix_exams_slug ON exams (slug);
+            CREATE INDEX IF NOT EXISTS ix_exams_category_level ON exams (category, level);
+            """, ct);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS exam_notifications (
+                id uuid PRIMARY KEY,
+                exam_id uuid NULL,
+                title character varying(300) NOT NULL,
+                slug character varying(320) NOT NULL,
+                content_html text NOT NULL,
+                summary character varying(500),
+                notification_type integer NOT NULL,
+                important_dates jsonb,
+                source_url character varying(500) NOT NULL,
+                canonical_url character varying(500),
+                meta_title character varying(300),
+                meta_description character varying(500),
+                status integer NOT NULL DEFAULT 0,
+                published_at timestamptz,
+                created_at timestamptz NOT NULL,
+                updated_at timestamptz NOT NULL
+            );
+            """, ct);
+
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE exam_notifications
+                ADD COLUMN IF NOT EXISTS is_ai_processed boolean NOT NULL DEFAULT FALSE,
+                ADD COLUMN IF NOT EXISTS ai_processed_at timestamptz;
+            """, ct);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE exam_notifications
+                DROP CONSTRAINT IF EXISTS fk_exam_notifications_exams_exam_id;
+
+            ALTER TABLE exam_notifications
+                ADD CONSTRAINT fk_exam_notifications_exams_exam_id
+                FOREIGN KEY (exam_id) REFERENCES exams(id)
+                ON DELETE SET NULL;
+            """, ct);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS ix_exam_notifications_slug ON exam_notifications(slug);
+            CREATE INDEX IF NOT EXISTS ix_exam_notifications_exam_id ON exam_notifications(exam_id);
+            CREATE INDEX IF NOT EXISTS ix_exam_notifications_type ON exam_notifications(notification_type);
+            CREATE INDEX IF NOT EXISTS ix_exam_notifications_status ON exam_notifications(status);
+            CREATE INDEX IF NOT EXISTS ix_exam_notifications_is_ai_processed ON exam_notifications(is_ai_processed);
+            CREATE INDEX IF NOT EXISTS ix_exam_notifications_published_at ON exam_notifications(published_at DESC);
+            """, ct);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE exam_notifications
+                DROP CONSTRAINT IF EXISTS ck_exam_notifications_status,
+                DROP CONSTRAINT IF EXISTS ck_exam_notifications_published_at_required;
+
+            ALTER TABLE exam_notifications
+                ADD CONSTRAINT ck_exam_notifications_status
+                    CHECK (status IN (0, 1, 2, 3)),
+                ADD CONSTRAINT ck_exam_notifications_published_at_required
+                    CHECK (status <> 3 OR published_at IS NOT NULL);
+            """, ct);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS content_versions (
+                id uuid PRIMARY KEY,
+                entity_type character varying(80) NOT NULL,
+                entity_id uuid NOT NULL,
+                content_html text NOT NULL,
+                created_at timestamptz NOT NULL
+            );
+            """, ct);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS ix_content_versions_entity
+            ON content_versions (entity_type, entity_id, created_at DESC);
+            """, ct);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS content_hashes (
+                id uuid PRIMARY KEY,
+                hash_value character varying(64) NOT NULL,
+                source_url character varying(500) NOT NULL,
+                created_at timestamptz NOT NULL
+            );
+            """, ct);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS ix_content_hashes_hash_value
+            ON content_hashes (hash_value);
+            """, ct);
+    }
+
     public Task AddExamAsync(Exam exam, CancellationToken ct = default) => db.Exams.AddAsync(exam, ct).AsTask();
 
     public Task<bool> ExamSlugExistsAsync(string slug, CancellationToken ct = default) =>

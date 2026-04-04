@@ -79,8 +79,8 @@ public class ExamContentService(
             CanonicalUrl = string.IsNullOrWhiteSpace(request.CanonicalUrl) ? $"/notifications/{slug}" : request.CanonicalUrl.Trim(),
             MetaTitle = string.IsNullOrWhiteSpace(request.MetaTitle) ? request.Title.Trim() : request.MetaTitle.Trim(),
             MetaDescription = string.IsNullOrWhiteSpace(request.MetaDescription) ? summary : request.MetaDescription.Trim(),
-            Status = request.Status,
-            PublishedAt = request.Status == PublicationStatus.Published ? DateTime.UtcNow : null
+            Status = PublicationStatus.Draft,
+            PublishedAt = null
         };
 
         await repository.AddNotificationAsync(notification, ct);
@@ -141,8 +141,6 @@ public class ExamContentService(
         notification.CanonicalUrl = string.IsNullOrWhiteSpace(request.CanonicalUrl) ? $"/notifications/{notification.Slug}" : request.CanonicalUrl.Trim();
         notification.MetaTitle = string.IsNullOrWhiteSpace(request.MetaTitle) ? notification.Title : request.MetaTitle.Trim();
         notification.MetaDescription = string.IsNullOrWhiteSpace(request.MetaDescription) ? notification.Summary : request.MetaDescription.Trim();
-        notification.Status = request.Status;
-        notification.PublishedAt = request.Status == PublicationStatus.Published ? DateTime.UtcNow : null;
         notification.UpdatedAt = DateTime.UtcNow;
 
         await repository.AddVersionAsync(new ContentVersion { EntityType = nameof(ExamNotification), EntityId = notification.Id, ContentHtml = cleanHtml }, ct);
@@ -157,6 +155,18 @@ public class ExamContentService(
     {
         var notification = await repository.GetNotificationByIdAsync(id, ct)
             ?? throw new KeyNotFoundException("Notification not found.");
+
+        var currentStatus = notification.Status;
+        var isValid = (currentStatus, status) switch
+        {
+            (PublicationStatus.Draft, PublicationStatus.AIProcessed) => true,
+            (PublicationStatus.AIProcessed, PublicationStatus.Approved) => true,
+            (PublicationStatus.Approved, PublicationStatus.Published) => true,
+            _ => false
+        };
+
+        if (!isValid)
+            throw new InvalidOperationException($"Invalid status transition from {currentStatus} to {status}.");
 
         notification.Status = status;
         notification.PublishedAt = status == PublicationStatus.Published ? DateTime.UtcNow : null;

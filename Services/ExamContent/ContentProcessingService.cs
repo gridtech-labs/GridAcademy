@@ -25,6 +25,8 @@ public class ContentProcessingService(
         {
             logger.LogInformation("Processing scraped notification: {Title} ({SourceUrl})", notification.Title, notification.SourceUrl);
 
+            await repository.EnsureExamContentSchemaAsync(ct);
+
             var cleanedText = CleanHtml(notification.ContentHtml);
             var contentHash = GenerateContentHash(cleanedText);
 
