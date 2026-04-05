@@ -49,7 +49,7 @@
                     <div class="col-12">
                         <label class="form-label fw-semibold">Slug (URL) <span class="text-danger">*</span></label>
                         <div class="input-group">
-                            <span class="input-group-text text-muted small">/exams/</span>
+                            <span class="input-group-text text-muted small" id="slugPrefix">/exams/</span>
                             <input asp-for="Slug" class="form-control" id="slugInput"
                                    placeholder="up-home-guards" required />
                         </div>
@@ -350,6 +350,33 @@ var joditEditors = {};
     });
 
 // Jodit auto-syncs with textarea on form submit — no extra handler needed.
+
+// ── Exam-type → slug prefix map ───────────────────────────────────────
+var _examTypeSlugs = {
+    @foreach (var t in Model.ExamTypes)
+    {
+        var typeSlug = t.Name.ToLower()
+            .Replace(" ", "-")
+            .Replace("/", "-")
+            .Replace("_", "-");
+        @:@t.Id: '@typeSlug',
+    }
+};
+
+function updateSlugPrefix() {
+    var sel   = document.getElementById('ExamTypeId');
+    var val   = sel ? sel.value : '';
+    var label = (val && _examTypeSlugs[val])
+                    ? '/' + _examTypeSlugs[val] + '/exams/'
+                    : '/exams/';
+    document.getElementById('slugPrefix').textContent = label;
+}
+
+var _examTypeSelect = document.getElementById('ExamTypeId');
+if (_examTypeSelect) {
+    _examTypeSelect.addEventListener('change', updateSlugPrefix);
+    updateSlugPrefix(); // set correct prefix on page load (edit mode)
+}
 
 // ── Auto-slug ─────────────────────────────────────────────────────────
 function autoSlug(v) {
