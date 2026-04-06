@@ -3,8 +3,6 @@
 @using GridAcademy.Data.Entities.Content
 @{
     ViewData["Title"] = Model.IsEdit ? "Edit Question" : "Add Question";
-
-    // Pre-compute option rows to keep the template clean
     var optRows = new[]
     {
         new { Letter = "A", Name = "Form.OptionA", ChkName = "Form.CorrectA", Val = Model.Form.OptionA, Chk = Model.Form.CorrectA },
@@ -12,67 +10,64 @@
         new { Letter = "C", Name = "Form.OptionC", ChkName = "Form.CorrectC", Val = Model.Form.OptionC, Chk = Model.Form.CorrectC },
         new { Letter = "D", Name = "Form.OptionD", ChkName = "Form.CorrectD", Val = Model.Form.OptionD, Chk = Model.Form.CorrectD },
     };
+    var qtype = (int)Model.Form.QuestionType;
 }
 
 @section Styles {
-    <!-- KaTeX (math rendering for Quill formula module) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
-    <!-- Quill 2 Snow theme -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" />
-    <style>
-        /* Merge Quill border + Bootstrap border so the editor looks like a .form-control */
-        .math-editor-wrap { border: 1px solid #dee2e6; border-radius: .375rem; overflow: hidden; }
-        .math-editor-wrap .ql-toolbar.ql-snow  { border: none; border-bottom: 1px solid #dee2e6; background: #f8f9fa; border-radius: 0; }
-        .math-editor-wrap .ql-container.ql-snow { border: none; font-size: .925rem; }
-        .math-editor-wrap .ql-editor            { min-height: 110px; }
-        .math-editor-wrap.ql-mini .ql-editor    { min-height: 56px; }
-        /* Option badge colours */
-        .opt-letter { display:inline-block; width:26px; height:26px; line-height:26px;
-                      text-align:center; border-radius:50%; background:#6c757d;
-                      color:#fff; font-weight:700; font-size:.8rem; flex-shrink:0; }
-        /* Images inserted via the image toolbar button */
-        .math-editor-wrap .ql-editor img {
-            max-width: 100%;
-            max-height: 380px;
-            object-fit: contain;
-            display: block;
-            margin: .5rem 0;
-            border-radius: .25rem;
-            border: 1px solid #dee2e6;
-            background: #f8f9fa;
-        }
-        /* Upload progress shimmer while image is being sent */
-        .img-uploading { opacity:.45; animation: shimmer 1s infinite alternate; }
-        @@keyframes shimmer { from { opacity:.3 } to { opacity:.7 } }
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" />
+<style>
+    .math-editor-wrap { border:1px solid #dee2e6; border-radius:.375rem; overflow:hidden; }
+    .math-editor-wrap .ql-toolbar.ql-snow  { border:none; border-bottom:1px solid #dee2e6; background:#f8f9fa; border-radius:0; }
+    .math-editor-wrap .ql-container.ql-snow { border:none; font-size:.925rem; }
+    .math-editor-wrap .ql-editor            { min-height:110px; }
+    .math-editor-wrap.ql-mini .ql-editor    { min-height:56px; }
+    .opt-letter { display:inline-block; width:26px; height:26px; line-height:26px;
+                  text-align:center; border-radius:50%; background:#6c757d;
+                  color:#fff; font-weight:700; font-size:.8rem; flex-shrink:0; }
+    .math-editor-wrap .ql-editor img { max-width:100%; max-height:380px; object-fit:contain;
+        display:block; margin:.5rem 0; border-radius:.25rem; border:1px solid #dee2e6; background:#f8f9fa; }
+    .img-uploading { opacity:.45; animation:shimmer 1s infinite alternate; }
+    @@keyframes shimmer { from{opacity:.3} to{opacity:.7} }
 
-        /* ── Font-size dropdown labels ─────────────────────────────────────── */
-        .ql-snow .ql-picker.ql-size .ql-picker-label::before,
-        .ql-snow .ql-picker.ql-size .ql-picker-item::before                { content: 'Normal'; }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='0.75em']::before,
-        .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='0.75em']::before { content: 'Small'; }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='1em']::before,
-        .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='1em']::before    { content: 'Normal'; }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='1.25em']::before,
-        .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='1.25em']::before { content: 'Medium'; }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='1.5em']::before,
-        .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='1.5em']::before  { content: 'Large'; }
-        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='2em']::before,
-        .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='2em']::before    { content: 'Huge'; }
+    /* Font-size dropdown labels */
+    .ql-snow .ql-picker.ql-size .ql-picker-label::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item::before                          { content:'Normal'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='0.75em']::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='0.75em']::before     { content:'Small'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='1em']::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='1em']::before        { content:'Normal'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='1.25em']::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='1.25em']::before     { content:'Medium'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='1.5em']::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='1.5em']::before      { content:'Large'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='2em']::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='2em']::before        { content:'Huge'; }
 
-        /* ── Formula tooltip: keep it inside the editor, never clip left ───── */
-        .math-editor-wrap .ql-tooltip { left: 0 !important; }
-    </style>
+    /* Formula tooltip aligned to editor */
+    .math-editor-wrap .ql-tooltip { left:0 !important; }
+
+    /* Question-type selector grid */
+    .qtype-card { cursor:pointer; transition:border-color .15s,background .15s; }
+    .qtype-card:has(input:checked) { border-color:#0d6efd !important; background:#f0f5ff; }
+    .qtype-card input[type=radio] { display:none; }
+
+    /* Match table */
+    .match-cell-chk { width:26px; height:26px; cursor:pointer; }
+
+    /* Sub-question card header */
+    .subq-header { background:#f8f9fa; }
+</style>
 }
 
+<!-- ── Page header ─────────────────────────────────────────────────────────── -->
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h4 class="fw-bold mb-0">
             <i class="bi bi-patch-question me-2 text-primary"></i>@ViewData["Title"]
         </h4>
         <p class="text-muted small mb-0">
-            @(Model.IsEdit
-                ? "Update the question details below. Use the ƒ button in any toolbar to insert a LaTeX formula."
-                : "Fill in all required fields. Use the ƒ button in any toolbar to insert a LaTeX formula (e.g. x^{2}+y^{2}=r^{2}).")
+            Fill in all required fields. Use the <kbd>ƒ</kbd> button in any toolbar to insert a LaTeX formula.
         </p>
     </div>
     <a asp-page="/Admin/Content/Questions/Index" class="btn btn-sm btn-outline-secondary">
@@ -86,20 +81,20 @@
 
     <div class="row g-4">
 
-        <!-- ── Left column: question text, type, options ────────────────── -->
+        <!-- ══════════════════════════════════════════════════════════════════ -->
+        <!-- LEFT COLUMN                                                        -->
+        <!-- ══════════════════════════════════════════════════════════════════ -->
         <div class="col-12 col-xl-8">
 
-            <!-- Question Text -->
-            <div class="card shadow-sm mb-3">
+            <!-- ── Question Text (hidden for AR and PBQ) ──────────────────── -->
+            <div class="card shadow-sm mb-3" id="questionTextCard">
                 <div class="card-header bg-white fw-semibold py-3 d-flex align-items-center gap-2">
-                    Question Text
-                    <span class="badge bg-danger">Required</span>
+                    Question Text <span class="badge bg-danger">Required</span>
                     <small class="text-muted fw-normal ms-auto" style="font-size:.76rem">
-                        Click <kbd>ƒ</kbd> in the toolbar to insert LaTeX (e.g. <code>\frac{a}{b}</code>, <code>\int_0^\infty</code>)
+                        Use <kbd>ƒ</kbd> for LaTeX · <code>[BLANK_1]</code> for fill-in-the-blank
                     </small>
                 </div>
                 <div class="card-body">
-                    <!-- Hidden textarea — bound to model; populated by JS before submit -->
                     <textarea asp-for="Form.Text" id="Form_Text" style="display:none"></textarea>
                     <div class="math-editor-wrap" id="wrap-text">
                         <div id="editor-text"></div>
@@ -107,46 +102,47 @@
                     <div id="textError" class="text-danger small mt-1" style="display:none">
                         <i class="bi bi-exclamation-circle me-1"></i>Question text is required.
                     </div>
-
                     <div class="row mt-3 g-2">
                         <div class="col-md-6">
-                            <label class="form-label small text-muted">
-                                Subtopic / Chapter <span class="text-muted fw-normal">(optional)</span>
-                            </label>
-                            <input asp-for="Form.Subtopic" class="form-control form-control-sm"
-                                   placeholder="e.g. Quadratic Equations" />
+                            <label class="form-label small text-muted">Subtopic / Chapter <span class="text-muted fw-normal">(optional)</span></label>
+                            <input asp-for="Form.Subtopic" class="form-control form-control-sm" placeholder="e.g. Quadratic Equations" />
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small text-muted">
-                                Solution / Explanation <span class="text-muted fw-normal">(optional)</span>
-                            </label>
+                            <label class="form-label small text-muted">Solution / Explanation <span class="text-muted fw-normal">(optional)</span></label>
                             <textarea asp-for="Form.Solution" id="Form_Solution" style="display:none"></textarea>
-                            <div class="math-editor-wrap ql-mini">
-                                <div id="editor-solution"></div>
-                            </div>
+                            <div class="math-editor-wrap ql-mini"><div id="editor-solution"></div></div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Question Type -->
+            <!-- ── Question Type selector (9 types) ───────────────────────── -->
             <div class="card shadow-sm mb-3">
                 <div class="card-header bg-white fw-semibold py-3">Question Type</div>
-                <div class="card-body">
-                    <div class="d-flex gap-3 flex-wrap">
-                        @foreach (var (val, label, icon) in new[] {
-                            ("1", "Single Correct (MCQ)", "bi-record-circle"),
-                            ("2", "Multi Correct (MSQ)",  "bi-check-square"),
-                            ("3", "Numerical (NAT)",       "bi-123")
+                <div class="card-body pb-2">
+                    <div class="row g-2">
+                        @foreach (var t in new (int Val, string Code, string Label, string Icon, string Hint)[] {
+                            (1,  "MCQ", "Single Correct",  "bi-record-circle",      "One correct option (A–D)"),
+                            (2,  "MSQ", "Multi Correct",   "bi-check-square",       "One or more correct options"),
+                            (3,  "NAT", "Numerical",       "bi-123",                "Integer or decimal answer"),
+                            (4,  "FIB", "Fill in Blank",   "bi-input-cursor-text",  "Use [BLANK_1] in text"),
+                            (5,  "T/F", "True / False",    "bi-toggle-on",          "Statement is True or False"),
+                            (6,  "MTF", "Match Following", "bi-arrow-left-right",   "List I ↔ List II pairs"),
+                            (7,  "MMQ", "Matrix Match",    "bi-grid-3x3",           "Row × Column grid"),
+                            (8,  "A&R", "Assert & Reason", "bi-chat-quote",         "Assertion A + Reason R"),
+                            (9,  "PBQ", "Passage Based",   "bi-book-half",          "Questions on a paragraph"),
                         })
                         {
-                            <div class="form-check form-check-inline border rounded px-3 py-2"
-                                 style="cursor:pointer">
-                                <input class="form-check-input" type="radio" name="Form.QuestionType"
-                                       id="qtype_@val" value="@val"
-                                       @(((int)Model.Form.QuestionType).ToString() == val ? "checked" : "") />
-                                <label class="form-check-label" for="qtype_@val">
-                                    <i class="bi @icon me-1"></i>@label
+                            <div class="col-6 col-md-4">
+                                <label class="border rounded p-2 d-block h-100 qtype-card">
+                                    <input type="radio" name="Form.QuestionType" value="@t.Val"
+                                           @(qtype == t.Val ? "checked" : "") />
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi @t.Icon text-primary fs-5"></i>
+                                        <span class="badge bg-secondary" style="font-size:.68rem">@t.Code</span>
+                                        <span class="fw-semibold small">@t.Label</span>
+                                    </div>
+                                    <div class="text-muted mt-1" style="font-size:.7rem">@t.Hint</div>
                                 </label>
                             </div>
                         }
@@ -154,59 +150,297 @@
                 </div>
             </div>
 
-            <!-- MCQ Options -->
+            <!-- ── MCQ / MSQ options ───────────────────────────────────────── -->
             <div class="card shadow-sm mb-3" id="mcqOptionsCard">
                 <div class="card-header bg-white fw-semibold py-3 d-flex align-items-center gap-2">
                     Options
                     <small class="text-muted fw-normal ms-auto" style="font-size:.76rem">
-                        <i class="bi bi-check-circle text-success"></i> Tick the checkbox to mark correct option(s)
+                        <i class="bi bi-check-circle text-success"></i> Tick checkbox to mark correct
                     </small>
                 </div>
                 <div class="card-body">
                     @foreach (var opt in optRows)
                     {
                         <div class="d-flex align-items-start gap-3 mb-3">
-                            <!-- Label + correct checkbox stacked -->
                             <div class="d-flex flex-column align-items-center gap-1 pt-2" style="min-width:40px">
                                 <span class="opt-letter">@opt.Letter</span>
                                 <div class="form-check m-0 d-flex flex-column align-items-center">
                                     <input type="checkbox" name="@opt.ChkName" value="true"
-                                           @(opt.Chk ? "checked" : "")
-                                           id="chk@(opt.Letter)"
+                                           @(opt.Chk ? "checked" : "") id="chk@(opt.Letter)"
                                            class="form-check-input" title="Mark as correct answer" />
-                                    <label for="chk@(opt.Letter)"
-                                           class="form-check-label text-success"
+                                    <label for="chk@(opt.Letter)" class="form-check-label text-success"
                                            style="font-size:.65rem;font-weight:600">✓</label>
                                 </div>
                             </div>
-                            <!-- Quill editor for option text -->
                             <div class="flex-grow-1">
-                                <input type="hidden" id="Form_Option@(opt.Letter)"
-                                       name="@opt.Name" value="@opt.Val" />
-                                <div class="math-editor-wrap ql-mini">
-                                    <div id="editor-opt@(opt.Letter)"></div>
-                                </div>
+                                <input type="hidden" id="Form_Option@(opt.Letter)" name="@opt.Name" value="@opt.Val" />
+                                <div class="math-editor-wrap ql-mini"><div id="editor-opt@(opt.Letter)"></div></div>
                             </div>
                         </div>
                     }
                 </div>
             </div>
 
-            <!-- Numerical Answer -->
+            <!-- ── NAT ────────────────────────────────────────────────────── -->
             <div class="card shadow-sm mb-3" id="numericalCard" style="display:none">
                 <div class="card-header bg-white fw-semibold py-3">Numerical Answer</div>
                 <div class="card-body">
-                    <input asp-for="Form.NumericalAnswer" type="number" step="any"
-                           class="form-control" placeholder="Enter the exact numerical answer" />
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Exact Answer <span class="text-danger">*</span></label>
+                            <input asp-for="Form.NumericalAnswer" type="number" step="any"
+                                   class="form-control" placeholder="e.g. 9.81" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Tolerance ± <span class="text-muted fw-normal">(optional, 0 = exact)</span></label>
+                            <input asp-for="Form.NumericalTolerance" type="number" step="any"
+                                   class="form-control" placeholder="e.g. 0.01" />
+                        </div>
+                    </div>
                 </div>
+            </div>
+
+            <!-- ── True / False ───────────────────────────────────────────── -->
+            <div class="card shadow-sm mb-3" id="tfCard" style="display:none">
+                <div class="card-header bg-white fw-semibold py-3">Correct Answer</div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">The question text above is the statement. Select which answer is correct.</p>
+                    <div class="d-flex gap-4">
+                        <div class="form-check border rounded px-4 py-3" style="cursor:pointer">
+                            <input class="form-check-input" type="radio" name="Form.TfTrueIsCorrect"
+                                   id="tf_true" value="true" @(Model.Form.TfTrueIsCorrect ? "checked" : "") />
+                            <label class="form-check-label fw-semibold text-success" for="tf_true">
+                                <i class="bi bi-check-circle me-1"></i> True
+                            </label>
+                        </div>
+                        <div class="form-check border rounded px-4 py-3" style="cursor:pointer">
+                            <input class="form-check-input" type="radio" name="Form.TfTrueIsCorrect"
+                                   id="tf_false" value="false" @(!Model.Form.TfTrueIsCorrect ? "checked" : "") />
+                            <label class="form-check-label fw-semibold text-danger" for="tf_false">
+                                <i class="bi bi-x-circle me-1"></i> False
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Fill in Blanks ─────────────────────────────────────────── -->
+            <div class="card shadow-sm mb-3" id="fibCard" style="display:none">
+                <div class="card-header bg-white fw-semibold py-3 d-flex align-items-center gap-2">
+                    Blank Answers
+                    <button type="button" class="btn btn-sm btn-outline-primary ms-auto" onclick="addBlank()">
+                        <i class="bi bi-plus me-1"></i>Add Blank
+                    </button>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">
+                        Mark positions in the question text using <code>[BLANK_1]</code>, <code>[BLANK_2]</code>, etc.,
+                        then define the correct answer for each blank below.
+                    </p>
+                    <input type="hidden" asp-for="Form.BlanksJson" id="Form_BlanksJson" />
+                    <div id="fibBlanksContainer"></div>
+                    <p class="text-muted small mt-2 mb-0" id="fibNoBlanksTip">
+                        <i class="bi bi-info-circle me-1"></i>Click "Add Blank" to define answers.
+                    </p>
+                </div>
+            </div>
+
+            <!-- ── Match the Following ────────────────────────────────────── -->
+            <div class="card shadow-sm mb-3" id="mtfCard" style="display:none">
+                <div class="card-header bg-white fw-semibold py-3">Match the Following</div>
+                <div class="card-body">
+                    <input type="hidden" asp-for="Form.MatchJson" id="Form_MatchJson" />
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <p class="fw-semibold small text-primary mb-2">List I (Left column)</p>
+                            @foreach (var lbl in new[] { "A","B","C","D" })
+                            {
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <span class="opt-letter">@lbl</span>
+                                    <input type="text" id="mtf-left-@lbl" class="form-control form-control-sm"
+                                           placeholder="Item @lbl" oninput="saveMtfJson()" />
+                                </div>
+                            }
+                        </div>
+                        <div class="col-md-6">
+                            <p class="fw-semibold small text-success mb-2">List II (Right column)</p>
+                            @foreach (var lbl in new[] { "p","q","r","s" })
+                            {
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <span class="opt-letter" style="background:#198754">@lbl</span>
+                                    <input type="text" id="mtf-right-@lbl" class="form-control form-control-sm"
+                                           placeholder="Item @lbl" oninput="saveMtfJson()" />
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    <hr class="my-3" />
+                    <p class="fw-semibold small mb-2">Correct Matching</p>
+                    <div class="row g-2">
+                        @foreach (var lbl in new[] { "A","B","C","D" })
+                        {
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small">@lbl matches →</label>
+                                <select id="mtf-match-@lbl" class="form-select form-select-sm" onchange="saveMtfJson()">
+                                    <option value="">— select —</option>
+                                    @foreach (var r in new[] { "p","q","r","s" })
+                                    { <option value="@r">@r</option> }
+                                </select>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Matrix Match ───────────────────────────────────────────── -->
+            <div class="card shadow-sm mb-3" id="mmqCard" style="display:none">
+                <div class="card-header bg-white fw-semibold py-3">Matrix Match</div>
+                <div class="card-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <p class="fw-semibold small text-primary mb-2">Row Items</p>
+                            @foreach (var lbl in new[] { "I","II","III","IV" })
+                            {
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <span class="badge bg-primary" style="min-width:2.2rem;text-align:center">@lbl</span>
+                                    <input type="text" id="mmq-row-@lbl" class="form-control form-control-sm"
+                                           placeholder="Row @lbl" oninput="saveMmqJson()" />
+                                </div>
+                            }
+                        </div>
+                        <div class="col-md-6">
+                            <p class="fw-semibold small text-success mb-2">Column Items</p>
+                            @foreach (var lbl in new[] { "A","B","C","D" })
+                            {
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <span class="opt-letter" style="background:#198754">@lbl</span>
+                                    <input type="text" id="mmq-col-@lbl" class="form-control form-control-sm"
+                                           placeholder="Col @lbl" oninput="saveMmqJson()" />
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    <hr />
+                    <p class="fw-semibold small mb-2">Correct Mappings <span class="text-muted fw-normal">(tick all that apply)</span></p>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm text-center align-middle" style="width:auto">
+                            <thead class="table-light">
+                                <tr>
+                                    <th></th>
+                                    @foreach (var c in new[] { "A","B","C","D" })
+                                    { <th class="text-success">@c</th> }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var r2 in new[] { "I","II","III","IV" })
+                                {
+                                    <tr>
+                                        <td class="fw-semibold text-primary">@r2</td>
+                                        @foreach (var c in new[] { "A","B","C","D" })
+                                        {
+                                            <td>
+                                                <input type="checkbox" id="mmq-@(r2)-@c"
+                                                       class="match-cell-chk form-check-input"
+                                                       onchange="saveMmqJson()" />
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Assertion & Reason ─────────────────────────────────────── -->
+            <div class="card shadow-sm mb-3" id="arCard" style="display:none">
+                <div class="card-header bg-white fw-semibold py-3">
+                    <i class="bi bi-chat-quote me-2 text-primary"></i>Assertion &amp; Reason
+                </div>
+                <div class="card-body">
+                    <textarea asp-for="Form.AssertionText" id="Form_AssertionText" style="display:none"></textarea>
+                    <textarea asp-for="Form.ReasonText"    id="Form_ReasonText"    style="display:none"></textarea>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">
+                            Assertion (A) <span class="text-danger">*</span>
+                        </label>
+                        <div class="math-editor-wrap ql-mini"><div id="editor-assertion"></div></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">
+                            Reason (R) <span class="text-danger">*</span>
+                        </label>
+                        <div class="math-editor-wrap ql-mini"><div id="editor-reason"></div></div>
+                    </div>
+                    <hr />
+                    <p class="fw-semibold small mb-2">Correct Option <span class="text-danger">*</span></p>
+                    @{
+                        var arTexts = new[]
+                        {
+                            "Both A and R are true and R is the correct explanation of A.",
+                            "Both A and R are true but R is NOT the correct explanation of A.",
+                            "A is true but R is false.",
+                            "A is false but R is true."
+                        };
+                    }
+                    @for (int i = 1; i <= 4; i++)
+                    {
+                        <div class="form-check mb-2 border rounded p-2">
+                            <input class="form-check-input" type="radio" name="Form.ArCorrectOption"
+                                   id="ar_opt_@i" value="@i"
+                                   @(Model.Form.ArCorrectOption == i ? "checked" : "") />
+                            <label class="form-check-label" for="ar_opt_@i">
+                                <span class="badge bg-secondary me-1">@i</span>@arTexts[i - 1]
+                            </label>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- ── Passage Based ──────────────────────────────────────────── -->
+            <div class="card shadow-sm mb-3" id="pbqCard" style="display:none">
+                <div class="card-header bg-white fw-semibold py-3">
+                    <i class="bi bi-book-half me-2 text-primary"></i>Passage Text
+                    <span class="badge bg-danger ms-1">Required</span>
+                </div>
+                <div class="card-body">
+                    <input asp-for="Form.PassageId" type="hidden" />
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Passage Title <span class="text-muted fw-normal">(optional)</span></label>
+                        <input asp-for="Form.PassageTitle" class="form-control form-control-sm"
+                               placeholder="e.g. Read the following paragraph carefully…" />
+                    </div>
+                    <textarea asp-for="Form.PassageTextContent" id="Form_PassageTextContent" style="display:none"></textarea>
+                    <div class="math-editor-wrap" id="wrap-passage">
+                        <div id="editor-passage"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sub-questions container (PBQ) -->
+            <div id="pbqSubSection" style="display:none">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold mb-0"><i class="bi bi-list-ol me-2 text-primary"></i>Sub-questions</h6>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="addSubQuestion()">
+                        <i class="bi bi-plus me-1"></i>Add Sub-question
+                    </button>
+                </div>
+                <input type="hidden" asp-for="Form.SubQuestionsJson" id="Form_SubQuestionsJson" />
+                <div id="subQContainer"></div>
+                <p class="text-muted small" id="subQEmptyTip">
+                    <i class="bi bi-info-circle me-1"></i>Click "Add Sub-question" to add the first question for this passage.
+                </p>
             </div>
 
         </div>
 
-        <!-- ── Right column: metadata ──────────────────────────────────── -->
+        <!-- ══════════════════════════════════════════════════════════════════ -->
+        <!-- RIGHT COLUMN                                                       -->
+        <!-- ══════════════════════════════════════════════════════════════════ -->
         <div class="col-12 col-xl-4">
 
-            <!-- ── LaTeX Quick Reference ──────────────────────────────── -->
+            <!-- ── LaTeX Quick Reference ──────────────────────────────────── -->
             <div class="card shadow-sm mb-3">
                 <div class="card-header bg-white py-2 d-flex align-items-center justify-content-between"
                      style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#latexRefPanel">
@@ -217,7 +451,6 @@
                 </div>
                 <div id="latexRefPanel" class="collapse">
                     <div class="card-body p-2">
-                        <!-- Tab bar -->
                         <div class="d-flex gap-1 mb-2 flex-wrap" id="latexTabBar">
                             <button type="button" class="btn btn-xs btn-primary latex-tab active"
                                     data-ltab="greek" style="font-size:.72rem;padding:.2rem .55rem">Greek</button>
@@ -228,16 +461,15 @@
                             <button type="button" class="btn btn-xs btn-outline-secondary latex-tab"
                                     data-ltab="phys"  style="font-size:.72rem;padding:.2rem .55rem">Physics</button>
                         </div>
-                        <!-- Symbol grid — filled by JS -->
                         <div id="latexSymGrid" class="d-flex flex-wrap gap-1"></div>
                         <p class="text-muted mb-0 mt-2" style="font-size:.7rem">
-                            <i class="bi bi-info-circle me-1"></i>
-                            Click to insert into the focused editor. Click inside any editor first.
+                            <i class="bi bi-info-circle me-1"></i>Click to insert into the focused editor.
                         </p>
                     </div>
                 </div>
             </div>
 
+            <!-- ── Classification ─────────────────────────────────────────── -->
             <div class="card shadow-sm mb-3">
                 <div class="card-header bg-white fw-semibold py-3">Classification</div>
                 <div class="card-body">
@@ -290,10 +522,10 @@
                 </div>
             </div>
 
+            <!-- ── Marks ───────────────────────────────────────────────────── -->
             <div class="card shadow-sm mb-3">
                 <div class="card-header bg-white fw-semibold py-3">Marks</div>
                 <div class="card-body">
-
                     <div class="mb-3">
                         <label class="form-label small fw-semibold">Positive Marks <span class="text-danger">*</span></label>
                         <select asp-for="Form.MarksId" class="form-select form-select-sm" required>
@@ -302,7 +534,6 @@
                             { <option value="@m.Id" selected="@(Model.Form.MarksId == m.Id)">@m.Name (+@m.Value)</option> }
                         </select>
                     </div>
-
                     <div class="mb-0">
                         <label class="form-label small fw-semibold">Negative Marks <span class="text-danger">*</span></label>
                         <select asp-for="Form.NegativeMarksId" class="form-select form-select-sm" required>
@@ -311,10 +542,10 @@
                             { <option value="@n.Id" selected="@(Model.Form.NegativeMarksId == n.Id)">@n.Name (@n.Value)</option> }
                         </select>
                     </div>
-
                 </div>
             </div>
 
+            <!-- ── Tags ───────────────────────────────────────────────────── -->
             <div class="card shadow-sm mb-3">
                 <div class="card-header bg-white fw-semibold py-3">Tags</div>
                 <div class="card-body">
@@ -357,14 +588,9 @@
 </form>
 
 @section Scripts {
-<!-- 1. KaTeX (required by Quill formula module) -->
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-<!-- 2. Quill 2.x -->
 <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
 <script>
-// jQuery validation must ignore hidden fields on this page.
-// Quill editors sync HTML into hidden inputs during the submit handler —
-// if jQuery validates before sync runs, the hidden inputs appear empty and block submit.
 if (typeof jQuery !== 'undefined' && jQuery.validator) {
     jQuery.validator.setDefaults({ ignore: ':hidden, [type=hidden]' });
 }
@@ -373,7 +599,7 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
 (function () {
     'use strict';
 
-    // ── Register font-size format (must happen before any Quill instance) ────
+    // ── Font-size format ──────────────────────────────────────────────────────
     const SizeStyle = Quill.import('attributors/style/size');
     SizeStyle.whitelist = ['0.75em', '1em', '1.25em', '1.5em', '2em'];
     Quill.register(SizeStyle, true);
@@ -383,7 +609,7 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
         [{ size: ['0.75em', '1em', '1.25em', '1.5em', '2em'] }],
         ['bold', 'italic', 'underline'],
         [{ script: 'sub' }, { script: 'super' }],
-        ['formula', 'image'],                  // image: insert diagram / figure
+        ['formula', 'image'],
         [{ list: 'ordered' }, { list: 'bullet' }],
         ['clean']
     ];
@@ -394,55 +620,52 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
         ['clean']
     ];
 
-    // ── Create a Quill editor ─────────────────────────────────────────────────
+    // ── Editor factory ────────────────────────────────────────────────────────
     function mkEditor(containerId, toolbar, placeholder) {
         return new Quill('#' + containerId, {
             modules: { formula: true, toolbar },
-            theme:   'snow',
+            theme: 'snow',
             placeholder: placeholder || ''
         });
     }
-
-    // ── Load existing HTML content into an editor ─────────────────────────────
     function loadHtml(editor, hiddenId) {
-        const hidden = document.getElementById(hiddenId);
-        if (hidden && hidden.value && hidden.value.trim()) {
-            editor.clipboard.dangerouslyPasteHTML(hidden.value);
-        }
+        const h = document.getElementById(hiddenId);
+        if (h && h.value && h.value.trim()) editor.clipboard.dangerouslyPasteHTML(h.value);
     }
-
-    // ── Sync editor HTML back to the hidden field ─────────────────────────────
     function syncField(editor, inputId) {
         const html = editor.root.innerHTML;
         const empty = html === '<p><br></p>' || html.trim() === '';
         document.getElementById(inputId).value = empty ? '' : html;
     }
 
-    // ── Initialise all editors ────────────────────────────────────────────────
-    const qText     = mkEditor('editor-text',     fullToolbar, 'Enter the full question text…');
-    const qSolution = mkEditor('editor-solution',  miniToolbar, 'Step-by-step solution (optional)…');
-    const qOptA     = mkEditor('editor-optA',      miniToolbar, 'Option A text…');
-    const qOptB     = mkEditor('editor-optB',      miniToolbar, 'Option B text…');
-    const qOptC     = mkEditor('editor-optC',      miniToolbar, 'Option C text…');
-    const qOptD     = mkEditor('editor-optD',      miniToolbar, 'Option D text…');
+    // ── Static editors ────────────────────────────────────────────────────────
+    const qText      = mkEditor('editor-text',      fullToolbar, 'Enter the full question text…');
+    const qSolution  = mkEditor('editor-solution',   miniToolbar, 'Step-by-step solution (optional)…');
+    const qOptA      = mkEditor('editor-optA',       miniToolbar, 'Option A…');
+    const qOptB      = mkEditor('editor-optB',       miniToolbar, 'Option B…');
+    const qOptC      = mkEditor('editor-optC',       miniToolbar, 'Option C…');
+    const qOptD      = mkEditor('editor-optD',       miniToolbar, 'Option D…');
+    const qAssertion = mkEditor('editor-assertion',  miniToolbar, 'Assertion (A) statement…');
+    const qReason    = mkEditor('editor-reason',     miniToolbar, 'Reason (R) statement…');
+    const qPassage   = mkEditor('editor-passage',    fullToolbar, 'Enter the reading passage here…');
 
-    // Load existing content (edit mode)
-    loadHtml(qText,     'Form_Text');
-    loadHtml(qSolution, 'Form_Solution');
-    loadHtml(qOptA,     'Form_OptionA');
-    loadHtml(qOptB,     'Form_OptionB');
-    loadHtml(qOptC,     'Form_OptionC');
-    loadHtml(qOptD,     'Form_OptionD');
+    loadHtml(qText,      'Form_Text');
+    loadHtml(qSolution,  'Form_Solution');
+    loadHtml(qOptA,      'Form_OptionA');
+    loadHtml(qOptB,      'Form_OptionB');
+    loadHtml(qOptC,      'Form_OptionC');
+    loadHtml(qOptD,      'Form_OptionD');
+    loadHtml(qAssertion, 'Form_AssertionText');
+    loadHtml(qReason,    'Form_ReasonText');
+    loadHtml(qPassage,   'Form_PassageTextContent');
 
-    // ── Track which editor is active (for Quick Reference inserts) ────────────
+    // ── Track active editor for LaTeX quick ref ───────────────────────────────
     let activeEditor = qText;
-    [qText, qSolution, qOptA, qOptB, qOptC, qOptD].forEach(function (ed) {
-        ed.on('selection-change', function (range) {
-            if (range) activeEditor = ed;
-        });
-    });
+    function trackActive(ed) {
+        ed.on('selection-change', r => { if (r) activeEditor = ed; });
+    }
+    [qText, qSolution, qOptA, qOptB, qOptC, qOptD, qAssertion, qReason, qPassage].forEach(trackActive);
 
-    // Insert a LaTeX formula into the active editor
     function insertFormula(latex) {
         const range = activeEditor.getSelection() || { index: Math.max(0, activeEditor.getLength() - 1) };
         activeEditor.insertEmbed(range.index, 'formula', latex);
@@ -450,221 +673,329 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
         activeEditor.focus();
     }
 
-    // ── Image upload via toolbar image button ─────────────────────────────────
-    // Overrides Quill's default URL-prompt behaviour with a proper file picker
-    // that uploads to wwwroot/uploads/questions/ via ?handler=UploadImage (cookie auth).
+    // ── Image upload (question text editor) ───────────────────────────────────
     function setupImageUpload(editor) {
         editor.getModule('toolbar').addHandler('image', function () {
-            const input    = document.createElement('input');
-            input.type     = 'file';
-            input.accept   = 'image/jpeg,image/png,image/gif,image/webp';
-
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/jpeg,image/png,image/gif,image/webp';
             input.onchange = async function () {
                 const file = input.files[0];
                 if (!file) return;
-
-                // Save cursor position before async work
                 const range = editor.getSelection(true) || { index: editor.getLength() - 1 };
-
-                // Insert placeholder so teacher sees something loading
                 editor.insertEmbed(range.index, 'image', '/img/uploading.gif');
-                const placeholder = editor.getContents(range.index, 1);
                 editor.root.querySelector('img[src="/img/uploading.gif"]')?.classList.add('img-uploading');
-
-                const formData = new FormData();
-                formData.append('file', file);
-
+                const fd = new FormData();
+                fd.append('file', file);
                 try {
                     const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
-                    const res   = await fetch('?handler=UploadImage', {
-                        method:  'POST',
-                        headers: { 'RequestVerificationToken': token },
-                        body:    formData
-                    });
-
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const res = await fetch('?handler=UploadImage', { method: 'POST', headers: { 'RequestVerificationToken': token }, body: fd });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
                     const data = await res.json();
-
-                    if (data.url) {
-                        // Replace placeholder with real image
-                        editor.deleteText(range.index, 1);
-                        editor.insertEmbed(range.index, 'image', data.url);
-                        editor.setSelection(range.index + 1);
-                        editor.focus();
-                    } else {
-                        editor.deleteText(range.index, 1);
-                        alert('Upload failed: ' + (data.error || 'Unknown error'));
-                    }
-                } catch (err) {
                     editor.deleteText(range.index, 1);
-                    console.error('Image upload error:', err);
-                    alert('Image upload failed. Please try again.');
-                }
+                    if (data.url) { editor.insertEmbed(range.index, 'image', data.url); editor.setSelection(range.index + 1); editor.focus(); }
+                    else alert('Upload failed: ' + (data.error || 'Unknown error'));
+                } catch (err) { editor.deleteText(range.index, 1); console.error(err); alert('Upload failed.'); }
             };
-
             input.click();
         });
     }
-
-    // Enable image upload only for the question-text editor (diagrams belong in the question)
     setupImageUpload(qText);
-
-    // ── LaTeX Quick Reference panel ───────────────────────────────────────────
-    const SYMS = {
-        greek: [
-            {d:'α',  l:'\\alpha'},  {d:'β', l:'\\beta'},   {d:'γ', l:'\\gamma'},
-            {d:'δ',  l:'\\delta'},  {d:'ε', l:'\\epsilon'},{d:'ζ', l:'\\zeta'},
-            {d:'θ',  l:'\\theta'},  {d:'λ', l:'\\lambda'}, {d:'μ', l:'\\mu'},
-            {d:'π',  l:'\\pi'},     {d:'ρ', l:'\\rho'},    {d:'σ', l:'\\sigma'},
-            {d:'τ',  l:'\\tau'},    {d:'φ', l:'\\phi'},    {d:'ψ', l:'\\psi'},
-            {d:'ω',  l:'\\omega'},  {d:'Γ', l:'\\Gamma'},  {d:'Δ', l:'\\Delta'},
-            {d:'Θ',  l:'\\Theta'},  {d:'Σ', l:'\\Sigma'},  {d:'Ω', l:'\\Omega'},
-        ],
-        math: [
-            {d:'a/b',   l:'\\frac{a}{b}'},   {d:'√x',  l:'\\sqrt{x}'},
-            {d:'ⁿ√x',   l:'\\sqrt[n]{x}'},   {d:'x²',  l:'x^{2}'},
-            {d:'xₙ',    l:'x_{n}'},           {d:'±',   l:'\\pm'},
-            {d:'×',     l:'\\times'},          {d:'÷',   l:'\\div'},
-            {d:'∞',     l:'\\infty'},          {d:'|x|', l:'|x|'},
-            {d:'∑',     l:'\\sum_{i=1}^{n}'}, {d:'∏',  l:'\\prod_{i=1}^{n}'},
-            {d:'≤',     l:'\\leq'},            {d:'≥',   l:'\\geq'},
-            {d:'≠',     l:'\\neq'},            {d:'≈',   l:'\\approx'},
-            {d:'∈',     l:'\\in'},             {d:'∉',   l:'\\notin'},
-            {d:'⊂',     l:'\\subset'},         {d:'∩',   l:'\\cap'},
-            {d:'∪',     l:'\\cup'},            {d:'∀',   l:'\\forall'},
-            {d:'∃',     l:'\\exists'},
-        ],
-        trig: [
-            {d:'sin',    l:'\\sin'},          {d:'cos',    l:'\\cos'},
-            {d:'tan',    l:'\\tan'},          {d:'cot',    l:'\\cot'},
-            {d:'sec',    l:'\\sec'},          {d:'csc',    l:'\\csc'},
-            {d:'sin⁻¹', l:'\\sin^{-1}'},     {d:'cos⁻¹', l:'\\cos^{-1}'},
-            {d:'tan⁻¹', l:'\\tan^{-1}'},     {d:'log',    l:'\\log'},
-            {d:'log₂',  l:'\\log_{2}'},       {d:'ln',     l:'\\ln'},
-            {d:'lim',   l:'\\lim_{x\\to a}'},{d:'d/dx',   l:'\\frac{d}{dx}'},
-            {d:'∂/∂x',  l:'\\frac{\\partial}{\\partial x}'},
-            {d:'∫',     l:'\\int_{a}^{b}'},   {d:'∬',     l:'\\iint'},
-            {d:'∮',     l:'\\oint'},
-        ],
-        phys: [
-            {d:'v⃗',  l:'\\vec{v}'},    {d:'F⃗',  l:'\\vec{F}'},
-            {d:'B⃗',  l:'\\vec{B}'},    {d:'E⃗',  l:'\\vec{E}'},
-            {d:'î',   l:'\\hat{i}'},    {d:'ĵ',   l:'\\hat{j}'},
-            {d:'k̂',   l:'\\hat{k}'},   {d:'n̂',   l:'\\hat{n}'},
-            {d:'ℏ',   l:'\\hbar'},     {d:'μ₀',  l:'\\mu_0'},
-            {d:'ε₀',  l:'\\varepsilon_0'}, {d:'∇', l:'\\nabla'},
-            {d:'∇×',  l:'\\nabla \\times'}, {d:'∇·', l:'\\nabla \\cdot'},
-            {d:'∝',   l:'\\propto'},   {d:'°',    l:'^{\\circ}'},
-            {d:'Å',   l:'\\text{Å}'},  {d:'eV',   l:'\\text{eV}'},
-        ],
-    };
-
-    let activeTab = 'greek';
-    const symGrid = document.getElementById('latexSymGrid');
-
-    function renderTab(tab) {
-        symGrid.innerHTML = '';
-        SYMS[tab].forEach(function (sym) {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'btn btn-sm btn-outline-secondary';
-            btn.style.cssText = 'font-family:Georgia,serif;font-size:.82rem;padding:.15rem .45rem;min-width:2.4rem';
-            btn.title = sym.l;
-            btn.textContent = sym.d;
-            btn.addEventListener('click', function () { insertFormula(sym.l); });
-            symGrid.appendChild(btn);
-        });
-    }
-
-    document.querySelectorAll('.latex-tab').forEach(function (tab) {
-        tab.addEventListener('click', function () {
-            document.querySelectorAll('.latex-tab').forEach(function (t) {
-                t.classList.replace('btn-primary', 'btn-outline-secondary');
-                t.classList.remove('active');
-            });
-            tab.classList.replace('btn-outline-secondary', 'btn-primary');
-            tab.classList.add('active');
-            activeTab = tab.dataset.ltab;
-            renderTab(activeTab);
-        });
-    });
-    renderTab(activeTab); // render Greek tab on load
-
-    // ── Sync + validate on submit ─────────────────────────────────────────────
-    document.getElementById('questionForm').addEventListener('submit', function (e) {
-        syncField(qText,     'Form_Text');
-        syncField(qSolution, 'Form_Solution');
-        syncField(qOptA,     'Form_OptionA');
-        syncField(qOptB,     'Form_OptionB');
-        syncField(qOptC,     'Form_OptionC');
-        syncField(qOptD,     'Form_OptionD');
-
-        const txt = (document.getElementById('Form_Text').value || '').trim();
-        const errDiv = document.getElementById('textError');
-        const wrap   = document.getElementById('wrap-text');
-        if (!txt) {
-            e.preventDefault();
-            errDiv.style.display = '';
-            wrap.style.borderColor = '#dc3545';
-            document.getElementById('editor-text').scrollIntoView({ behavior: 'smooth', block: 'center' });
-            return;
-        }
-        errDiv.style.display = 'none';
-        wrap.style.borderColor = '';
-    });
+    setupImageUpload(qPassage);
 
     // ── Question type toggle ──────────────────────────────────────────────────
-    const mcqCard = document.getElementById('mcqOptionsCard');
-    const numCard = document.getElementById('numericalCard');
-    const radios  = document.querySelectorAll('input[name="Form.QuestionType"]');
+    const TYPE_SECTIONS = {
+        1: ['mcqOptionsCard'],
+        2: ['mcqOptionsCard'],
+        3: ['numericalCard'],
+        4: ['fibCard'],
+        5: ['tfCard'],
+        6: ['mtfCard'],
+        7: ['mmqCard'],
+        8: ['arCard'],
+        9: ['pbqCard', 'pbqSubSection']
+    };
+    const ALL_SECTIONS = ['mcqOptionsCard','numericalCard','fibCard','tfCard','mtfCard','mmqCard','arCard','pbqCard','pbqSubSection'];
+    // Types where the main question-text card is hidden (AR and PBQ have their own editors)
+    const HIDE_QUESTION_TEXT = [8, 9];
 
     function applyType(val) {
-        const isNAT = val === '3';
-        mcqCard.style.display = isNAT ? 'none' : '';
-        numCard.style.display = isNAT ? ''     : 'none';
+        const v = parseInt(val);
+        const qtc = document.getElementById('questionTextCard');
+        if (qtc) qtc.style.display = HIDE_QUESTION_TEXT.includes(v) ? 'none' : '';
+        ALL_SECTIONS.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+        (TYPE_SECTIONS[v] || []).forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
     }
-    radios.forEach(r => {
+
+    document.querySelectorAll('input[name="Form.QuestionType"]').forEach(r => {
         r.addEventListener('change', () => applyType(r.value));
         if (r.checked) applyType(r.value);
     });
+
+    // ── Fill in Blanks ────────────────────────────────────────────────────────
+    let blanks = [];
+    const fibContainer = document.getElementById('fibBlanksContainer');
+    const fibTip = document.getElementById('fibNoBlanksTip');
+
+    // Load existing blanks (edit mode)
+    try { const j = document.getElementById('Form_BlanksJson').value; if (j) blanks = JSON.parse(j); } catch(e) {}
+
+    function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    function renderBlanks() {
+        fibContainer.innerHTML = '';
+        fibTip.style.display = blanks.length === 0 ? '' : 'none';
+        blanks.forEach(function(b, i) {
+            const row = document.createElement('div');
+            row.className = 'border rounded p-2 mb-2';
+            row.innerHTML =
+                '<div class="d-flex align-items-center gap-2 flex-wrap">' +
+                '<span class="badge bg-primary fw-normal" style="min-width:5.5rem">[BLANK_' + b.blankIndex + ']</span>' +
+                '<input type="text" class="form-control form-control-sm flex-grow-1" placeholder="Correct answer *" style="min-width:120px" value="' + escHtml(b.correctAnswer) + '" oninput="window._fibUpdate(' + i + ',\'correctAnswer\',this.value)">' +
+                '<input type="text" class="form-control form-control-sm" placeholder="Alternate answers (pipe-separated)" style="min-width:170px;max-width:260px" value="' + escHtml(b.alternateAnswers || '') + '" oninput="window._fibUpdate(' + i + ',\'alternateAnswers\',this.value)">' +
+                '<div class="form-check mb-0 d-flex align-items-center gap-1">' +
+                '<input class="form-check-input mt-0" type="checkbox" id="fib-cs-' + i + '" ' + (b.caseSensitive ? 'checked' : '') + ' onchange="window._fibUpdate(' + i + ',\'caseSensitive\',this.checked)">' +
+                '<label class="form-check-label small" for="fib-cs-' + i + '">Case sensitive</label></div>' +
+                '<button type="button" class="btn btn-sm btn-outline-danger" onclick="window._fibRemove(' + i + ')"><i class="bi bi-trash"></i></button>' +
+                '</div>';
+            fibContainer.appendChild(row);
+        });
+        saveBlanksJson();
+    }
+
+    window._fibUpdate = function(i, key, val) { blanks[i][key] = val; saveBlanksJson(); };
+    window._fibRemove = function(i) { blanks.splice(i, 1); renderBlanks(); };
+    window.addBlank = function() {
+        const next = blanks.length > 0 ? Math.max(...blanks.map(function(b){return b.blankIndex;})) + 1 : 1;
+        blanks.push({ blankIndex: next, correctAnswer: '', alternateAnswers: '', caseSensitive: false });
+        renderBlanks();
+    };
+    function saveBlanksJson() { document.getElementById('Form_BlanksJson').value = JSON.stringify(blanks); }
+    renderBlanks();
+
+    // ── Match the Following ───────────────────────────────────────────────────
+    window.saveMtfJson = function() {
+        const items = [], correct = [];
+        ['A','B','C','D'].forEach(function(l) {
+            const t = (document.getElementById('mtf-left-' + l)?.value || '').trim();
+            if (t) items.push({ side: 'left', label: l, text: t });
+        });
+        ['p','q','r','s'].forEach(function(l) {
+            const t = (document.getElementById('mtf-right-' + l)?.value || '').trim();
+            if (t) items.push({ side: 'right', label: l, text: t });
+        });
+        ['A','B','C','D'].forEach(function(l) {
+            const v = document.getElementById('mtf-match-' + l)?.value;
+            if (v) correct.push({ left: l, right: v });
+        });
+        document.getElementById('Form_MatchJson').value = JSON.stringify({ items, correct });
+    };
+
+    // ── Matrix Match ──────────────────────────────────────────────────────────
+    window.saveMmqJson = function() {
+        const items = [], correct = [];
+        ['I','II','III','IV'].forEach(function(l) {
+            const t = (document.getElementById('mmq-row-' + l)?.value || '').trim();
+            if (t) items.push({ side: 'row', label: l, text: t });
+        });
+        ['A','B','C','D'].forEach(function(l) {
+            const t = (document.getElementById('mmq-col-' + l)?.value || '').trim();
+            if (t) items.push({ side: 'col', label: l, text: t });
+        });
+        ['I','II','III','IV'].forEach(function(rl) {
+            ['A','B','C','D'].forEach(function(cl) {
+                const chk = document.getElementById('mmq-' + rl + '-' + cl);
+                if (chk && chk.checked) correct.push({ left: rl, right: cl });
+            });
+        });
+        document.getElementById('Form_MatchJson').value = JSON.stringify({ items, correct });
+    };
+
+    // Load existing match data (edit mode)
+    (function() {
+        try {
+            const raw = document.getElementById('Form_MatchJson').value;
+            if (!raw) return;
+            const md = JSON.parse(raw);
+            (md.items || []).forEach(function(item) {
+                const el = document.getElementById('mtf-left-' + item.label)
+                        || document.getElementById('mtf-right-' + item.label)
+                        || document.getElementById('mmq-row-' + item.label)
+                        || document.getElementById('mmq-col-' + item.label);
+                if (el) el.value = item.text;
+            });
+            (md.correct || []).forEach(function(c) {
+                // MTF dropdown
+                const sel = document.getElementById('mtf-match-' + c.left);
+                if (sel) sel.value = c.right;
+                // MMQ checkbox
+                const chk = document.getElementById('mmq-' + c.left + '-' + c.right);
+                if (chk) chk.checked = true;
+            });
+        } catch(e) {}
+    })();
+
+    // ── Passage Based sub-questions ───────────────────────────────────────────
+    let subQCount = 0;
+    const subQEditors = [];
+    const subQContainer = document.getElementById('subQContainer');
+    const subQEmptyTip = document.getElementById('subQEmptyTip');
+
+    window.addSubQuestion = function() {
+        subQCount++;
+        const idx = subQCount;
+        if (subQEmptyTip) subQEmptyTip.style.display = 'none';
+
+        const card = document.createElement('div');
+        card.id = 'subq-card-' + idx;
+        card.className = 'card shadow-sm mb-3';
+        card.innerHTML =
+            '<div class="card-header subq-header d-flex justify-content-between align-items-center py-2">' +
+            '<span class="fw-semibold small"><i class="bi bi-question-circle me-1 text-primary"></i>Sub-question ' + idx + '</span>' +
+            '<button type="button" class="btn btn-sm btn-outline-danger" onclick="window.removeSubQuestion(' + idx + ')">' +
+            '<i class="bi bi-trash me-1"></i>Remove</button></div>' +
+            '<div class="card-body">' +
+            '<div class="mb-2">' +
+            '<label class="form-label small fw-semibold">Question text <span class="text-danger">*</span></label>' +
+            '<div class="math-editor-wrap ql-mini"><div id="subq-editor-' + idx + '"></div></div>' +
+            '</div>' +
+            '<div class="d-flex gap-3 mb-2">' +
+            '<div class="form-check"><input class="form-check-input" type="radio" name="subq-type-' + idx + '" value="1" checked id="sqt-mcq-' + idx + '"><label class="form-check-label small" for="sqt-mcq-' + idx + '"><i class="bi bi-record-circle me-1"></i>MCQ (Single)</label></div>' +
+            '<div class="form-check"><input class="form-check-input" type="radio" name="subq-type-' + idx + '" value="2" id="sqt-msq-' + idx + '"><label class="form-check-label small" for="sqt-msq-' + idx + '"><i class="bi bi-check-square me-1"></i>MSQ (Multi)</label></div>' +
+            '</div>' +
+            ['A','B','C','D'].map(function(label) {
+                return '<div class="d-flex align-items-center gap-2 mb-2">' +
+                '<span class="opt-letter">' + label + '</span>' +
+                '<input type="checkbox" data-opt-chk="' + idx + '-' + label + '" class="form-check-input mt-0" title="Correct?">' +
+                '<input type="text" data-opt="' + idx + '-' + label + '" class="form-control form-control-sm" placeholder="Option ' + label + '">' +
+                '</div>';
+            }).join('') +
+            '</div>';
+
+        subQContainer.appendChild(card);
+
+        const editor = mkEditor('subq-editor-' + idx, miniToolbar, 'Sub-question text…');
+        trackActive(editor);
+        subQEditors.push({ index: idx, editor: editor });
+    };
+
+    window.removeSubQuestion = function(idx) {
+        const card = document.getElementById('subq-card-' + idx);
+        if (card) card.remove();
+        const i = subQEditors.findIndex(function(e) { return e.index === idx; });
+        if (i >= 0) subQEditors.splice(i, 1);
+        if (subQEditors.length === 0 && subQEmptyTip) subQEmptyTip.style.display = '';
+    };
+
+    function getSubQData() {
+        return subQEditors.map(function(sq) {
+            const card = document.getElementById('subq-card-' + sq.index);
+            if (!card) return null;
+            const html = sq.editor.root.innerHTML;
+            const text = (html === '<p><br></p>' || html.trim() === '') ? '' : html;
+            if (!text) return null;
+            const typeRadio = card.querySelector('input[name="subq-type-' + sq.index + '"]:checked');
+            const qtype = typeRadio ? parseInt(typeRadio.value) : 1;
+            const options = [];
+            ['A','B','C','D'].forEach(function(label) {
+                const inp = card.querySelector('[data-opt="' + sq.index + '-' + label + '"]');
+                const chk = card.querySelector('[data-opt-chk="' + sq.index + '-' + label + '"]');
+                if (inp && inp.value.trim())
+                    options.push({ label: label, text: inp.value.trim(), isCorrect: chk ? chk.checked : false });
+            });
+            return { text: text, questionType: qtype, options: options };
+        }).filter(Boolean);
+    }
+
+    // ── LaTeX Quick Reference ─────────────────────────────────────────────────
+    const SYMS = {
+        greek: [
+            {d:'α',l:'\\alpha'},{d:'β',l:'\\beta'},{d:'γ',l:'\\gamma'},{d:'δ',l:'\\delta'},
+            {d:'ε',l:'\\epsilon'},{d:'ζ',l:'\\zeta'},{d:'θ',l:'\\theta'},{d:'λ',l:'\\lambda'},
+            {d:'μ',l:'\\mu'},{d:'π',l:'\\pi'},{d:'ρ',l:'\\rho'},{d:'σ',l:'\\sigma'},
+            {d:'τ',l:'\\tau'},{d:'φ',l:'\\phi'},{d:'ψ',l:'\\psi'},{d:'ω',l:'\\omega'},
+            {d:'Γ',l:'\\Gamma'},{d:'Δ',l:'\\Delta'},{d:'Θ',l:'\\Theta'},{d:'Σ',l:'\\Sigma'},{d:'Ω',l:'\\Omega'},
+        ],
+        math: [
+            {d:'a/b',l:'\\frac{a}{b}'},{d:'√x',l:'\\sqrt{x}'},{d:'ⁿ√x',l:'\\sqrt[n]{x}'},
+            {d:'x²',l:'x^{2}'},{d:'xₙ',l:'x_{n}'},{d:'±',l:'\\pm'},{d:'×',l:'\\times'},
+            {d:'÷',l:'\\div'},{d:'∞',l:'\\infty'},{d:'|x|',l:'|x|'},
+            {d:'∑',l:'\\sum_{i=1}^{n}'},{d:'∏',l:'\\prod_{i=1}^{n}'},
+            {d:'≤',l:'\\leq'},{d:'≥',l:'\\geq'},{d:'≠',l:'\\neq'},{d:'≈',l:'\\approx'},
+            {d:'∈',l:'\\in'},{d:'∉',l:'\\notin'},{d:'⊂',l:'\\subset'},{d:'∩',l:'\\cap'},{d:'∪',l:'\\cup'},
+            {d:'∀',l:'\\forall'},{d:'∃',l:'\\exists'},
+        ],
+        trig: [
+            {d:'sin',l:'\\sin'},{d:'cos',l:'\\cos'},{d:'tan',l:'\\tan'},{d:'cot',l:'\\cot'},
+            {d:'sec',l:'\\sec'},{d:'csc',l:'\\csc'},{d:'sin⁻¹',l:'\\sin^{-1}'},{d:'cos⁻¹',l:'\\cos^{-1}'},
+            {d:'tan⁻¹',l:'\\tan^{-1}'},{d:'log',l:'\\log'},{d:'log₂',l:'\\log_{2}'},
+            {d:'ln',l:'\\ln'},{d:'lim',l:'\\lim_{x\\to a}'},{d:'d/dx',l:'\\frac{d}{dx}'},
+            {d:'∂/∂x',l:'\\frac{\\partial}{\\partial x}'},{d:'∫',l:'\\int_{a}^{b}'},{d:'∬',l:'\\iint'},{d:'∮',l:'\\oint'},
+        ],
+        phys: [
+            {d:'v⃗',l:'\\vec{v}'},{d:'F⃗',l:'\\vec{F}'},{d:'B⃗',l:'\\vec{B}'},{d:'E⃗',l:'\\vec{E}'},
+            {d:'î',l:'\\hat{i}'},{d:'ĵ',l:'\\hat{j}'},{d:'k̂',l:'\\hat{k}'},{d:'n̂',l:'\\hat{n}'},
+            {d:'ℏ',l:'\\hbar'},{d:'μ₀',l:'\\mu_0'},{d:'ε₀',l:'\\varepsilon_0'},{d:'∇',l:'\\nabla'},
+            {d:'∇×',l:'\\nabla \\times'},{d:'∇·',l:'\\nabla \\cdot'},{d:'∝',l:'\\propto'},
+            {d:'°',l:'^{\\circ}'},{d:'Å',l:'\\text{Å}'},{d:'eV',l:'\\text{eV}'},
+        ],
+    };
+    let activeTab = 'greek';
+    const symGrid = document.getElementById('latexSymGrid');
+    function renderLatexTab(tab) {
+        symGrid.innerHTML = '';
+        SYMS[tab].forEach(function(sym) {
+            const btn = document.createElement('button');
+            btn.type = 'button'; btn.className = 'btn btn-sm btn-outline-secondary';
+            btn.style.cssText = 'font-family:Georgia,serif;font-size:.82rem;padding:.15rem .45rem;min-width:2.4rem';
+            btn.title = sym.l; btn.textContent = sym.d;
+            btn.addEventListener('click', function() { insertFormula(sym.l); });
+            symGrid.appendChild(btn);
+        });
+    }
+    document.querySelectorAll('.latex-tab').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            document.querySelectorAll('.latex-tab').forEach(function(t) {
+                t.classList.replace('btn-primary','btn-outline-secondary'); t.classList.remove('active');
+            });
+            tab.classList.replace('btn-outline-secondary','btn-primary'); tab.classList.add('active');
+            activeTab = tab.dataset.ltab; renderLatexTab(activeTab);
+        });
+    });
+    renderLatexTab(activeTab);
 
     // ── Subject → Topic cascade ───────────────────────────────────────────────
     const subjectSel = document.getElementById('subjectSelect');
     const topicSel   = document.getElementById('topicSelect');
     const allTopics  = Array.from(topicSel.querySelectorAll('option[data-subject]'));
-
-    function filterTopics(subjectId) {
-        const val = subjectId ? String(subjectId) : '';
-        topicSel.querySelectorAll('option[data-subject]').forEach(o => o.remove());
-        allTopics.forEach(o => {
-            if (!val || o.dataset.subject === val) topicSel.appendChild(o);
-        });
+    function filterTopics(sid) {
+        const val = sid ? String(sid) : '';
+        topicSel.querySelectorAll('option[data-subject]').forEach(function(o){o.remove();});
+        allTopics.forEach(function(o){ if (!val || o.dataset.subject === val) topicSel.appendChild(o); });
     }
-    subjectSel.addEventListener('change', () => filterTopics(subjectSel.value));
+    subjectSel.addEventListener('change', function(){ filterTopics(subjectSel.value); });
     filterTopics(subjectSel.value);
 
     // ── Tag picker ────────────────────────────────────────────────────────────
     const hiddenTagInput = document.getElementById('selectedTagIds');
     const badgesBox      = document.getElementById('tagBadges');
     const tagPicks       = document.querySelectorAll('.tag-pick');
-    let selected = new Set(
-        (hiddenTagInput.value || '').split(',').map(Number).filter(Boolean)
-    );
+    let selected = new Set((hiddenTagInput.value || '').split(',').map(Number).filter(Boolean));
 
     function refreshTags() {
         badgesBox.innerHTML = '';
-        selected.forEach(id => {
-            const opt = document.querySelector(`.tag-pick[data-id="${id}"]`);
+        selected.forEach(function(id) {
+            const opt = document.querySelector('.tag-pick[data-id="' + id + '"]');
             if (!opt) return;
             const span = document.createElement('span');
             span.className = 'badge bg-info text-white';
             span.style.cssText = 'font-size:.8rem;cursor:pointer';
             span.textContent = opt.dataset.name + ' ✕';
-            span.addEventListener('click', () => { selected.delete(id); refreshTags(); });
+            span.addEventListener('click', function(){ selected.delete(id); refreshTags(); });
             badgesBox.appendChild(span);
         });
         hiddenTagInput.value = [...selected].join(',');
-        tagPicks.forEach(o => {
+        tagPicks.forEach(function(o) {
             const id = Number(o.dataset.id);
             o.classList.toggle('bg-info',          selected.has(id));
             o.classList.toggle('text-white',        selected.has(id));
@@ -673,14 +1004,79 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
             o.classList.toggle('border-secondary', !selected.has(id));
         });
     }
-    tagPicks.forEach(o => {
-        o.addEventListener('click', () => {
+    tagPicks.forEach(function(o) {
+        o.addEventListener('click', function() {
             const id = Number(o.dataset.id);
             selected.has(id) ? selected.delete(id) : selected.add(id);
             refreshTags();
         });
     });
     refreshTags();
+
+    // ── Form submit ───────────────────────────────────────────────────────────
+    document.getElementById('questionForm').addEventListener('submit', function(e) {
+        const typeEl = document.querySelector('input[name="Form.QuestionType"]:checked');
+        const v = typeEl ? parseInt(typeEl.value) : 1;
+
+        // Sync editors
+        if (v !== 8 && v !== 9) {
+            syncField(qText, 'Form_Text');
+        }
+        syncField(qSolution, 'Form_Solution');
+        if (v === 1 || v === 2) {
+            syncField(qOptA, 'Form_OptionA');
+            syncField(qOptB, 'Form_OptionB');
+            syncField(qOptC, 'Form_OptionC');
+            syncField(qOptD, 'Form_OptionD');
+        }
+        if (v === 8) {
+            syncField(qAssertion, 'Form_AssertionText');
+            syncField(qReason,    'Form_ReasonText');
+        }
+        if (v === 9) {
+            syncField(qPassage, 'Form_PassageTextContent');
+            document.getElementById('Form_SubQuestionsJson').value = JSON.stringify(getSubQData());
+        }
+        if (v === 6) window.saveMtfJson();
+        if (v === 7) window.saveMmqJson();
+        if (v === 4) saveBlanksJson();
+
+        // Validate: require question text for non-AR, non-PBQ types
+        if (v !== 8 && v !== 9) {
+            const txt = (document.getElementById('Form_Text').value || '').trim();
+            if (!txt) {
+                e.preventDefault();
+                const errDiv = document.getElementById('textError');
+                const wrap   = document.getElementById('wrap-text');
+                if (errDiv) errDiv.style.display = '';
+                if (wrap)   wrap.style.borderColor = '#dc3545';
+                document.getElementById('editor-text')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+            const errDiv = document.getElementById('textError');
+            const wrap   = document.getElementById('wrap-text');
+            if (errDiv) errDiv.style.display = 'none';
+            if (wrap)   wrap.style.borderColor = '';
+        }
+        // Validate PBQ: require at least passage + 1 sub-question
+        if (v === 9) {
+            const ptxt = (document.getElementById('Form_PassageTextContent').value || '').trim();
+            if (!ptxt) {
+                e.preventDefault();
+                document.getElementById('wrap-passage').style.borderColor = '#dc3545';
+                document.getElementById('wrap-passage').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+            document.getElementById('wrap-passage').style.borderColor = '';
+            const sqs = getSubQData();
+            if (sqs.length === 0) {
+                e.preventDefault();
+                alert('Please add at least one sub-question for the passage.');
+                return;
+            }
+        }
+    });
+
 })();
 </script>
 }

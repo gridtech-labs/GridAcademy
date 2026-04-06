@@ -66,7 +66,12 @@
                 <tr>
                     <td>
                         <div class="fw-semibold">@e.Title</div>
-                        <small class="text-muted">/exams/@e.Slug</small>
+                        @{
+                            var typePrefix = e.ExamTypeName != null
+                                ? "/" + e.ExamTypeName.ToLower().Replace(" ", "-").Replace("/", "-") + "/exams/"
+                                : "/exams/";
+                        }
+                        <small class="text-muted">@typePrefix@e.Slug</small>
                     </td>
                     <td>
                         @if (e.ExamLevelName != null)

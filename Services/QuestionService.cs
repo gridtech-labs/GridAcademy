@@ -36,15 +36,14 @@ public class QuestionService : IQuestionService
             q = q.Where(x => x.Text.ToLower().Contains(term));
         }
 
-        if (req.SubjectId.HasValue)        q = q.Where(x => x.SubjectId == req.SubjectId);
-        if (req.TopicId.HasValue)          q = q.Where(x => x.TopicId == req.TopicId);
+        if (req.SubjectId.HasValue)         q = q.Where(x => x.SubjectId         == req.SubjectId);
+        if (req.TopicId.HasValue)           q = q.Where(x => x.TopicId           == req.TopicId);
         if (req.DifficultyLevelId.HasValue) q = q.Where(x => x.DifficultyLevelId == req.DifficultyLevelId);
-        if (req.ExamTypeId.HasValue)       q = q.Where(x => x.ExamTypeId == req.ExamTypeId);
-        if (req.QuestionType.HasValue)     q = q.Where(x => x.QuestionType == req.QuestionType);
-        if (req.Status.HasValue)           q = q.Where(x => x.Status == req.Status);
+        if (req.ExamTypeId.HasValue)        q = q.Where(x => x.ExamTypeId        == req.ExamTypeId);
+        if (req.QuestionType.HasValue)      q = q.Where(x => x.QuestionType      == req.QuestionType);
+        if (req.Status.HasValue)            q = q.Where(x => x.Status            == req.Status);
 
         var totalCount = await q.CountAsync();
-
         var items = await q
             .OrderByDescending(x => x.CreatedAt)
             .Skip((req.Page - 1) * req.PageSize)
@@ -74,34 +73,15 @@ public class QuestionService : IQuestionService
     {
         ValidateRequest(r);
 
-        var entity = new Question
-        {
-            Text             = r.Text.Trim(),
-            Solution         = r.Solution?.Trim(),
-            Subtopic         = r.Subtopic?.Trim(),
-            QuestionType     = r.QuestionType,
-            Status           = QuestionStatus.Draft,
-            SubjectId        = r.SubjectId,
-            TopicId          = r.TopicId,
-            DifficultyLevelId = r.DifficultyLevelId,
-            ComplexityLevelId = r.ComplexityLevelId,
-            MarksId          = r.MarksId,
-            NegativeMarksId  = r.NegativeMarksId,
-            ExamTypeId       = r.ExamTypeId,
-            NumericalAnswer  = r.NumericalAnswer,
-            CreatedBy        = createdBy,
-            UpdatedBy        = createdBy
-        };
+        // Passage-based is handled specially — creates passage + N sub-questions
+        if (r.QuestionType == QuestionType.PassageBased)
+            return await CreatePassageSetAsync(r, createdBy);
 
-        foreach (var opt in r.Options)
-            entity.Options.Add(new QuestionOption { Label = opt.Label, Text = opt.Text.Trim(), IsCorrect = opt.IsCorrect });
-
-        foreach (var tagId in r.TagIds.Distinct())
-            entity.QuestionTags.Add(new QuestionTag { TagId = tagId });
+        var entity = BuildBaseEntity(r, createdBy);
+        AttachTypeData(entity, r);
 
         _db.Questions.Add(entity);
         await _db.SaveChangesAsync();
-
         return MapToDto((await LoadFullAsync(entity.Id))!);
     }
 
@@ -114,33 +94,54 @@ public class QuestionService : IQuestionService
         var entity = await _db.Questions
             .Include(x => x.Options)
             .Include(x => x.QuestionTags)
+            .Include(x => x.Blanks)
+            .Include(x => x.MatchItems)
+            .Include(x => x.MatchCorrect)
             .FirstOrDefaultAsync(x => x.Id == id)
             ?? throw new KeyNotFoundException($"Question {id} not found.");
 
-        entity.Text              = r.Text.Trim();
-        entity.Solution          = r.Solution?.Trim();
-        entity.Subtopic          = r.Subtopic?.Trim();
-        entity.QuestionType      = r.QuestionType;
-        entity.Status            = r.Status;
-        entity.SubjectId         = r.SubjectId;
-        entity.TopicId           = r.TopicId;
-        entity.DifficultyLevelId = r.DifficultyLevelId;
-        entity.ComplexityLevelId = r.ComplexityLevelId;
-        entity.MarksId           = r.MarksId;
-        entity.NegativeMarksId   = r.NegativeMarksId;
-        entity.ExamTypeId        = r.ExamTypeId;
-        entity.NumericalAnswer   = r.NumericalAnswer;
-        entity.UpdatedBy         = updatedBy;
+        // ── Core fields ───────────────────────────────────────────────────────
+        entity.Text               = r.Text.Trim();
+        entity.Solution           = r.Solution?.Trim();
+        entity.Subtopic           = r.Subtopic?.Trim();
+        entity.QuestionType       = r.QuestionType;
+        entity.Status             = r.Status;
+        entity.SubjectId          = r.SubjectId;
+        entity.TopicId            = r.TopicId;
+        entity.DifficultyLevelId  = r.DifficultyLevelId;
+        entity.ComplexityLevelId  = r.ComplexityLevelId;
+        entity.MarksId            = r.MarksId;
+        entity.NegativeMarksId    = r.NegativeMarksId;
+        entity.ExamTypeId         = r.ExamTypeId;
+        entity.NumericalAnswer    = r.NumericalAnswer;
+        entity.NumericalTolerance = r.NumericalTolerance;
+        entity.AssertionText      = r.AssertionText?.Trim();
+        entity.ReasonText         = r.ReasonText?.Trim();
+        entity.UpdatedBy          = updatedBy;
+        entity.UpdatedAt          = DateTime.UtcNow;
 
-        // Replace options
+        // For PassageBased: also update the passage text/title if provided
+        if (r.QuestionType == QuestionType.PassageBased && entity.PassageId.HasValue
+            && !string.IsNullOrWhiteSpace(r.PassageText))
+        {
+            var passage = await _db.QuestionPassages.FindAsync(entity.PassageId.Value);
+            if (passage != null)
+            {
+                passage.PassageText = r.PassageText.Trim();
+                if (!string.IsNullOrWhiteSpace(r.PassageTitle))
+                    passage.Title = r.PassageTitle.Trim();
+                passage.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
+        // Replace all child collections
         _db.QuestionOptions.RemoveRange(entity.Options);
-        foreach (var opt in r.Options)
-            entity.Options.Add(new QuestionOption { Label = opt.Label, Text = opt.Text.Trim(), IsCorrect = opt.IsCorrect });
-
-        // Replace tags
+        _db.QuestionBlanks.RemoveRange(entity.Blanks);
+        _db.QuestionMatchItems.RemoveRange(entity.MatchItems);
+        _db.QuestionMatchCorrects.RemoveRange(entity.MatchCorrect);
         _db.QuestionTags.RemoveRange(entity.QuestionTags);
-        foreach (var tagId in r.TagIds.Distinct())
-            entity.QuestionTags.Add(new QuestionTag { TagId = tagId });
+
+        AttachTypeData(entity, r);
 
         await _db.SaveChangesAsync();
         return MapToDto((await LoadFullAsync(entity.Id))!);
@@ -155,9 +156,7 @@ public class QuestionService : IQuestionService
 
         // Note: we intentionally do NOT block publishing when no correct option is marked.
         // PDF/OCR imports often miss the answer line; the instructor can fix the correct
-        // option via the Edit page after publishing. Scoring will award 0 marks for the
-        // question until the correct option is set.
-
+        // option via the Edit page after publishing.
         entity.Status = QuestionStatus.Published;
         await _db.SaveChangesAsync();
     }
@@ -180,7 +179,145 @@ public class QuestionService : IQuestionService
         await _db.SaveChangesAsync();
     }
 
-    // ── Private helpers ──────────────────────────────────────────────────────
+    // ── Private: build base entity ───────────────────────────────────────────
+
+    private static Question BuildBaseEntity(CreateQuestionRequest r, Guid? createdBy) => new()
+    {
+        Text               = r.Text.Trim(),
+        Solution           = r.Solution?.Trim(),
+        Subtopic           = r.Subtopic?.Trim(),
+        QuestionType       = r.QuestionType,
+        Status             = QuestionStatus.Draft,
+        SubjectId          = r.SubjectId,
+        TopicId            = r.TopicId,
+        DifficultyLevelId  = r.DifficultyLevelId,
+        ComplexityLevelId  = r.ComplexityLevelId,
+        MarksId            = r.MarksId,
+        NegativeMarksId    = r.NegativeMarksId,
+        ExamTypeId         = r.ExamTypeId,
+        NumericalAnswer    = r.NumericalAnswer,
+        NumericalTolerance = r.NumericalTolerance,
+        AssertionText      = r.AssertionText?.Trim(),
+        ReasonText         = r.ReasonText?.Trim(),
+        CreatedBy          = createdBy,
+        UpdatedBy          = createdBy
+    };
+
+    // ── Private: attach type-specific child data ─────────────────────────────
+
+    private static void AttachTypeData(Question entity, CreateQuestionRequest r)
+    {
+        switch (r.QuestionType)
+        {
+            case QuestionType.MCQ:
+            case QuestionType.MSQ:
+            case QuestionType.TrueFalse:
+            case QuestionType.AssertionReason:
+            case QuestionType.PassageBased:   // sub-question options
+                foreach (var opt in r.Options)
+                    entity.Options.Add(new QuestionOption
+                        { Label = opt.Label, Text = opt.Text.Trim(), IsCorrect = opt.IsCorrect });
+                break;
+
+            case QuestionType.FillInBlanks:
+                foreach (var b in r.Blanks)
+                    entity.Blanks.Add(new QuestionBlank
+                    {
+                        BlankIndex       = b.BlankIndex,
+                        CorrectAnswer    = b.CorrectAnswer.Trim(),
+                        AlternateAnswers = b.AlternateAnswers?.Trim(),
+                        CaseSensitive    = b.CaseSensitive
+                    });
+                break;
+
+            case QuestionType.MatchTheFollowing:
+            case QuestionType.MatrixMatch:
+                int sort = 0;
+                foreach (var item in r.MatchItems)
+                    entity.MatchItems.Add(new QuestionMatchItem
+                    {
+                        ColumnSide = item.ColumnSide,
+                        Label      = item.Label,
+                        Text       = item.Text.Trim(),
+                        SortOrder  = sort++
+                    });
+                foreach (var mc in r.MatchCorrect)
+                    entity.MatchCorrect.Add(new QuestionMatchCorrect
+                        { LeftLabel = mc.LeftLabel, RightLabel = mc.RightLabel });
+                break;
+
+            case QuestionType.NAT:
+                break; // NumericalAnswer already set on the entity
+        }
+
+        foreach (var tagId in r.TagIds.Distinct())
+            entity.QuestionTags.Add(new QuestionTag { TagId = tagId });
+    }
+
+    // ── Private: create passage + sub-questions ───────────────────────────────
+
+    private async Task<QuestionDto> CreatePassageSetAsync(CreateQuestionRequest r, Guid? createdBy)
+    {
+        if (string.IsNullOrWhiteSpace(r.PassageText))
+            throw new ArgumentException("Passage text is required for Passage Based questions.");
+        if (r.SubQuestions.Count == 0)
+            throw new ArgumentException("At least one sub-question is required for Passage Based questions.");
+
+        // Create or reuse the passage
+        QuestionPassage passage;
+        if (r.PassageId.HasValue)
+        {
+            passage = await _db.QuestionPassages.FindAsync(r.PassageId.Value)
+                ?? throw new ArgumentException("Referenced passage not found.");
+        }
+        else
+        {
+            passage = new QuestionPassage
+            {
+                Title       = r.PassageTitle?.Trim() ?? "",
+                PassageText = r.PassageText.Trim()
+            };
+            _db.QuestionPassages.Add(passage);
+            await _db.SaveChangesAsync();
+        }
+
+        // Create each sub-question
+        Guid firstId = Guid.Empty;
+        foreach (var sq in r.SubQuestions)
+        {
+            if (string.IsNullOrWhiteSpace(sq.Text)) continue;
+
+            var subEntity = new Question
+            {
+                Text              = sq.Text.Trim(),
+                Solution          = sq.Solution?.Trim(),
+                QuestionType      = QuestionType.PassageBased,
+                Status            = QuestionStatus.Draft,
+                SubjectId         = r.SubjectId,
+                TopicId           = r.TopicId,
+                DifficultyLevelId = r.DifficultyLevelId,
+                ComplexityLevelId = r.ComplexityLevelId,
+                MarksId           = r.MarksId,
+                NegativeMarksId   = r.NegativeMarksId,
+                ExamTypeId        = r.ExamTypeId,
+                PassageId         = passage.Id,
+                CreatedBy         = createdBy,
+                UpdatedBy         = createdBy
+            };
+            foreach (var opt in sq.Options)
+                subEntity.Options.Add(new QuestionOption
+                    { Label = opt.Label, Text = opt.Text.Trim(), IsCorrect = opt.IsCorrect });
+            foreach (var tagId in r.TagIds.Distinct())
+                subEntity.QuestionTags.Add(new QuestionTag { TagId = tagId });
+
+            _db.Questions.Add(subEntity);
+            if (firstId == Guid.Empty) firstId = subEntity.Id;
+        }
+        await _db.SaveChangesAsync();
+        return MapToDto((await LoadFullAsync(firstId))!);
+    }
+
+    // ── Private: load full question ───────────────────────────────────────────
 
     private Task<Question?> LoadFullAsync(Guid id) =>
         _db.Questions
@@ -192,54 +329,137 @@ public class QuestionService : IQuestionService
             .Include(x => x.NegativeMarks)
             .Include(x => x.ExamType)
             .Include(x => x.Options)
+            .Include(x => x.Blanks)
+            .Include(x => x.MatchItems)
+            .Include(x => x.MatchCorrect)
+            .Include(x => x.Passage)
             .Include(x => x.QuestionTags).ThenInclude(qt => qt.Tag)
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == id);
 
+    // ── Private: validate request ─────────────────────────────────────────────
+
     private static void ValidateRequest(CreateQuestionRequest r)
     {
-        if (string.IsNullOrWhiteSpace(r.Text))
-            throw new ArgumentException("Question text is required.");
+        switch (r.QuestionType)
+        {
+            case QuestionType.PassageBased:
+                break; // validated inside CreatePassageSetAsync
 
-        if (r.QuestionType == QuestionType.NAT)
-        {
-            if (!r.NumericalAnswer.HasValue)
-                throw new ArgumentException("NumericalAnswer is required for Numerical questions.");
-        }
-        else
-        {
-            if (r.Options.Count == 0)
-                throw new ArgumentException("Options are required for MCQ questions.");
+            case QuestionType.NAT:
+                if (string.IsNullOrWhiteSpace(r.Text))
+                    throw new ArgumentException("Question text is required.");
+                if (!r.NumericalAnswer.HasValue)
+                    throw new ArgumentException("NumericalAnswer is required for NAT questions.");
+                break;
+
+            case QuestionType.MCQ:
+            case QuestionType.MSQ:
+                if (string.IsNullOrWhiteSpace(r.Text))
+                    throw new ArgumentException("Question text is required.");
+                if (r.Options.Count == 0)
+                    throw new ArgumentException("At least one option is required for MCQ/MSQ questions.");
+                break;
+
+            case QuestionType.TrueFalse:
+                if (string.IsNullOrWhiteSpace(r.Text))
+                    throw new ArgumentException("Question text (statement) is required for True/False questions.");
+                if (r.Options.Count != 2)
+                    throw new ArgumentException("True/False questions must have exactly 2 options (T and F).");
+                break;
+
+            case QuestionType.FillInBlanks:
+                if (string.IsNullOrWhiteSpace(r.Text))
+                    throw new ArgumentException("Question text is required (use [BLANK_1] markers).");
+                break;
+
+            case QuestionType.MatchTheFollowing:
+            case QuestionType.MatrixMatch:
+                if (string.IsNullOrWhiteSpace(r.Text))
+                    throw new ArgumentException("Question text / instruction is required.");
+                if (r.MatchItems.Count == 0)
+                    throw new ArgumentException("At least one match item is required.");
+                break;
+
+            case QuestionType.AssertionReason:
+                if (string.IsNullOrWhiteSpace(r.AssertionText))
+                    throw new ArgumentException("Assertion (A) text is required.");
+                if (string.IsNullOrWhiteSpace(r.ReasonText))
+                    throw new ArgumentException("Reason (R) text is required.");
+                break;
+
+            default:
+                if (string.IsNullOrWhiteSpace(r.Text))
+                    throw new ArgumentException("Question text is required.");
+                break;
         }
     }
 
+    // ── Private: map entity → DTO ─────────────────────────────────────────────
+
     private static QuestionDto MapToDto(Question q) => new()
     {
-        Id               = q.Id,
-        Text             = q.Text,
-        Solution         = q.Solution,
-        QuestionType     = q.QuestionType,
-        Status           = q.Status,
-        Subtopic         = q.Subtopic,
-        SubjectId        = q.SubjectId,
-        SubjectName      = q.Subject?.Name ?? "",
-        TopicId          = q.TopicId,
-        TopicName        = q.Topic?.Name ?? "",
+        Id                = q.Id,
+        Text              = q.Text,
+        Solution          = q.Solution,
+        QuestionType      = q.QuestionType,
+        Status            = q.Status,
+        Subtopic          = q.Subtopic,
+        SubjectId         = q.SubjectId,
+        SubjectName       = q.Subject?.Name ?? "",
+        TopicId           = q.TopicId,
+        TopicName         = q.Topic?.Name ?? "",
         DifficultyLevelId = q.DifficultyLevelId,
-        DifficultyLevel  = q.DifficultyLevel?.Name ?? "",
+        DifficultyLevel   = q.DifficultyLevel?.Name ?? "",
         ComplexityLevelId = q.ComplexityLevelId,
-        ComplexityLevel  = q.ComplexityLevel?.Name ?? "",
-        MarksId          = q.MarksId,
-        Marks            = q.Marks?.Value ?? 0,
-        NegativeMarksId  = q.NegativeMarksId,
-        NegativeMarks    = q.NegativeMarks?.Value ?? 0,
-        ExamTypeId       = q.ExamTypeId,
-        ExamType         = q.ExamType?.Name ?? "",
-        NumericalAnswer  = q.NumericalAnswer,
-        Options          = q.Options?.Select(o => new QuestionOptionDto
-                           { Id = o.Id, Label = o.Label, Text = o.Text, IsCorrect = o.IsCorrect }).ToList() ?? [],
-        Tags             = q.QuestionTags?.Select(qt => new TagDto(qt.Tag.Id, qt.Tag.Name, qt.Tag.IsActive, qt.Tag.SortOrder)).ToList() ?? [],
-        CreatedAt        = q.CreatedAt,
-        UpdatedAt        = q.UpdatedAt
+        ComplexityLevel   = q.ComplexityLevel?.Name ?? "",
+        MarksId           = q.MarksId,
+        Marks             = q.Marks?.Value ?? 0,
+        NegativeMarksId   = q.NegativeMarksId,
+        NegativeMarks     = q.NegativeMarks?.Value ?? 0,
+        ExamTypeId        = q.ExamTypeId,
+        ExamType          = q.ExamType?.Name ?? "",
+        NumericalAnswer   = q.NumericalAnswer,
+        NumericalTolerance= q.NumericalTolerance,
+        AssertionText     = q.AssertionText,
+        ReasonText        = q.ReasonText,
+        Options           = q.Options?
+                              .OrderBy(o => o.SortOrder).ThenBy(o => o.Label)
+                              .Select(o => new QuestionOptionDto
+                                  { Id = o.Id, Label = o.Label, Text = o.Text, IsCorrect = o.IsCorrect })
+                              .ToList() ?? [],
+        Blanks            = q.Blanks?
+                              .OrderBy(b => b.BlankIndex)
+                              .Select(b => new QuestionBlankDto
+                              {
+                                  BlankIndex       = b.BlankIndex,
+                                  CorrectAnswer    = b.CorrectAnswer,
+                                  AlternateAnswers = b.AlternateAnswers,
+                                  CaseSensitive    = b.CaseSensitive
+                              }).ToList() ?? [],
+        MatchItems        = q.MatchItems?
+                              .OrderBy(i => i.SortOrder)
+                              .Select(i => new QuestionMatchItemDto
+                              {
+                                  ColumnSide = i.ColumnSide,
+                                  Label      = i.Label,
+                                  Text       = i.Text,
+                                  SortOrder  = i.SortOrder
+                              }).ToList() ?? [],
+        MatchCorrect      = q.MatchCorrect?
+                              .Select(c => new QuestionMatchCorrectDto
+                                  { LeftLabel = c.LeftLabel, RightLabel = c.RightLabel })
+                              .ToList() ?? [],
+        Passage           = q.Passage == null ? null : new QuestionPassageDto
+                            {
+                                Id          = q.Passage.Id,
+                                Title       = q.Passage.Title,
+                                PassageText = q.Passage.PassageText
+                            },
+        Tags              = q.QuestionTags?
+                              .Select(qt => new TagDto(qt.Tag.Id, qt.Tag.Name, qt.Tag.IsActive, qt.Tag.SortOrder))
+                              .ToList() ?? [],
+        CreatedAt         = q.CreatedAt,
+        UpdatedAt         = q.UpdatedAt
     };
 }
