@@ -9,6 +9,7 @@ namespace GridAcademy.Controllers;
 
 [ApiController]
 [Route("api/exam-pages")]
+[Route("api/exams")]          // alias used by the Next.js frontend
 public class ExamController(IExamService svc) : ControllerBase
 {
     // ── Public Endpoints ──────────────────────────────────────────────────
@@ -24,6 +25,15 @@ public class ExamController(IExamService svc) : ControllerBase
     public async Task<IActionResult> Levels()
     {
         var items = await svc.GetExamLevelsAsync();
+        return Ok(ApiResponse<object>.Ok(items));
+    }
+
+    /// <summary>Returns distinct exam types that have at least one active/published exam.
+    /// Used by the frontend sidebar to build dynamic category filters.</summary>
+    [HttpGet("exam-types")]
+    public async Task<IActionResult> ExamTypes()
+    {
+        var items = await svc.GetActiveExamTypesAsync();
         return Ok(ApiResponse<object>.Ok(items));
     }
 

@@ -265,12 +265,19 @@
       "Bash(head -10 grep -n \"GetHomepageAsync\\\\|HomepageDto\" \"D:/Bkp/GRID/GridAcademy/Services/Marketplace/StorefrontService.cs\")",
       "Bash(head -10 grep -n \"ExamCardDto\\\\|ExamCard\\\\|ListAsync\\\\|activeOnly\" \"D:/Bkp/GRID/GridAcademy/Services/ExamService.cs\")",
       "Bash(head -20 grep -n \"TestQuestion\\\\|test_question\" \"D:/Bkp/GRID/GridAcademy/Data/AppDbContext.cs\")",
-      "Bash(find D:BkpGRIDGridAcademy.Webgridacademy-websrc -type f -name *exam* -o -name *test*)",
-      "Bash(find D:/Bkp/GRID/GridAcademy.Web/gridacademy-web/src -name *exam* -type f)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git push:*)",
-      "Bash(at the time of publish test.\":*)"
+      "Bash(where gh:*)",
+      "Bash(grep -l \"question_blanks\\\\|question_passages\\\\|question_match\\\\|QuestionBlank\\\\|QuestionPassage\\\\|QuestionMatch\\\\|QuestionTypeMaster\\\\|question_types\" Migrations/*.cs)",
+      "Bash(pip install:*)",
+      "Bash(where python:*)",
+      "Bash(find D:BkpGRIDGridAcademy -type f -name *xam*.cshtml)",
+      "Bash(find D:BkpGRIDGridAcademyPages -type f -name *.cshtml)",
+      "Bash(find D:BkpGRIDGridAcademy -path *Pages* -name *.cshtml)",
+      "Bash(find D:BkpGRIDGridAcademyPages -type f -name *.cshtml.cs)",
+      "Bash(find D:BkpGRIDGridAcademy -type f \\\\\\(-name *.js -o -name *.ts -o -name *.jsx -o -name *.tsx \\\\\\))",
+      "Bash(grep -r \"GetExamPagesAsync\\\\|/api/exam-pages\" D:BkpGRIDGridAcademy --include=*.cs --include=*.cshtml)",
+      "Bash(ls -la \"D:\\\\Bkp\\\\GRID\\\\GridAcademy\\\\Pages\"\" | grep -E \"^- \")",
+      "Bash(grep -r /api/exam D:/Bkp/GRID/GridAcademy/Pages --include=*.cshtml --include=*.cs)",
+      "Bash(find \"D:/Bkp/GRID/GridAcademy.Web/gridacademy-web/src/app/\\(public\\)\" -type f)"
     ]
   }
 }

@@ -249,21 +249,21 @@
                         <input asp-for="SortOrder" type="number" class="form-control" />
                     </div>
 
-                    @* Category *@
+                    @* Category — auto-derived from Exam Type (no separate field needed) *@
                     <div class="mb-3">
                         <label class="form-label fw-semibold">
                             <i class="bi bi-tag me-1 text-info"></i>Category
                         </label>
-                        <select asp-for="Category" class="form-select">
-                            <option value="">-- None --</option>
-                            <option value="Railway">🚂 Railway</option>
-                            <option value="UPSC">🏛️ UPSC</option>
-                            <option value="Banking">🏦 Banking</option>
-                            <option value="SSC">👮 SSC</option>
-                            <option value="GATE">🔬 GATE</option>
-                            <option value="Defence">📐 Defence</option>
-                        </select>
-                        <div class="form-text">Used for frontend category filter pills.</div>
+                        <div class="form-control bg-light text-muted" id="categoryDisplay">
+                            @(Model.ExamTypeId.HasValue
+                                ? (Model.ExamTypes.FirstOrDefault(t => t.Id == Model.ExamTypeId)?.Name ?? "—")
+                                : "— select an Exam Type above —")
+                        </div>
+                        <div class="form-text">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Category is automatically derived from the <strong>Exam Type</strong> selected above.
+                            The frontend sidebar groups exams by Exam Type — no separate value needed.
+                        </div>
                     </div>
 
                     @* Pricing *@
@@ -372,10 +372,26 @@ function updateSlugPrefix() {
     document.getElementById('slugPrefix').textContent = label;
 }
 
+// ── Exam-type → display name map ──────────────────────────────────────
+var _examTypeNames = {
+    @foreach (var t in Model.ExamTypes)
+    {
+        @:@t.Id: '@t.Name.Replace("'", "\\'")' ,
+    }
+};
+
+function updateCategoryDisplay() {
+    var sel  = document.getElementById('ExamTypeId');
+    var val  = sel ? sel.value : '';
+    var disp = document.getElementById('categoryDisplay');
+    if (disp) disp.textContent = (val && _examTypeNames[val]) ? _examTypeNames[val] : '— select an Exam Type above —';
+}
+
 var _examTypeSelect = document.getElementById('ExamTypeId');
 if (_examTypeSelect) {
-    _examTypeSelect.addEventListener('change', updateSlugPrefix);
-    updateSlugPrefix(); // set correct prefix on page load (edit mode)
+    _examTypeSelect.addEventListener('change', function() { updateSlugPrefix(); updateCategoryDisplay(); });
+    updateSlugPrefix();       // set correct prefix on page load (edit mode)
+    updateCategoryDisplay();  // set correct category label on page load
 }
 
 // ── Auto-slug ─────────────────────────────────────────────────────────

@@ -6,6 +6,9 @@ namespace GridAcademy.DTOs.Exam;
 public record ExamLevelDto(int Id, string Name, bool IsActive, int SortOrder, int ExamCount);
 public record SaveExamLevelRequest(string Name, int SortOrder = 0, bool IsActive = true);
 
+// ── Exam Type filter (for frontend dynamic category sidebar) ────────────
+public record ExamTypeFilterDto(int Id, string Name, int ExamCount);
+
 // ── Exam Page (list card) ───────────────────────────────────────────────
 public record ExamPageCardDto(
     Guid Id,
