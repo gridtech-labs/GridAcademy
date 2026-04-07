@@ -199,7 +199,7 @@ public class ImportService : IImportService
                 var entity = new Question
                 {
                     Text              = pq.Text,
-                    Status            = QuestionStatus.Draft,
+                    Status            = QuestionStatus.Published,
                     QuestionType      = pq.Type,
                     SubjectId         = pq.SubjectId ?? defaultSubject.Id,
                     TopicId           = pq.TopicId ?? defaultTopic.Id,
@@ -307,7 +307,7 @@ public class ImportService : IImportService
                 var entity = new Question
                 {
                     Text              = pq.Text,
-                    Status            = QuestionStatus.Draft,
+                    Status            = QuestionStatus.Published,
                     QuestionType      = pq.Type,
                     SubjectId         = pq.SubjectId  ?? defaultSubject.Id,
                     TopicId           = pq.TopicId    ?? defaultTopic.Id,
@@ -617,7 +617,7 @@ public class ImportService : IImportService
             Solution          = row.Solution?.Trim(),
             Subtopic          = row.Subtopic?.Trim(),
             QuestionType      = qType,
-            Status            = QuestionStatus.Draft,
+            Status            = QuestionStatus.Published,
             SubjectId         = subject!.Id,
             TopicId           = topic!.Id,
             DifficultyLevelId = diff!.Id,
