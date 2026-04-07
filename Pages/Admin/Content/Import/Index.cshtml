@@ -268,11 +268,23 @@
         <div class="card-body">
             @if (!string.IsNullOrEmpty(r.MappedTestName))
             {
+                var totalMapped = r.Imported + r.Duplicates;
                 <div class="alert alert-success d-flex gap-2 align-items-center mb-3">
                     <i class="bi bi-check-circle-fill fs-5"></i>
                     <div>
-                        <strong>@r.Imported question(s) successfully added to "@r.MappedTestName".</strong>
-                        <span class="d-block text-muted small">Questions are also saved to the global question bank.</span>
+                        <strong>@totalMapped question(s) linked to "@r.MappedTestName".</strong>
+                        @if (r.Imported > 0 && r.Duplicates > 0)
+                        {
+                            <span class="d-block text-muted small">@r.Imported new question(s) imported + @r.Duplicates already-existing question(s) re-linked. All saved to the global question bank.</span>
+                        }
+                        else if (r.Duplicates > 0)
+                        {
+                            <span class="d-block text-muted small">All @r.Duplicates question(s) already existed — no duplicates created. They have been re-linked to the test.</span>
+                        }
+                        else
+                        {
+                            <span class="d-block text-muted small">Questions are also saved to the global question bank.</span>
+                        }
                     </div>
                 </div>
             }
@@ -289,19 +301,25 @@
                 </div>
             }
             <div class="row g-3 mb-4">
-                <div class="col-4">
+                <div class="col-3">
                     <div class="text-center p-3 bg-success-subtle rounded border border-success-subtle">
                         <div class="fw-bold fs-3 text-success">@r.Imported</div>
                         <div class="small text-muted">Imported</div>
                     </div>
                 </div>
-                <div class="col-4">
+                <div class="col-3">
+                    <div class="text-center p-3 bg-info-subtle rounded border border-info-subtle">
+                        <div class="fw-bold fs-3 text-info">@r.Duplicates</div>
+                        <div class="small text-muted">Duplicates Skipped</div>
+                    </div>
+                </div>
+                <div class="col-3">
                     <div class="text-center p-3 bg-warning-subtle rounded border border-warning-subtle">
                         <div class="fw-bold fs-3 text-warning">@r.Skipped</div>
                         <div class="small text-muted">Skipped</div>
                     </div>
                 </div>
-                <div class="col-4">
+                <div class="col-3">
                     <div class="text-center p-3 bg-danger-subtle rounded border border-danger-subtle">
                         <div class="fw-bold fs-3 text-danger">@r.Errors.Count</div>
                         <div class="small text-muted">Errors</div>
