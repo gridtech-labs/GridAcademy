@@ -96,12 +96,28 @@ public class ExamService(AppDbContext db) : IExamService
         var q = BaseQuery().AsQueryable();
         if (activeOnly) q = q.Where(e => e.IsActive && e.Status == ExamPageStatus.Published);
         if (levelId.HasValue) q = q.Where(e => e.ExamLevelId == levelId.Value);
-        if (!string.IsNullOrWhiteSpace(category)) q = q.Where(e => e.Category == category);
+        if (!string.IsNullOrWhiteSpace(category))
+            q = q.Where(e => e.ExamType != null && e.ExamType.Name == category);
         if (!string.IsNullOrWhiteSpace(search))
             q = q.Where(e => e.Title.ToLower().Contains(search.ToLower()) ||
                              (e.ConductingBody != null && e.ConductingBody.ToLower().Contains(search.ToLower())));
         return (await q.OrderBy(e => e.SortOrder).ThenBy(e => e.Title).ToListAsync())
                .Select(MapCard).ToList();
+    }
+
+    public async Task<List<ExamTypeFilterDto>> GetActiveExamTypesAsync()
+    {
+        var exams = await db.ExamPages
+            .Where(e => e.IsActive && e.Status == ExamPageStatus.Published && e.ExamTypeId != null)
+            .Include(e => e.ExamType)
+            .ToListAsync();
+
+        return exams
+            .Where(e => e.ExamType != null)
+            .GroupBy(e => new { e.ExamType!.Id, e.ExamType.Name })
+            .Select(g => new ExamTypeFilterDto(g.Key.Id, g.Key.Name, g.Count()))
+            .OrderBy(t => t.Name)
+            .ToList();
     }
 
     public async Task<ExamPageDetailDto?> GetExamBySlugAsync(string slug, bool incrementView = false)
