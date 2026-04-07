@@ -57,25 +57,41 @@ public class ImportService : IImportService
         result.TotalRows = rows.Count;
         int rowNum = 2; // header is row 1
 
+        // Pre-load existing question texts for duplicate detection
+        var existingTexts = (await _db.Questions.AsNoTracking()
+                .Select(q => new { q.Id, q.Text })
+                .ToListAsync())
+            .ToDictionary(q => q.Text.Trim(), q => q.Id, StringComparer.OrdinalIgnoreCase);
+        var duplicateIds = new List<Guid>();
+
         foreach (var row in rows)
         {
+            var normalizedText = row.QuestionText?.Trim() ?? "";
+            if (!string.IsNullOrEmpty(normalizedText) && existingTexts.TryGetValue(normalizedText, out var existingId))
+            {
+                result.Duplicates++;
+                duplicateIds.Add(existingId);
+                rowNum++;
+                continue;
+            }
             var errs = ValidateAndImportRow(row, rowNum, masters, importedBy);
             if (errs.Count > 0) { result.Errors.AddRange(errs); result.Skipped++; }
             else result.Imported++;
             rowNum++;
         }
 
-        if (result.Imported > 0)
+        if (result.Imported > 0 || duplicateIds.Count > 0)
         {
             var addedQuestions = _db.ChangeTracker.Entries<Question>()
                 .Where(e => e.State == EntityState.Added)
                 .Select(e => e.Entity)
                 .ToList();
 
-            await _db.SaveChangesAsync();
+            if (result.Imported > 0)
+                await _db.SaveChangesAsync();
 
-            if (testId.HasValue && addedQuestions.Count > 0)
-                await MapToTestAsync(addedQuestions.Select(q => q.Id), testId.Value, result);
+            if (testId.HasValue)
+                await MapToTestAsync(addedQuestions.Select(q => q.Id).Concat(duplicateIds), testId.Value, result);
         }
 
         return result;
@@ -125,26 +141,42 @@ public class ImportService : IImportService
         result.TotalRows = rows.Count;
         int rowNum = 2;
 
+        // Pre-load existing question texts for duplicate detection
+        var existingTextsExcel = (await _db.Questions.AsNoTracking()
+                .Select(q => new { q.Id, q.Text })
+                .ToListAsync())
+            .ToDictionary(q => q.Text.Trim(), q => q.Id, StringComparer.OrdinalIgnoreCase);
+        var duplicateIdsExcel = new List<Guid>();
+
         foreach (var row in rows)
         {
             if (string.IsNullOrWhiteSpace(row.QuestionText)) { result.Skipped++; rowNum++; continue; }
+            var normalizedText = row.QuestionText.Trim();
+            if (existingTextsExcel.TryGetValue(normalizedText, out var existingId))
+            {
+                result.Duplicates++;
+                duplicateIdsExcel.Add(existingId);
+                rowNum++;
+                continue;
+            }
             var errs = ValidateAndImportRow(row, rowNum, masters, importedBy);
             if (errs.Count > 0) { result.Errors.AddRange(errs); result.Skipped++; }
             else result.Imported++;
             rowNum++;
         }
 
-        if (result.Imported > 0)
+        if (result.Imported > 0 || duplicateIdsExcel.Count > 0)
         {
             var addedQuestions = _db.ChangeTracker.Entries<Question>()
                 .Where(e => e.State == EntityState.Added)
                 .Select(e => e.Entity)
                 .ToList();
 
-            await _db.SaveChangesAsync();
+            if (result.Imported > 0)
+                await _db.SaveChangesAsync();
 
-            if (testId.HasValue && addedQuestions.Count > 0)
-                await MapToTestAsync(addedQuestions.Select(q => q.Id), testId.Value, result);
+            if (testId.HasValue)
+                await MapToTestAsync(addedQuestions.Select(q => q.Id).Concat(duplicateIdsExcel), testId.Value, result);
         }
 
         return result;
