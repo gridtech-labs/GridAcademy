@@ -24,3 +24,6 @@ logs/
 .DS_Store
 Thumbs.db
 .idea/
+
+## Sample / scratch files (PDFs, Excel, scripts, rendered PNGs)
+sample/
