@@ -38,7 +38,8 @@ public class ExamService(AppDbContext db) : IExamService
                    t.Test?.DurationMinutes ?? 0,
                    t.Test?.Sections?.Sum(s => s.QuestionCount) ?? 0))
                .ToList(),
-        e.UpdatedAt);
+        e.UpdatedAt,
+        e.ExamLevelId, e.ExamTypeId, e.IsActive, e.Status, e.SortOrder);
 
     private IQueryable<ExamPage> BaseQuery() =>
         db.ExamPages

@@ -56,7 +56,13 @@ public record ExamPageDetailDto(
     decimal PriceInr,
     int ViewCount,
     List<ExamTestDto> Tests,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    // Edit-form fields
+    int? ExamLevelId,
+    int? ExamTypeId,
+    bool IsActive,
+    ExamPageStatus Status,
+    int SortOrder);
 
 // ── Test mapped to exam ────────────────────────────────────────────────
 public record ExamTestDto(

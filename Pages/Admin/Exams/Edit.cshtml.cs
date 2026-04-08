@@ -69,6 +69,12 @@ public class EditModel(IExamService svc, AppDbContext db, IWebHostEnvironment en
             BannerUrl = dto.BannerUrl; IsFeatured = dto.IsFeatured; PriceInr = dto.PriceInr;
             Category = dto.Category;
             MetaTitle = dto.MetaTitle; MetaDescription = dto.MetaDescription;
+            // Restore dropdown / settings values
+            Status      = dto.Status;
+            ExamLevelId = dto.ExamLevelId;
+            ExamTypeId  = dto.ExamTypeId;
+            IsActive    = dto.IsActive;
+            SortOrder   = dto.SortOrder;
         }
         return Page();
     }
