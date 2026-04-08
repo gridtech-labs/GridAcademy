@@ -47,11 +47,6 @@
     /* Formula tooltip aligned to editor */
     .math-editor-wrap .ql-tooltip { left:0 !important; }
 
-    /* Question-type selector grid */
-    .qtype-card { cursor:pointer; transition:border-color .15s,background .15s; }
-    .qtype-card:has(input:checked) { border-color:#0d6efd !important; background:#f0f5ff; }
-    .qtype-card input[type=radio] { display:none; }
-
     /* Match table */
     .match-cell-chk { width:26px; height:26px; cursor:pointer; }
 
@@ -116,37 +111,21 @@
                 </div>
             </div>
 
-            <!-- ── Question Type selector (9 types) ───────────────────────── -->
+            <!-- ── Question Type selector ─────────────────────────────────── -->
             <div class="card shadow-sm mb-3">
                 <div class="card-header bg-white fw-semibold py-3">Question Type</div>
-                <div class="card-body pb-2">
-                    <div class="row g-2">
-                        @foreach (var t in new (int Val, string Code, string Label, string Icon, string Hint)[] {
-                            (1,  "MCQ", "Single Correct",  "bi-record-circle",      "One correct option (A–D)"),
-                            (2,  "MSQ", "Multi Correct",   "bi-check-square",       "One or more correct options"),
-                            (3,  "NAT", "Numerical",       "bi-123",                "Integer or decimal answer"),
-                            (4,  "FIB", "Fill in Blank",   "bi-input-cursor-text",  "Use [BLANK_1] in text"),
-                            (5,  "T/F", "True / False",    "bi-toggle-on",          "Statement is True or False"),
-                            (6,  "MTF", "Match Following", "bi-arrow-left-right",   "List I ↔ List II pairs"),
-                            (7,  "MMQ", "Matrix Match",    "bi-grid-3x3",           "Row × Column grid"),
-                            (8,  "A&R", "Assert & Reason", "bi-chat-quote",         "Assertion A + Reason R"),
-                            (9,  "PBQ", "Passage Based",   "bi-book-half",          "Questions on a paragraph"),
-                        })
-                        {
-                            <div class="col-6 col-md-4">
-                                <label class="border rounded p-2 d-block h-100 qtype-card">
-                                    <input type="radio" name="Form.QuestionType" value="@t.Val"
-                                           @(qtype == t.Val ? "checked" : "") />
-                                    <div class="d-flex align-items-center gap-2">
-                                        <i class="bi @t.Icon text-primary fs-5"></i>
-                                        <span class="badge bg-secondary" style="font-size:.68rem">@t.Code</span>
-                                        <span class="fw-semibold small">@t.Label</span>
-                                    </div>
-                                    <div class="text-muted mt-1" style="font-size:.7rem">@t.Hint</div>
-                                </label>
-                            </div>
-                        }
-                    </div>
+                <div class="card-body pb-3">
+                    <select asp-for="Form.QuestionType" id="qtypeSelect" class="form-select">
+                        <option value="1">MCQ — Single Correct · One correct option (A–D)</option>
+                        <option value="2">MSQ — Multi Correct · One or more correct options</option>
+                        <option value="3">NAT — Numerical · Integer or decimal answer</option>
+                        <option value="4">FIB — Fill in Blank · Use [BLANK_1] in text</option>
+                        <option value="5">T/F — True / False · Statement is True or False</option>
+                        <option value="6">MTF — Match Following · List I ↔ List II pairs</option>
+                        <option value="7">MMQ — Matrix Match · Row × Column grid</option>
+                        <option value="8">A&amp;R — Assert &amp; Reason · Assertion A + Reason R</option>
+                        <option value="9">PBQ — Passage Based · Questions on a paragraph</option>
+                    </select>
                 </div>
             </div>
 
@@ -727,10 +706,11 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
         (TYPE_SECTIONS[v] || []).forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
     }
 
-    document.querySelectorAll('input[name="Form.QuestionType"]').forEach(r => {
-        r.addEventListener('change', () => applyType(r.value));
-        if (r.checked) applyType(r.value);
-    });
+    const qtypeSelect = document.getElementById('qtypeSelect');
+    if (qtypeSelect) {
+        qtypeSelect.addEventListener('change', () => applyType(qtypeSelect.value));
+        applyType(qtypeSelect.value);
+    }
 
     // ── Fill in Blanks ────────────────────────────────────────────────────────
     let blanks = [];
@@ -855,13 +835,15 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
             '<button type="button" class="btn btn-sm btn-outline-danger" onclick="window.removeSubQuestion(' + idx + ')">' +
             '<i class="bi bi-trash me-1"></i>Remove</button></div>' +
             '<div class="card-body">' +
-            '<div class="mb-2">' +
-            '<label class="form-label small fw-semibold">Question text <span class="text-danger">*</span></label>' +
-            '<div class="math-editor-wrap ql-mini"><div id="subq-editor-' + idx + '"></div></div>' +
+            '<div class="mb-3">' +
+            '<div class="d-flex align-items-center justify-content-between mb-1">' +
+            '<label class="form-label small fw-semibold mb-0">Question text <span class="text-danger">*</span></label>' +
+            '<select name="subq-type-' + idx + '" class="form-select form-select-sm w-auto" style="min-width:220px">' +
+            '<option value="1" selected>MCQ — Single Correct</option>' +
+            '<option value="2">MSQ — Multi Correct</option>' +
+            '</select>' +
             '</div>' +
-            '<div class="d-flex gap-3 mb-2">' +
-            '<div class="form-check"><input class="form-check-input" type="radio" name="subq-type-' + idx + '" value="1" checked id="sqt-mcq-' + idx + '"><label class="form-check-label small" for="sqt-mcq-' + idx + '"><i class="bi bi-record-circle me-1"></i>MCQ (Single)</label></div>' +
-            '<div class="form-check"><input class="form-check-input" type="radio" name="subq-type-' + idx + '" value="2" id="sqt-msq-' + idx + '"><label class="form-check-label small" for="sqt-msq-' + idx + '"><i class="bi bi-check-square me-1"></i>MSQ (Multi)</label></div>' +
+            '<div class="math-editor-wrap"><div id="subq-editor-' + idx + '"></div></div>' +
             '</div>' +
             ['A','B','C','D'].map(function(label) {
                 return '<div class="d-flex align-items-center gap-2 mb-2">' +
@@ -894,8 +876,8 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
             const html = sq.editor.root.innerHTML;
             const text = (html === '<p><br></p>' || html.trim() === '') ? '' : html;
             if (!text) return null;
-            const typeRadio = card.querySelector('input[name="subq-type-' + sq.index + '"]:checked');
-            const qtype = typeRadio ? parseInt(typeRadio.value) : 1;
+            const typeSelect = card.querySelector('select[name="subq-type-' + sq.index + '"]');
+            const qtype = typeSelect ? parseInt(typeSelect.value) : 1;
             const options = [];
             ['A','B','C','D'].forEach(function(label) {
                 const inp = card.querySelector('[data-opt="' + sq.index + '-' + label + '"]');
