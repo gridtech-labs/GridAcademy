@@ -27,3 +27,6 @@ Thumbs.db
 
 ## Sample / scratch files (PDFs, Excel, scripts, rendered PNGs)
 sample/
+
+## Claude Code local settings (machine-specific, never commit)
+.claude/

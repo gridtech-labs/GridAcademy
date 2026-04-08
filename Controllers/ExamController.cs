@@ -9,7 +9,6 @@ namespace GridAcademy.Controllers;
 
 [ApiController]
 [Route("api/exam-pages")]
-[Route("api/exams")]          // alias used by the Next.js frontend
 public class ExamController(IExamService svc) : ControllerBase
 {
     // ── Public Endpoints ──────────────────────────────────────────────────
