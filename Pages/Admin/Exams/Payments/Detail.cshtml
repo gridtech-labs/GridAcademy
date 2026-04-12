@@ -1,0 +1,124 @@
+@page "{id:guid}"
+@model GridAcademy.Pages.Admin.Exams.Payments.DetailModel
+@using GridAcademy.Data.Entities.Payment
+@{
+    ViewData["Title"] = "Order Detail";
+    var o = Model.Order!;
+    var (badge, text) = o.Status switch {
+        ExamOrderStatus.Captured  => ("success", "Captured"),
+        ExamOrderStatus.Pending   => ("warning", "Pending"),
+        ExamOrderStatus.Failed    => ("danger",  "Failed"),
+        ExamOrderStatus.Refunded  => ("dark",    "Refunded"),
+        ExamOrderStatus.Initiated => ("info",    "Initiated"),
+        ExamOrderStatus.Expired   => ("secondary","Expired"),
+        _                         => ("secondary", o.Status.ToString())
+    };
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-receipt me-2 text-primary"></i>Order Detail</h4>
+        <code class="text-muted">@o.BookingRef</code>
+    </div>
+    <div class="d-flex gap-2">
+        <span class="badge bg-@badge fs-6">@text</span>
+        <a asp-page="/Admin/Exams/Payments/Index" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-7">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white fw-semibold py-3">Order Information</div>
+            <div class="card-body">
+                <dl class="row mb-0" style="font-size:.9rem">
+                    <dt class="col-5 text-muted">Student</dt>
+                    <dd class="col-7">@o.StudentName <small class="text-muted">(@o.StudentEmail)</small></dd>
+                    <dt class="col-5 text-muted">Exam</dt>
+                    <dd class="col-7">@o.ExamTitle</dd>
+                    <dt class="col-5 text-muted">Offer Code</dt>
+                    <dd class="col-7">@(o.OfferCode ?? "&#8212;")</dd>
+                    <dt class="col-5 text-muted">Razorpay Order ID</dt>
+                    <dd class="col-7"><code>@(o.RazorpayOrderId ?? "&#8212;")</code></dd>
+                    <dt class="col-5 text-muted">Razorpay Payment ID</dt>
+                    <dd class="col-7"><code>@(o.RazorpayPaymentId ?? "&#8212;")</code></dd>
+                    <dt class="col-5 text-muted">Created At</dt>
+                    <dd class="col-7">@o.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss")</dd>
+                    <dt class="col-5 text-muted">Paid At</dt>
+                    <dd class="col-7">@(o.PaidAt?.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss") ?? "&#8212;")</dd>
+                    @if (!string.IsNullOrEmpty(o.FailureReason))
+                    {
+                        <dt class="col-5 text-muted text-danger">Failure Reason</dt>
+                        <dd class="col-7 text-danger">@o.FailureReason</dd>
+                    }
+                </dl>
+            </div>
+        </div>
+
+        <!-- Transaction Log -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold py-3">
+                <i class="bi bi-clock-history me-2 text-primary"></i>Transaction Audit Log
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Event</th>
+                            <th>Razorpay Payment ID</th>
+                            <th class="text-end">Amount</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var t in o.Transactions)
+                        {
+                            var evtBadge = t.Event switch {
+                                var e when e.Contains("captured") => "success",
+                                var e when e.Contains("failed")   => "danger",
+                                var e when e.Contains("refund")   => "dark",
+                                var e when e.Contains("webhook")  => "info",
+                                _                                  => "secondary"
+                            };
+                            <tr>
+                                <td><span class="badge bg-@evtBadge">@t.Event</span></td>
+                                <td><code class="small text-muted">@(t.RazorpayPaymentId ?? "&#8212;")</code></td>
+                                <td class="text-end">@(t.Amount.HasValue ? $"&#8377;{t.Amount:N2}" : "&#8212;")</td>
+                                <td class="text-muted small">@t.CreatedAt.ToLocalTime().ToString("dd MMM yy HH:mm:ss")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-5">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold py-3">Price Breakdown</div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span class="text-muted">Original Price</span>
+                    <span class="fw-semibold">&#8377;@o.OriginalAmount.ToString("N2")</span>
+                </div>
+                @if (o.DiscountAmount > 0)
+                {
+                    <div class="d-flex justify-content-between py-2 border-bottom text-success">
+                        <span><i class="bi bi-tag me-1"></i>Discount@(!string.IsNullOrEmpty(o.OfferCode) ? $" ({o.OfferCode})" : "")</span>
+                        <span class="fw-semibold">-&#8377;@o.DiscountAmount.ToString("N2")</span>
+                    </div>
+                }
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span class="text-muted">GST (18%)</span>
+                    <span>&#8377;@o.GstAmount.ToString("N2")</span>
+                </div>
+                <div class="d-flex justify-content-between py-2 fw-bold fs-5">
+                    <span>Grand Total</span>
+                    <span class="text-success">&#8377;@o.GrandTotal.ToString("N2")</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

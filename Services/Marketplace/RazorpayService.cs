@@ -27,8 +27,13 @@ public class RazorpayService : IRazorpayService
     // ── Create Order ─────────────────────────────────────────────────────────
     public async Task<string> CreateOrderAsync(decimal amountInr, string receipt, CancellationToken ct = default)
     {
-        var keyId     = _config["Razorpay:KeyId"]     ?? throw new InvalidOperationException("Razorpay:KeyId not configured.");
-        var keySecret = _config["Razorpay:KeySecret"] ?? throw new InvalidOperationException("Razorpay:KeySecret not configured.");
+        var isLive    = bool.TryParse(_config["Razorpay:IsLive"], out var live) && live;
+        var keyId     = isLive
+                            ? (_config["Razorpay:LiveKeyId"]     ?? _config["Razorpay:KeyId"]     ?? throw new InvalidOperationException("Razorpay LiveKeyId not configured."))
+                            : (_config["Razorpay:TestKeyId"]     ?? _config["Razorpay:KeyId"]     ?? throw new InvalidOperationException("Razorpay TestKeyId not configured."));
+        var keySecret = isLive
+                            ? (_config["Razorpay:LiveKeySecret"] ?? _config["Razorpay:KeySecret"] ?? throw new InvalidOperationException("Razorpay LiveKeySecret not configured."))
+                            : (_config["Razorpay:TestKeySecret"] ?? _config["Razorpay:KeySecret"] ?? throw new InvalidOperationException("Razorpay TestKeySecret not configured."));
 
         // Razorpay amounts are in paise (1 INR = 100 paise)
         var amountPaise = (int)(amountInr * 100);
@@ -69,8 +74,10 @@ public class RazorpayService : IRazorpayService
     // ── Verify Signature ─────────────────────────────────────────────────────
     public bool VerifySignature(string razorpayOrderId, string razorpayPaymentId, string razorpaySignature)
     {
-        var keySecret = _config["Razorpay:KeySecret"]
-            ?? throw new InvalidOperationException("Razorpay:KeySecret not configured.");
+        var isLive    = bool.TryParse(_config["Razorpay:IsLive"], out var live) && live;
+        var keySecret = isLive
+                            ? (_config["Razorpay:LiveKeySecret"] ?? _config["Razorpay:KeySecret"] ?? throw new InvalidOperationException("Razorpay LiveKeySecret not configured."))
+                            : (_config["Razorpay:TestKeySecret"] ?? _config["Razorpay:KeySecret"] ?? throw new InvalidOperationException("Razorpay TestKeySecret not configured."));
 
         // HMAC-SHA256 of "order_id|payment_id" using key_secret
         var message = $"{razorpayOrderId}|{razorpayPaymentId}";

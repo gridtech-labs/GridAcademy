@@ -11,6 +11,7 @@ using GridAcademy.Services.ExamContent.Scraping;
 using GridAcademy.Services.ExamContent.Scraping.Options;
 using GridAcademy.Services.ExamContent.Scraping.Scrapers;
 using GridAcademy.Services.Marketplace;
+using GridAcademy.Services.Payment;
 using GridAcademy.Repositories.ExamContent;
 using Hangfire;
 using Hangfire.PostgreSql;
@@ -291,6 +292,8 @@ builder.Services.AddScoped<IOrderService,            OrderService>();
 builder.Services.AddScoped<IStudentService,          StudentService>();
 builder.Services.AddScoped<IProviderService,         ProviderService>();
 builder.Services.AddScoped<IMarketplaceAdminService, MarketplaceAdminService>();
+builder.Services.AddScoped<IExamPaymentService, ExamPaymentService>();
+builder.Services.AddScoped<IExamOfferService, ExamOfferService>();
 
 // ── Video Learning Module ──────────────────────────────────────────────────
 builder.Services.Configure<GridAcademy.Data.Entities.VideoLearning.VideoLearningFeatures>(
