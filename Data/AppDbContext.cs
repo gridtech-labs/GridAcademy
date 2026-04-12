@@ -3,6 +3,7 @@ using GridAcademy.Data.Entities.Assessment;
 using GridAcademy.Data.Entities.Content;
 using GridAcademy.Data.Entities.Exam;
 using GridAcademy.Data.Entities.Marketplace;
+using GridAcademy.Data.Entities.Payment;
 using GridAcademy.Data.Entities.VideoLearning;
 using Microsoft.EntityFrameworkCore;
 
@@ -36,6 +37,12 @@ public class AppDbContext : DbContext
     public DbSet<MpPromoCode>   MpPromoCodes   => Set<MpPromoCode>();
     public DbSet<MpCmsBanner>   MpCmsBanners   => Set<MpCmsBanner>();
     public DbSet<MpOtpSession>  MpOtpSessions  => Set<MpOtpSession>();
+
+    // ── Exam Payments ─────────────────────────────────────────────────────────
+    public DbSet<ExamOrder>            ExamOrders            => Set<ExamOrder>();
+    public DbSet<ExamOrderTransaction> ExamOrderTransactions => Set<ExamOrderTransaction>();
+    public DbSet<ExamAccess>           ExamAccesses          => Set<ExamAccess>();
+    public DbSet<ExamOffer>            ExamOffers            => Set<ExamOffer>();
 
     // ── Content — master tables ────────────────────────────────────────────
     public DbSet<QuestionTypeMaster>   QuestionTypes         => Set<QuestionTypeMaster>();

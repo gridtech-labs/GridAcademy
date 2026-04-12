@@ -215,6 +215,12 @@
                                 <i class="bi bi-plus-circle me-2"></i>New Exam
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a asp-page="/Admin/Exams/Payments/Index"
+                               class="nav-link py-1 @(Context.Request.Path.StartsWithSegments("/Admin/Exams/Payments") ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-credit-card me-2"></i>Payments &amp; Offers
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </li>

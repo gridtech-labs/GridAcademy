@@ -1,0 +1,224 @@
+@page
+@model GridAcademy.Pages.Admin.Exams.Payments.OffersModel
+@using GridAcademy.Data.Entities.Payment
+@{
+    ViewData["Title"] = "Exam Offers & Discounts";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-tag me-2 text-primary"></i>Offers &amp; Discounts</h4>
+        <p class="text-muted small mb-0">Create promo codes and discount offers for paid exam pages</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-page="/Admin/Exams/Payments/Index" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-list-check me-1"></i>View Orders
+        </a>
+        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#offerModal">
+            <i class="bi bi-plus me-1"></i>New Offer
+        </button>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show"><i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show"><i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Code</th>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Value</th>
+                    <th>Exam</th>
+                    <th>Used / Limit</th>
+                    <th>Valid</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Offers.Any())
+                {
+                    <tr><td colspan="9" class="text-center text-muted py-4">No offers yet. Create one above.</td></tr>
+                }
+                @foreach (var o in Model.Offers)
+                {
+                    <tr>
+                        <td><span class="badge bg-primary fs-7">@o.Code</span></td>
+                        <td class="fw-semibold small">@o.Title</td>
+                        <td class="small text-muted">
+                            @(o.OfferType switch {
+                                ExamOfferType.PercentageDiscount => $"{o.Value}% off",
+                                ExamOfferType.FixedDiscount      => $"&#8377;{o.Value} off",
+                                ExamOfferType.FreeAccess         => "Free Access",
+                                _ => o.OfferType.ToString()
+                            })
+                        </td>
+                        <td class="fw-semibold text-success">
+                            @(o.OfferType == ExamOfferType.PercentageDiscount ? $"{o.Value}%" : o.OfferType == ExamOfferType.FixedDiscount ? $"&#8377;{o.Value}" : "100%")
+                        </td>
+                        <td class="small text-muted">@(o.ExamPageTitle ?? "All Exams")</td>
+                        <td class="small">@o.UsedCount / @(o.MaxUses?.ToString() ?? "&#8734;")</td>
+                        <td class="small text-muted">
+                            @(o.ValidFrom?.ToString("dd MMM yy") ?? "&#8212;") &#8594; @(o.ValidTo?.ToString("dd MMM yy") ?? "&#8734;")
+                        </td>
+                        <td>
+                            <span class="badge @(o.IsActive ? "bg-success" : "bg-secondary")">
+                                @(o.IsActive ? "Active" : "Inactive")
+                            </span>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-xs btn-outline-primary" style="font-size:.7rem;padding:2px 8px"
+                                        onclick="editOffer(@o.Id, @Html.Raw(System.Text.Json.JsonSerializer.Serialize(o)))">
+                                    Edit
+                                </button>
+                                <form method="post" asp-page-handler="Delete" style="display:inline"
+                                      onsubmit="return confirm('Delete offer @o.Code?')">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@o.Id" />
+                                    <button class="btn btn-xs btn-outline-danger" style="font-size:.7rem;padding:2px 8px">Del</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Create / Edit Modal -->
+<div class="modal fade" id="offerModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="Save">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="EditId" id="editId" />
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="offerModalTitle">New Offer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Code <span class="text-danger">*</span></label>
+                            <input name="Form.Code" id="fCode" class="form-control text-uppercase" placeholder="e.g. SAVE20" required maxlength="50" />
+                            <div class="form-text">Auto-uppercased. Unique per system.</div>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold small">Title <span class="text-danger">*</span></label>
+                            <input name="Form.Title" id="fTitle" class="form-control" placeholder="e.g. 20% Launch Discount" required maxlength="120" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold small">Description</label>
+                            <textarea name="Form.Description" id="fDescription" class="form-control form-control-sm" rows="2" maxlength="500"></textarea>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Offer Type <span class="text-danger">*</span></label>
+                            <select name="Form.OfferType" id="fOfferType" class="form-select" onchange="onTypeChange(this.value)">
+                                <option value="0">Percentage Discount</option>
+                                <option value="1">Fixed Amount Off (&#8377;)</option>
+                                <option value="2">Free Access (100% off)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4" id="valueWrap">
+                            <label class="form-label fw-semibold small" id="valueLabel">Discount Value (%)</label>
+                            <input name="Form.Value" id="fValue" type="number" step="0.01" min="0" class="form-control" placeholder="e.g. 20" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Min Order Amount (&#8377;)</label>
+                            <input name="Form.MinOrderAmount" id="fMinOrder" type="number" step="0.01" min="0" class="form-control" value="0" />
+                        </div>
+                        <div class="col-md-4" id="maxCapWrap">
+                            <label class="form-label fw-semibold small">Max Discount Cap (&#8377;) <span class="text-muted fw-normal">(optional)</span></label>
+                            <input name="Form.MaxDiscountAmount" id="fMaxDiscount" type="number" step="0.01" min="0" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Applicable Exam</label>
+                            <select name="Form.ExamPageId" id="fExamPageId" class="form-select">
+                                <option value="">All Exam Pages</option>
+                                @foreach (var ep in Model.ExamPages)
+                                {
+                                    <option value="@ep.Id">@ep.Title</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Max Uses</label>
+                            <input name="Form.MaxUses" id="fMaxUses" type="number" min="1" class="form-control" placeholder="Unlimited" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold small">Valid From</label>
+                            <input name="Form.ValidFrom" id="fValidFrom" type="datetime-local" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold small">Valid To</label>
+                            <input name="Form.ValidTo" id="fValidTo" type="datetime-local" class="form-control" />
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <div class="form-check">
+                                <input name="Form.IsActive" id="fIsActive" type="checkbox" class="form-check-input" value="true" checked />
+                                <input name="Form.IsActive" type="hidden" value="false" />
+                                <label class="form-check-label fw-semibold" for="fIsActive">Active</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Save Offer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function onTypeChange(val) {
+    const valueWrap = document.getElementById('valueWrap');
+    const valueLabel = document.getElementById('valueLabel');
+    const maxCapWrap = document.getElementById('maxCapWrap');
+    if (val === '2') {
+        valueWrap.style.display = 'none';
+        maxCapWrap.style.display = 'none';
+    } else {
+        valueWrap.style.display = '';
+        maxCapWrap.style.display = val === '0' ? '' : 'none';
+        valueLabel.textContent = val === '0' ? 'Discount Value (%)' : 'Discount Amount (\u20B9)';
+    }
+}
+
+function editOffer(id, data) {
+    document.getElementById('editId').value = id;
+    document.getElementById('offerModalTitle').textContent = 'Edit Offer';
+    document.getElementById('fCode').value = data.code;
+    document.getElementById('fTitle').value = data.title;
+    document.getElementById('fDescription').value = data.description || '';
+    document.getElementById('fOfferType').value = data.offerType;
+    document.getElementById('fValue').value = data.value;
+    document.getElementById('fMinOrder').value = data.minOrderAmount;
+    document.getElementById('fMaxDiscount').value = data.maxDiscountAmount || '';
+    document.getElementById('fExamPageId').value = data.examPageId || '';
+    document.getElementById('fMaxUses').value = data.maxUses || '';
+    document.getElementById('fIsActive').checked = data.isActive;
+    if (data.validFrom) document.getElementById('fValidFrom').value = data.validFrom.replace('Z','').substring(0,16);
+    if (data.validTo)   document.getElementById('fValidTo').value   = data.validTo.replace('Z','').substring(0,16);
+    onTypeChange(String(data.offerType));
+    new bootstrap.Modal(document.getElementById('offerModal')).show();
+}
+onTypeChange('0');
+</script>
+}

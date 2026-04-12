@@ -1,0 +1,89 @@
+@page
+@model GridAcademy.Pages.Admin.Exams.Payments.IndexModel
+@using GridAcademy.Data.Entities.Payment
+@{
+    ViewData["Title"] = "Exam Payment Orders";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-credit-card me-2 text-primary"></i>Exam Payment Orders</h4>
+        <p class="text-muted small mb-0">All purchase transactions for paid exam pages</p>
+    </div>
+    <a asp-page="/Admin/Exams/Payments/Offers" class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-tag me-1"></i>Manage Offers
+    </a>
+</div>
+
+<!-- Status filter pills -->
+<div class="d-flex flex-wrap gap-2 mb-4">
+    @foreach (var (label, val, cls) in new (string, ExamOrderStatus?, string)[] {
+        ("All", null, "secondary"),
+        ("Initiated", ExamOrderStatus.Initiated, "info"),
+        ("Pending", ExamOrderStatus.Pending, "warning"),
+        ("Captured", ExamOrderStatus.Captured, "success"),
+        ("Failed", ExamOrderStatus.Failed, "danger"),
+        ("Refunded", ExamOrderStatus.Refunded, "dark"),
+        ("Expired", ExamOrderStatus.Expired, "secondary"),
+    })
+    {
+        var isActive = Model.StatusFilter == val;
+        var href     = val.HasValue ? $"?status={(int)val}" : "?";
+        <a href="@href" class="btn btn-sm @(isActive ? $"btn-{cls}" : $"btn-outline-{cls}")">@label</a>
+    }
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Booking Ref</th>
+                    <th>Student</th>
+                    <th>Exam</th>
+                    <th class="text-end">Amount</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Razorpay ID</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Orders.Any())
+                {
+                    <tr><td colspan="8" class="text-center text-muted py-4">No orders found.</td></tr>
+                }
+                @foreach (var o in Model.Orders)
+                {
+                    var (badge, text) = o.Status switch {
+                        ExamOrderStatus.Captured  => ("success", "Captured"),
+                        ExamOrderStatus.Pending   => ("warning", "Pending"),
+                        ExamOrderStatus.Failed    => ("danger",  "Failed"),
+                        ExamOrderStatus.Refunded  => ("dark",    "Refunded"),
+                        ExamOrderStatus.Initiated => ("info",    "Initiated"),
+                        ExamOrderStatus.Expired   => ("secondary","Expired"),
+                        _                         => ("secondary", o.Status.ToString())
+                    };
+                    <tr>
+                        <td><code class="small">@o.BookingRef</code></td>
+                        <td>
+                            <div class="fw-semibold small">@o.StudentName</div>
+                            <div class="text-muted" style="font-size:.7rem">@o.StudentEmail</div>
+                        </td>
+                        <td class="small">@o.ExamTitle</td>
+                        <td class="text-end fw-semibold">&#8377;@o.GrandTotal.ToString("N2")</td>
+                        <td><span class="badge bg-@badge">@text</span></td>
+                        <td class="text-muted small">@o.CreatedAt.ToLocalTime().ToString("dd MMM yy HH:mm")</td>
+                        <td><code class="small text-muted">@(o.RazorpayPaymentId ?? "&#8212;")</code></td>
+                        <td>
+                            <a asp-page="/Admin/Exams/Payments/Detail" asp-route-id="@o.Id"
+                               class="btn btn-xs btn-outline-secondary" style="font-size:.72rem;padding:2px 8px">
+                                View
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
