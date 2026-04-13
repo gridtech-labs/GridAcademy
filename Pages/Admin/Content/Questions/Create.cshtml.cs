@@ -297,6 +297,7 @@ public class CreateModel : PageModel
             MarksId           = Form.MarksId,
             NegativeMarksId   = Form.NegativeMarksId,
             ExamTypeId        = Form.ExamTypeId,
+            Status            = Form.Status,
             TagIds            = tagIds
         };
         PopulateTypeSpecific(req);
