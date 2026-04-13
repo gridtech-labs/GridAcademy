@@ -23,11 +23,16 @@ public class IndexModel : PageModel
     /// <summary>True when Mathpix credentials are present in appsettings.json.</summary>
     public bool MathpixConfigured => _mathpix.IsConfigured;
 
-    public ImportResultDto? Result       { get; set; }
-    public string?          ActiveSource { get; set; }
+    public ImportResultDto? Result           { get; set; }
+    public string?          ActiveSource     { get; set; }
+    public string?          ContextTestTitle { get; set; }
 
-    /// <summary>Destination selector: empty = Global Bank, otherwise a Test Id.</summary>
-    [BindProperty] public Guid? TestId { get; set; }
+    /// <summary>
+    /// When supplied as a query-string param (?testId=…), questions are imported
+    /// directly into that test — the destination selector is hidden.
+    /// When submitted via POST form, picks up the hidden TestId field.
+    /// </summary>
+    [BindProperty(SupportsGet = true)] public Guid? TestId { get; set; }
 
     /// <summary>All available tests for the "Map to Test" dropdown.</summary>
     public List<(Guid Id, string Title)> AvailableTests { get; set; } = [];
@@ -35,6 +40,8 @@ public class IndexModel : PageModel
     public async Task OnGetAsync()
     {
         AvailableTests = await _import.GetTestsForDropdownAsync();
+        if (TestId.HasValue)
+            ContextTestTitle = AvailableTests.FirstOrDefault(t => t.Id == TestId.Value).Title;
     }
 
     /// <summary>Generate and stream an Excel (.xlsx) template file.</summary>
@@ -170,6 +177,8 @@ public class IndexModel : PageModel
     {
         ActiveSource   = source;
         AvailableTests = await _import.GetTestsForDropdownAsync();
+        if (TestId.HasValue)
+            ContextTestTitle = AvailableTests.FirstOrDefault(t => t.Id == TestId.Value).Title;
 
         if (file == null || file.Length == 0)
         {
@@ -183,10 +192,6 @@ public class IndexModel : PageModel
             return Page();
         }
 
-        // Validate: if TestId was intended but not provided, block the upload
-        // (the UI enforces this with JS, but defend server-side too)
-        // TestId == null means "Global Bank" — always valid.
-
         try
         {
             await using var stream = file.OpenReadStream();
@@ -194,9 +199,14 @@ public class IndexModel : PageModel
 
             if (Result.Imported > 0)
             {
-                TempData["Success"] = Result.MappedTestName is not null
-                    ? $"{Result.Imported} question(s) successfully added to \"{Result.MappedTestName}\"."
+                var msg = Result.MappedTestName is not null
+                    ? $"{Result.Imported} question(s) imported and added to \"{Result.MappedTestName}\"."
                     : $"{Result.Imported} question(s) imported to the global question bank.";
+                TempData["Success"] = msg;
+
+                // When triggered from a test's Manage Questions page, redirect straight back
+                if (TestId.HasValue)
+                    return RedirectToPage("/Admin/Content/Tests/Questions/Index", new { testId = TestId.Value });
             }
             else
             {

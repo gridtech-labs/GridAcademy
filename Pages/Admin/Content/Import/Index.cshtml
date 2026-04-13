@@ -3,12 +3,26 @@
 @{
     ViewData["Title"] = "Import Questions";
     var src = Model.ActiveSource ?? "csv";
+    bool isTestContext = Model.TestId.HasValue;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-cloud-upload me-2 text-primary"></i>Import Questions</h4>
-        <p class="text-muted small mb-0">Bulk-upload questions from CSV, Excel, or PDF files</p>
+        @if (isTestContext)
+        {
+            <p class="text-muted small mb-0">
+                <a asp-page="/Admin/Content/Tests/Questions/Index"
+                   asp-route-testId="@Model.TestId"
+                   class="text-decoration-none text-muted">
+                    <i class="bi bi-arrow-left me-1"></i>Back to @(Model.ContextTestTitle ?? "Test Questions")
+                </a>
+            </p>
+        }
+        else
+        {
+            <p class="text-muted small mb-0">Bulk-upload questions from CSV, Excel, or PDF files</p>
+        }
     </div>
     <div class="d-flex gap-2">
         <a href="/samples/questions-template.csv" class="btn btn-sm btn-outline-success" download="questions-template.csv">
@@ -20,54 +34,68 @@
     </div>
 </div>
 
-<!-- ── Destination Selector ────────────────────────────────────────────────── -->
-<div class="card shadow-sm mb-4 border-primary border-opacity-25">
-    <div class="card-header bg-primary-subtle fw-semibold py-3">
-        <i class="bi bi-arrow-right-square me-2"></i>Import Destination
+@if (isTestContext)
+{
+    <!-- ── Test-context banner (replaces destination selector) ──────────────── -->
+    <div class="alert alert-primary d-flex align-items-center gap-3 mb-4 py-3">
+        <i class="bi bi-patch-question-fill fs-4 flex-shrink-0"></i>
+        <div>
+            <div class="fw-semibold">Importing directly into: @(Model.ContextTestTitle ?? Model.TestId.ToString())</div>
+            <div class="small text-muted">All imported questions will be published and added to this test's question set.</div>
+        </div>
     </div>
-    <div class="card-body py-3">
-        <div class="d-flex flex-wrap gap-4 align-items-start">
-            <!-- Radio: Global Bank -->
-            <div class="form-check mt-1">
-                <input class="form-check-input" type="radio" name="destination" id="destGlobal"
-                       value="global" checked onchange="onDestinationChange(this.value)">
-                <label class="form-check-label" for="destGlobal">
-                    <span class="fw-semibold">Global Question Bank</span>
-                    <span class="d-block text-muted small">Questions go into the shared bank (default)</span>
-                </label>
-            </div>
+}
+else
+{
+    <!-- ── Destination Selector ────────────────────────────────────────────── -->
+    <div class="card shadow-sm mb-4 border-primary border-opacity-25">
+        <div class="card-header bg-primary-subtle fw-semibold py-3">
+            <i class="bi bi-arrow-right-square me-2"></i>Import Destination
+        </div>
+        <div class="card-body py-3">
+            <div class="d-flex flex-wrap gap-4 align-items-start">
+                <!-- Radio: Global Bank -->
+                <div class="form-check mt-1">
+                    <input class="form-check-input" type="radio" name="destination" id="destGlobal"
+                           value="global" checked onchange="onDestinationChange(this.value)">
+                    <label class="form-check-label" for="destGlobal">
+                        <span class="fw-semibold">Global Question Bank</span>
+                        <span class="d-block text-muted small">Questions go into the shared bank (default)</span>
+                    </label>
+                </div>
 
-            <!-- Radio: Map to Test -->
-            <div class="form-check mt-1">
-                <input class="form-check-input" type="radio" name="destination" id="destTest"
-                       value="test" onchange="onDestinationChange(this.value)">
-                <label class="form-check-label" for="destTest">
-                    <span class="fw-semibold">Map to a Specific Test</span>
-                    <span class="d-block text-muted small">Also link directly to a test's question set</span>
-                </label>
-            </div>
+                <!-- Radio: Map to Test -->
+                <div class="form-check mt-1">
+                    <input class="form-check-input" type="radio" name="destination" id="destTest"
+                           value="test" onchange="onDestinationChange(this.value)">
+                    <label class="form-check-label" for="destTest">
+                        <span class="fw-semibold">Map to a Specific Test</span>
+                        <span class="d-block text-muted small">Also link directly to a test's question set</span>
+                    </label>
+                </div>
 
-            <!-- Test dropdown — shown when "Map to Test" is selected -->
-            <div id="testSelectWrapper" class="flex-grow-1" style="display:none; min-width:260px;">
-                <select id="testSelectDropdown" class="form-select form-select-sm"
-                        onchange="onTestSelected(this.value)">
-                    <option value="">— select a test —</option>
-                    @foreach (var t in Model.AvailableTests)
+                <!-- Test dropdown — shown when "Map to Test" is selected -->
+                <div id="testSelectWrapper" class="flex-grow-1" style="display:none; min-width:260px;">
+                    <select id="testSelectDropdown" class="form-select form-select-sm"
+                            onchange="onTestSelected(this.value)">
+                        <option value="">— select a test —</option>
+                        @foreach (var t in Model.AvailableTests)
+                        {
+                            <option value="@t.Id">@t.Title</option>
+                        }
+                    </select>
+                    @if (!Model.AvailableTests.Any())
                     {
-                        <option value="@t.Id">@t.Title</option>
+                        <div class="form-text text-warning">
+                            <i class="bi bi-exclamation-triangle me-1"></i>No tests found.
+                            <a asp-page="/Admin/Tests/Create" class="text-decoration-none">Create a test first.</a>
+                        </div>
                     }
-                </select>
-                @if (!Model.AvailableTests.Any())
-                {
-                    <div class="form-text text-warning">
-                        <i class="bi bi-exclamation-triangle me-1"></i>No tests found.
-                        <a asp-page="/Admin/Tests/Create" class="text-decoration-none">Create a test first.</a>
-                    </div>
-                }
+                </div>
             </div>
         </div>
     </div>
-</div>
+}
 
 <!-- ── Source tabs ────────────────────────────────────────────────────────── -->
 <ul class="nav nav-tabs mb-3" id="importTabs">
@@ -126,8 +154,9 @@
                     <form method="post" asp-page-handler="@handler" enctype="multipart/form-data"
                           class="import-form" data-source="@id">
                         @Html.AntiForgeryToken()
-                        <!-- Hidden TestId — populated by JS from destination selector -->
-                        <input type="hidden" name="TestId" class="testid-field" value="" />
+                        <!-- TestId: pre-filled in test context; otherwise populated by JS -->
+                        <input type="hidden" name="TestId" class="testid-field"
+                               value="@(isTestContext ? Model.TestId.ToString() : "")" />
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Select File</label>
                             <input type="file" name="file" class="form-control" accept="@accept" required />
@@ -199,7 +228,8 @@
                       class="import-form @(!Model.MathpixConfigured ? "opacity-50 pe-none" : "")"
                       data-source="ocr">
                     @Html.AntiForgeryToken()
-                    <input type="hidden" name="TestId" class="testid-field" value="" />
+                    <input type="hidden" name="TestId" class="testid-field"
+                           value="@(isTestContext ? Model.TestId.ToString() : "")" />
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Select PDF File</label>
                         <input type="file" name="file" class="form-control" accept=".pdf"
@@ -349,10 +379,21 @@
                 </div>
             }
         </div>
-        <div class="card-footer bg-white">
-            <a asp-page="/Admin/Content/Questions/Index" class="btn btn-sm btn-outline-primary">
-                <i class="bi bi-arrow-right me-1"></i>View Questions
-            </a>
+        <div class="card-footer bg-white d-flex gap-2">
+            @if (isTestContext)
+            {
+                <a asp-page="/Admin/Content/Tests/Questions/Index"
+                   asp-route-testId="@Model.TestId"
+                   class="btn btn-sm btn-primary">
+                    <i class="bi bi-arrow-left me-1"></i>Back to Test Questions
+                </a>
+            }
+            else
+            {
+                <a asp-page="/Admin/Content/Questions/Index" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-arrow-right me-1"></i>View All Questions
+                </a>
+            }
         </div>
     </div>
 }
@@ -419,20 +460,27 @@
     const el  = document.querySelector(`[data-bs-target="#tab-${src}"]`);
     if (el) bootstrap.Tab.getOrCreateInstance(el).show();
 
-    // ── Destination selector logic ────────────────────────────────────────
+    @if (isTestContext)
+    {
+        // Test context: TestId is already pre-filled in all hidden inputs; nothing else needed.
+        <text>
+    // All forms are pre-targeted to the test — no destination selector needed.
+        </text>
+    }
+    else
+    {
+        // ── Destination selector logic ────────────────────────────────────
+        <text>
     window.onDestinationChange = function (value) {
-        const wrapper = document.getElementById('testSelectWrapper');
+        const wrapper  = document.getElementById('testSelectWrapper');
         const dropdown = document.getElementById('testSelectDropdown');
-
         if (value === 'test') {
             wrapper.style.display = '';
-            // Disable submit buttons until a test is chosen (unless already chosen)
             updateSubmitButtons(dropdown.value);
         } else {
             wrapper.style.display = 'none';
-            // Clear any previously set testId and re-enable
             syncTestIdToForms('');
-            updateSubmitButtons('__global__'); // non-empty → enable
+            updateSubmitButtons('__global__');
         }
     };
 
@@ -446,12 +494,14 @@
     }
 
     function updateSubmitButtons(testId) {
-        const dest = document.querySelector('input[name="destination"]:checked')?.value;
+        const dest    = document.querySelector('input[name="destination"]:checked')?.value;
         const enabled = dest !== 'test' || testId !== '';
         document.querySelectorAll('.import-submit-btn').forEach(btn => {
             btn.disabled = !enabled;
-            btn.title = !enabled ? 'Please select a test first.' : '';
+            btn.title    = !enabled ? 'Please select a test first.' : '';
         });
+    }
+        </text>
     }
 })();
 </script>

@@ -30,11 +30,18 @@
             &nbsp;·&nbsp; @Model.Questions.TotalCount mapped question(s)
         </p>
     </div>
-    <a asp-page="/Admin/Content/Questions/Create"
-       asp-route-testId="@Model.TestId"
-       class="btn btn-primary btn-sm">
-        <i class="bi bi-plus-lg me-1"></i>Add Question
-    </a>
+    <div class="d-flex gap-2">
+        <a asp-page="/Admin/Content/Import/Index"
+           asp-route-testId="@Model.TestId"
+           class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-cloud-upload me-1"></i>Import
+        </a>
+        <a asp-page="/Admin/Content/Questions/Create"
+           asp-route-testId="@Model.TestId"
+           class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>Add Question
+        </a>
+    </div>
 </div>
 
 @if (TempData["Success"] is string succ)

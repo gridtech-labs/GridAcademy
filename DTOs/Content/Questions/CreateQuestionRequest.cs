@@ -93,7 +93,7 @@ public class CreateQuestionRequest
     public List<int> TagIds { get; set; } = [];
 
     // ── Status (default Draft; set to Published when creating from a test) ────
-    public QuestionStatus Status { get; set; } = QuestionStatus.Draft;
+    public QuestionStatus Status { get; set; } = QuestionStatus.Published;
 }
 
 public class UpdateQuestionRequest : CreateQuestionRequest { }
