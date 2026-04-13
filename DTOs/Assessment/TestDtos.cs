@@ -118,6 +118,8 @@ public class TestQuestionDto
     public string DifficultyLevel { get; set; } = "";
     public string QuestionType    { get; set; } = "";
     public int    SortOrder       { get; set; }
+    public int?   SectionId       { get; set; }
+    public string SectionName     { get; set; } = "";
 }
 
 /// <summary>A question from the bank shown in the "Add Questions" picker modal.</summary>

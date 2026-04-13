@@ -125,25 +125,32 @@ public class TestService : ITestService
             .FirstOrDefaultAsync(t => t.Id == id)
             ?? throw new KeyNotFoundException($"Test {id} not found.");
 
-        if (!test.Sections.Any())
-            throw new InvalidOperationException("Cannot publish a test with no sections.");
+        // Allow publishing if the test has directly-mapped questions even without sections.
+        // Sections are only required when using the criteria-based pool mode.
+        var hasDirectQuestions = await _db.TestQuestions.AnyAsync(tq => tq.TestId == id);
 
-        // Validate each section has enough questions available.
-        // Uses same logic as runtime (direct TestQuestion mappings first, criteria pool fallback).
-        var underFilled = new List<string>();
-        foreach (var section in test.Sections)
-        {
-            var poolCount = await GetSectionPoolCountAsync(section.Id);
-            if (poolCount < section.QuestionCount)
-                underFilled.Add(
-                    $"Section \"{section.Name}\" needs {section.QuestionCount} question(s) " +
-                    $"but only {poolCount} are available " +
-                    $"(import questions for this subject or use Content → Import → Map to Test)");
-        }
-
-        if (underFilled.Any())
+        if (!test.Sections.Any() && !hasDirectQuestions)
             throw new InvalidOperationException(
-                "Cannot publish — insufficient questions: " + string.Join("; ", underFilled) + ".");
+                "Cannot publish a test with no questions. Add questions via 'Add Question', " +
+                "'Add from Bank', or 'Import', or set up Sections.");
+
+        // When sections exist, validate each section has enough questions in its pool.
+        if (test.Sections.Any())
+        {
+            var underFilled = new List<string>();
+            foreach (var section in test.Sections)
+            {
+                var poolCount = await GetSectionPoolCountAsync(section.Id);
+                if (poolCount < section.QuestionCount)
+                    underFilled.Add(
+                        $"Section \"{section.Name}\" needs {section.QuestionCount} question(s) " +
+                        $"but only {poolCount} are available.");
+            }
+
+            if (underFilled.Any())
+                throw new InvalidOperationException(
+                    "Cannot publish — insufficient questions: " + string.Join("; ", underFilled) + ".");
+        }
 
         test.Status = TestStatus.Published;
         await _db.SaveChangesAsync();
@@ -343,6 +350,7 @@ public class TestService : ITestService
             .Where(tq => tq.TestId == testId)
             .Include(tq => tq.Question).ThenInclude(q => q.Subject)
             .Include(tq => tq.Question).ThenInclude(q => q.DifficultyLevel)
+            .Include(tq => tq.Section)
             .AsNoTracking()
             .OrderBy(tq => tq.SortOrder).ThenBy(tq => tq.AddedAt)
             .Select(tq => new TestQuestionDto
@@ -352,9 +360,30 @@ public class TestService : ITestService
                 SubjectName     = tq.Question.Subject != null ? tq.Question.Subject.Name : "",
                 DifficultyLevel = tq.Question.DifficultyLevel != null ? tq.Question.DifficultyLevel.Name : "",
                 QuestionType    = tq.Question.QuestionType.ToString(),
-                SortOrder       = tq.SortOrder
+                SortOrder       = tq.SortOrder,
+                SectionId       = tq.SectionId,
+                SectionName     = tq.Section != null ? tq.Section.Name : ""
             })
             .ToListAsync();
+    }
+
+    public async Task AssignQuestionToSectionAsync(Guid testId, Guid questionId, int? sectionId)
+    {
+        var tq = await _db.TestQuestions
+            .FirstOrDefaultAsync(x => x.TestId == testId && x.QuestionId == questionId)
+            ?? throw new KeyNotFoundException("Question is not mapped to this test.");
+
+        // Validate section belongs to this test if provided
+        if (sectionId.HasValue)
+        {
+            var sectionExists = await _db.TestSections
+                .AnyAsync(s => s.Id == sectionId.Value && s.TestId == testId);
+            if (!sectionExists)
+                throw new InvalidOperationException("Section does not belong to this test.");
+        }
+
+        tq.SectionId = sectionId;
+        await _db.SaveChangesAsync();
     }
 
     public async Task<List<QuestionBrowseItem>> BrowseQuestionsForTestAsync(

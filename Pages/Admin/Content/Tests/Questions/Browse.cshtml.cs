@@ -1,5 +1,6 @@
 using GridAcademy.Common;
 using GridAcademy.Data.Entities.Content;
+using GridAcademy.DTOs.Assessment;
 using GridAcademy.DTOs.Content.Masters;
 using GridAcademy.DTOs.Content.Questions;
 using GridAcademy.Services;
@@ -40,9 +41,11 @@ public class BrowseModel : PageModel
     public List<SubjectDto>           Subjects         { get; set; } = [];
     public List<TopicDto>             Topics           { get; set; } = [];
     public List<DifficultyLevelDto>   DifficultyLevels { get; set; } = [];
+    public List<TestSectionDto>       Sections         { get; set; } = [];
 
     // ── POST binding ──────────────────────────────────────────────────────────
-    [BindProperty] public List<Guid> SelectedIds { get; set; } = [];
+    [BindProperty] public List<Guid> SelectedIds  { get; set; } = [];
+    [BindProperty] public int?       SectionId    { get; set; }
 
     public async Task<IActionResult> OnGetAsync()
     {
@@ -62,7 +65,7 @@ public class BrowseModel : PageModel
         return Page();
     }
 
-    /// <summary>Add selected questions to the test and redirect back to Manage Questions.</summary>
+    /// <summary>Add selected questions to the test (and optionally a section) then redirect back.</summary>
     public async Task<IActionResult> OnPostAddAsync()
     {
         if (SelectedIds.Count == 0)
@@ -76,7 +79,21 @@ public class BrowseModel : PageModel
         try
         {
             await _tests.AddQuestionsToTestAsync(TestId, SelectedIds);
-            TempData["Success"] = $"{SelectedIds.Count} question(s) added to the test.";
+
+            // Assign to section if one was chosen
+            if (SectionId.HasValue && SectionId.Value > 0)
+            {
+                foreach (var qId in SelectedIds)
+                {
+                    try { await _tests.AssignQuestionToSectionAsync(TestId, qId, SectionId.Value); }
+                    catch { /* ignore if individual assignment fails */ }
+                }
+                TempData["Success"] = $"{SelectedIds.Count} question(s) added and assigned to section.";
+            }
+            else
+            {
+                TempData["Success"] = $"{SelectedIds.Count} question(s) added to the test.";
+            }
         }
         catch (Exception ex)
         {
@@ -117,6 +134,10 @@ public class BrowseModel : PageModel
         // Get already-mapped question IDs so we can show them as checked/disabled
         var mapped = await _tests.GetTestQuestionsAsync(TestId);
         MappedIds  = mapped.Select(q => q.QuestionId).ToHashSet();
+
+        // Sections for the "Assign to Section" dropdown
+        var testDetail = await _tests.GetTestByIdAsync(TestId);
+        Sections = testDetail.Sections;
 
         // Dropdowns
         Subjects         = await _masters.GetSubjectsAsync();

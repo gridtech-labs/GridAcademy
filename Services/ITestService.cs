@@ -59,6 +59,9 @@ public interface ITestService
     /// <summary>Removes a single question from the test's direct mapping.</summary>
     Task RemoveQuestionFromTestAsync(Guid testId, Guid questionId);
 
+    /// <summary>Assigns (or un-assigns) a mapped question to a section. Pass null sectionId to clear.</summary>
+    Task AssignQuestionToSectionAsync(Guid testId, Guid questionId, int? sectionId);
+
     // ── Pool validation ───────────────────────────────────────────────────
 
     /// <summary>

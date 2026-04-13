@@ -14,13 +14,17 @@ public class TestQuestion
     /// <summary>FK → questions.id</summary>
     public Guid QuestionId { get; set; }
 
+    /// <summary>FK → test_sections.id; null = not assigned to any section.</summary>
+    public int? SectionId { get; set; }
+
     /// <summary>Display order within the test (1-based).</summary>
     public int SortOrder { get; set; }
 
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;
 
     // ── Navigations ────────────────────────────────────────────────────────
-    public Test Test { get; set; } = null!;
+    public Test        Test     { get; set; } = null!;
+    public TestSection? Section  { get; set; }
 
     public GridAcademy.Data.Entities.Content.Question Question { get; set; } = null!;
 }

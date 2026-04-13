@@ -101,20 +101,38 @@
 <!-- ── Main form (checkboxes + submit) ─────────────────────────────────── -->
 <form method="post" asp-page-handler="Add" id="addForm">
     @Html.AntiForgeryToken()
-    <input type="hidden" name="TestId" value="@Model.TestId" />
+    <input type="hidden" name="TestId"    value="@Model.TestId" />
+    <input type="hidden" name="SectionId" value="0" id="hiddenSectionId" />
 
     <!-- ── Sticky action bar ────────────────────────────────────────────── -->
     <div id="stickyBar"
          class="card shadow border-primary mb-3"
          style="position:sticky;top:60px;z-index:100;display:none">
-        <div class="card-body py-2 d-flex align-items-center gap-3">
+        <div class="card-body py-2 d-flex align-items-center gap-3 flex-wrap">
             <span class="fw-semibold text-primary">
                 <i class="bi bi-check2-square me-1"></i>
                 <span id="selectedCount">0</span> question(s) selected
             </span>
-            <button type="submit" class="btn btn-primary btn-sm ms-auto">
-                <i class="bi bi-plus-lg me-1"></i>Add Selected to Test
-            </button>
+            @if (Model.Sections.Count > 0)
+            {
+                <div class="d-flex align-items-center gap-2 ms-auto">
+                    <label class="form-label mb-0 small fw-semibold text-nowrap">Assign to section:</label>
+                    <select name="SectionId" class="form-select form-select-sm" style="min-width:160px" id="stickySection">
+                        <option value="0">— none —</option>
+                        @foreach (var sec in Model.Sections.OrderBy(s => s.SortOrder))
+                        { <option value="@sec.Id">@sec.Name</option> }
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus-lg me-1"></i>Add to Test
+                </button>
+            }
+            else
+            {
+                <button type="submit" class="btn btn-primary btn-sm ms-auto">
+                    <i class="bi bi-plus-lg me-1"></i>Add Selected to Test
+                </button>
+            }
             <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearAll()">
                 <i class="bi bi-x me-1"></i>Clear
             </button>
@@ -263,7 +281,17 @@
                 }
 
                 <!-- Add button (bottom) -->
-                <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    @if (Model.Sections.Count > 0)
+                    {
+                        <label class="form-label mb-0 small fw-semibold text-nowrap">Section:</label>
+                        <select class="form-select form-select-sm" style="min-width:150px" id="bottomSection"
+                                onchange="document.getElementById('hiddenSectionId').value = this.value; var s=document.getElementById('stickySection'); if(s) s.value=this.value;">
+                            <option value="0">— none —</option>
+                            @foreach (var sec in Model.Sections.OrderBy(s => s.SortOrder))
+                            { <option value="@sec.Id">@sec.Name</option> }
+                        </select>
+                    }
                     <span class="text-muted small" id="bottomCount" style="display:none">
                         <span id="bottomCountNum">0</span> selected
                     </span>
@@ -332,6 +360,23 @@
         if (selectAllChk) { selectAllChk.checked = false; selectAllChk.indeterminate = false; }
         updateCounts();
     };
+
+    // Keep sticky + bottom section selectors in sync with the hidden input
+    const stickySection = document.getElementById('stickySection');
+    const bottomSection = document.getElementById('bottomSection');
+    const hiddenSection = document.getElementById('hiddenSectionId');
+    if (stickySection) {
+        stickySection.addEventListener('change', function () {
+            if (hiddenSection) hiddenSection.value = stickySection.value;
+            if (bottomSection) bottomSection.value = stickySection.value;
+        });
+    }
+    if (bottomSection) {
+        bottomSection.addEventListener('change', function () {
+            if (hiddenSection) hiddenSection.value = bottomSection.value;
+            if (stickySection) stickySection.value = bottomSection.value;
+        });
+    }
 
     updateCounts();
 })();
