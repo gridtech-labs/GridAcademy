@@ -334,6 +334,117 @@ public class TestService : ITestService
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    // MANUAL QUESTION MANAGEMENT
+    // ════════════════════════════════════════════════════════════════════════
+
+    public async Task<List<TestQuestionDto>> GetTestQuestionsAsync(Guid testId)
+    {
+        return await _db.TestQuestions
+            .Where(tq => tq.TestId == testId)
+            .Include(tq => tq.Question).ThenInclude(q => q.Subject)
+            .Include(tq => tq.Question).ThenInclude(q => q.DifficultyLevel)
+            .AsNoTracking()
+            .OrderBy(tq => tq.SortOrder).ThenBy(tq => tq.AddedAt)
+            .Select(tq => new TestQuestionDto
+            {
+                QuestionId      = tq.QuestionId,
+                Text            = tq.Question.Text,
+                SubjectName     = tq.Question.Subject != null ? tq.Question.Subject.Name : "",
+                DifficultyLevel = tq.Question.DifficultyLevel != null ? tq.Question.DifficultyLevel.Name : "",
+                QuestionType    = tq.Question.QuestionType.ToString(),
+                SortOrder       = tq.SortOrder
+            })
+            .ToListAsync();
+    }
+
+    public async Task<List<QuestionBrowseItem>> BrowseQuestionsForTestAsync(
+        Guid testId, int? subjectId, int? difficultyLevelId, string? search)
+    {
+        var mappedIds = await _db.TestQuestions
+            .Where(tq => tq.TestId == testId)
+            .Select(tq => tq.QuestionId)
+            .ToListAsync();
+        var mappedSet = mappedIds.ToHashSet();
+
+        var q = _db.Questions
+            .Include(qe => qe.Subject)
+            .Include(qe => qe.Topic)
+            .Include(qe => qe.DifficultyLevel)
+            .Where(qe => qe.Status == Data.Entities.Content.QuestionStatus.Published)
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (subjectId.HasValue)
+            q = q.Where(qe => qe.SubjectId == subjectId.Value);
+
+        if (difficultyLevelId.HasValue)
+            q = q.Where(qe => qe.DifficultyLevelId == difficultyLevelId.Value);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.Trim().ToLower();
+            q = q.Where(qe => qe.Text.ToLower().Contains(s));
+        }
+
+        var items = await q
+            .OrderBy(qe => qe.Subject != null ? qe.Subject.Name : "")
+            .ThenByDescending(qe => qe.CreatedAt)
+            .Take(60)
+            .ToListAsync();
+
+        return items.Select(qe => new QuestionBrowseItem
+        {
+            Id              = qe.Id,
+            Text            = qe.Text,
+            SubjectName     = qe.Subject?.Name ?? "",
+            TopicName       = qe.Topic?.Name ?? "",
+            DifficultyLevel = qe.DifficultyLevel?.Name ?? "",
+            QuestionType    = qe.QuestionType.ToString(),
+            AlreadyMapped   = mappedSet.Contains(qe.Id)
+        }).ToList();
+    }
+
+    public async Task AddQuestionsToTestAsync(Guid testId, List<Guid> questionIds)
+    {
+        if (questionIds is null || questionIds.Count == 0) return;
+
+        var existing = (await _db.TestQuestions
+            .Where(tq => tq.TestId == testId)
+            .Select(tq => tq.QuestionId)
+            .ToListAsync()).ToHashSet();
+
+        var maxSort = await _db.TestQuestions
+            .Where(tq => tq.TestId == testId)
+            .MaxAsync(tq => (int?)tq.SortOrder) ?? 0;
+
+        foreach (var qid in questionIds.Distinct().Where(q => !existing.Contains(q)))
+        {
+            maxSort++;
+            _db.TestQuestions.Add(new TestQuestion
+            {
+                TestId     = testId,
+                QuestionId = qid,
+                SortOrder  = maxSort,
+                AddedAt    = DateTime.UtcNow
+            });
+        }
+
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task RemoveQuestionFromTestAsync(Guid testId, Guid questionId)
+    {
+        var tq = await _db.TestQuestions
+            .FirstOrDefaultAsync(tq => tq.TestId == testId && tq.QuestionId == questionId);
+
+        if (tq is not null)
+        {
+            _db.TestQuestions.Remove(tq);
+            await _db.SaveChangesAsync();
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // POOL VALIDATION
     // ════════════════════════════════════════════════════════════════════════
 

@@ -147,6 +147,74 @@ public class EditModel : PageModel
         }
     }
 
+    // ── Manual question management ────────────────────────────────────────
+
+    /// <summary>AJAX: returns all directly-mapped questions for this test.</summary>
+    public async Task<IActionResult> OnGetTestQuestionsAsync()
+    {
+        try
+        {
+            var questions = await _tests.GetTestQuestionsAsync(Id);
+            return new JsonResult(questions);
+        }
+        catch
+        {
+            return new JsonResult(new List<object>());
+        }
+    }
+
+    /// <summary>AJAX: browse/search the question bank for the picker modal.</summary>
+    public async Task<IActionResult> OnGetBrowseQuestionsAsync(
+        int? subjectId, int? difficultyLevelId, string? search)
+    {
+        try
+        {
+            var items = await _tests.BrowseQuestionsForTestAsync(Id, subjectId, difficultyLevelId, search);
+            return new JsonResult(items);
+        }
+        catch
+        {
+            return new JsonResult(new List<object>());
+        }
+    }
+
+    /// <summary>POST: add selected question IDs to the test.</summary>
+    public async Task<IActionResult> OnPostAddQuestionsAsync([FromForm] string questionIds)
+    {
+        try
+        {
+            var ids = (questionIds ?? "")
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => Guid.TryParse(s.Trim(), out var g) ? g : (Guid?)null)
+                .Where(g => g.HasValue)
+                .Select(g => g!.Value)
+                .ToList();
+
+            await _tests.AddQuestionsToTestAsync(Id, ids);
+            TempData["Success"] = $"{ids.Count} question(s) added to the test.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = $"Failed to add questions: {ex.Message}";
+        }
+        return RedirectToPage(new { id = Id });
+    }
+
+    /// <summary>POST: remove a single question from the test's direct mapping.</summary>
+    public async Task<IActionResult> OnPostRemoveQuestionAsync(Guid questionId)
+    {
+        try
+        {
+            await _tests.RemoveQuestionFromTestAsync(Id, questionId);
+            TempData["Success"] = "Question removed.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = $"Failed to remove question: {ex.Message}";
+        }
+        return RedirectToPage(new { id = Id });
+    }
+
     private async Task LoadDropdownsAsync()
     {
         ExamTypes        = await _masters.GetExamTypesAsync();
