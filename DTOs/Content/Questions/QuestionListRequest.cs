@@ -11,6 +11,8 @@ public class QuestionListRequest
     public int?           ExamTypeId      { get; set; }
     public QuestionType?  QuestionType    { get; set; }
     public QuestionStatus? Status         { get; set; }
+    /// <summary>When set, restricts results to questions directly mapped to this test.</summary>
+    public Guid?          TestId          { get; set; }
     public int            Page            { get; set; } = 1;
     public int            PageSize        { get; set; } = 20;
 }
