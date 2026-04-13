@@ -107,6 +107,31 @@ public class TestAssignmentDto
     public bool IsActive { get; set; }  // AvailableFrom <= now <= AvailableTo
 }
 
+// ── Manual question mapping ───────────────────────────────────────────────
+
+/// <summary>A question directly mapped to a test (via TestQuestion table).</summary>
+public class TestQuestionDto
+{
+    public Guid   QuestionId      { get; set; }
+    public string Text            { get; set; } = "";
+    public string SubjectName     { get; set; } = "";
+    public string DifficultyLevel { get; set; } = "";
+    public string QuestionType    { get; set; } = "";
+    public int    SortOrder       { get; set; }
+}
+
+/// <summary>A question from the bank shown in the "Add Questions" picker modal.</summary>
+public class QuestionBrowseItem
+{
+    public Guid   Id              { get; set; }
+    public string Text            { get; set; } = "";
+    public string SubjectName     { get; set; } = "";
+    public string TopicName       { get; set; } = "";
+    public string DifficultyLevel { get; set; } = "";
+    public string QuestionType    { get; set; } = "";
+    public bool   AlreadyMapped   { get; set; }
+}
+
 // ── Student-facing ────────────────────────────────────────────────────────
 
 public class StudentTestCardDto

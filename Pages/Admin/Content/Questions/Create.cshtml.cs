@@ -17,20 +17,25 @@ public class CreateModel : PageModel
     private readonly IQuestionService    _questions;
     private readonly IMasterService      _masters;
     private readonly IWebHostEnvironment _env;
+    private readonly ITestService        _tests;
 
     private static readonly JsonSerializerOptions _jsonOpts =
         new() { PropertyNameCaseInsensitive = true };
 
-    public CreateModel(IQuestionService questions, IMasterService masters, IWebHostEnvironment env)
+    public CreateModel(IQuestionService questions, IMasterService masters, IWebHostEnvironment env, ITestService tests)
     {
         _questions = questions;
         _masters   = masters;
         _env       = env;
+        _tests     = tests;
     }
 
     // ── Edit mode ─────────────────────────────────────────────────────────────
     [BindProperty(SupportsGet = true)] public Guid? Id { get; set; }
     public bool IsEdit => Id.HasValue;
+
+    /// <summary>When set, the created question is auto-mapped to this test and published.</summary>
+    [BindProperty(SupportsGet = true)] public Guid? TestId { get; set; }
 
     // ── Form ──────────────────────────────────────────────────────────────────
     [BindProperty] public QuestionFormModel Form { get; set; } = new();
@@ -105,6 +110,10 @@ public class CreateModel : PageModel
     public async Task OnGetAsync()
     {
         await LoadDropdownsAsync();
+
+        // When creating from a test context, default to Published
+        if (!IsEdit && TestId.HasValue)
+            Form.Status = QuestionStatus.Published;
 
         if (!IsEdit || !Id.HasValue) return;
 
@@ -220,13 +229,22 @@ public class CreateModel : PageModel
             {
                 await _questions.UpdateAsync(Id.Value, BuildUpdateRequest(tagIds), userId);
                 TempData["Success"] = "Question updated.";
+                // If we came from a test, go back to Manage Questions
+                if (TestId.HasValue)
+                    return RedirectToPage("/Admin/Content/Tests/Questions/Index", new { testId = TestId.Value });
             }
             else
             {
-                await _questions.CreateAsync(BuildCreateRequest(tagIds), userId);
+                var created = await _questions.CreateAsync(BuildCreateRequest(tagIds), userId);
                 TempData["Success"] = isPbq
                     ? "Passage-based question set created successfully."
                     : "Question created successfully.";
+                // Auto-map to test and redirect back to Manage Questions
+                if (TestId.HasValue)
+                {
+                    await _tests.AddQuestionsToTestAsync(TestId.Value, [created.Id]);
+                    return RedirectToPage("/Admin/Content/Tests/Questions/Index", new { testId = TestId.Value });
+                }
             }
             return RedirectToPage("/Admin/Content/Questions/Index");
         }
@@ -279,6 +297,7 @@ public class CreateModel : PageModel
             MarksId           = Form.MarksId,
             NegativeMarksId   = Form.NegativeMarksId,
             ExamTypeId        = Form.ExamTypeId,
+            Status            = Form.Status,
             TagIds            = tagIds
         };
         PopulateTypeSpecific(req);

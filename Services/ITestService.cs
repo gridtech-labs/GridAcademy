@@ -40,6 +40,25 @@ public interface ITestService
     Task<List<TestAssignmentDto>> GetStudentAssignmentsAsync(Guid studentId);
     Task                          RevokeAssignmentAsync(Guid assignmentId);
 
+    // ── Manual question management ────────────────────────────────────────
+
+    /// <summary>Returns all questions directly mapped to a test, ordered by SortOrder.</summary>
+    Task<List<TestQuestionDto>> GetTestQuestionsAsync(Guid testId);
+
+    /// <summary>
+    /// Returns up to 50 Published questions from the bank, filtered by optional
+    /// subjectId, difficultyLevelId, and a text search. Each item flags whether
+    /// the question is already mapped to the given test.
+    /// </summary>
+    Task<List<QuestionBrowseItem>> BrowseQuestionsForTestAsync(
+        Guid testId, int? subjectId, int? difficultyLevelId, string? search);
+
+    /// <summary>Directly maps a list of question IDs to a test (duplicates are ignored).</summary>
+    Task AddQuestionsToTestAsync(Guid testId, List<Guid> questionIds);
+
+    /// <summary>Removes a single question from the test's direct mapping.</summary>
+    Task RemoveQuestionFromTestAsync(Guid testId, Guid questionId);
+
     // ── Pool validation ───────────────────────────────────────────────────
 
     /// <summary>

@@ -91,9 +91,9 @@ public class CreateQuestionRequest
 
     // ── Tags ──────────────────────────────────────────────────────────────────
     public List<int> TagIds { get; set; } = [];
-}
 
-public class UpdateQuestionRequest : CreateQuestionRequest
-{
+    // ── Status (default Draft; set to Published when creating from a test) ────
     public QuestionStatus Status { get; set; } = QuestionStatus.Draft;
 }
+
+public class UpdateQuestionRequest : CreateQuestionRequest { }

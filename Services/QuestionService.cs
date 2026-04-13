@@ -42,6 +42,14 @@ public class QuestionService : IQuestionService
         if (req.ExamTypeId.HasValue)        q = q.Where(x => x.ExamTypeId        == req.ExamTypeId);
         if (req.QuestionType.HasValue)      q = q.Where(x => x.QuestionType      == req.QuestionType);
         if (req.Status.HasValue)            q = q.Where(x => x.Status            == req.Status);
+        if (req.TestId.HasValue)
+        {
+            var mappedIds = await _db.TestQuestions
+                .Where(tq => tq.TestId == req.TestId.Value)
+                .Select(tq => tq.QuestionId)
+                .ToListAsync();
+            q = q.Where(x => mappedIds.Contains(x.Id));
+        }
 
         var totalCount = await q.CountAsync();
         var items = await q
@@ -187,7 +195,7 @@ public class QuestionService : IQuestionService
         Solution           = r.Solution?.Trim(),
         Subtopic           = r.Subtopic?.Trim(),
         QuestionType       = r.QuestionType,
-        Status             = QuestionStatus.Draft,
+        Status             = r.Status,
         SubjectId          = r.SubjectId,
         TopicId            = r.TopicId,
         DifficultyLevelId  = r.DifficultyLevelId,
@@ -292,7 +300,7 @@ public class QuestionService : IQuestionService
                 Text              = sq.Text.Trim(),
                 Solution          = sq.Solution?.Trim(),
                 QuestionType      = QuestionType.PassageBased,
-                Status            = QuestionStatus.Draft,
+                Status            = r.Status,
                 SubjectId         = r.SubjectId,
                 TopicId           = r.TopicId,
                 DifficultyLevelId = r.DifficultyLevelId,
