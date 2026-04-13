@@ -122,9 +122,9 @@
                         <option value="4">FIB — Fill in Blank · Use [BLANK_1] in text</option>
                         <option value="5">T/F — True / False · Statement is True or False</option>
                         <option value="6">MTF — Match Following · List I ↔ List II pairs</option>
-                        <option value="7">MMQ — Matrix Match · Row × Column grid</option>
-                        <option value="8">A&amp;R — Assert &amp; Reason · Assertion A + Reason R</option>
-                        <option value="9">PBQ — Passage Based · Questions on a paragraph</option>
+                        <option value="7">A&amp;R — Assert &amp; Reason · Assertion A + Reason R</option>
+                        <option value="8">PBQ — Passage Based · Questions on a paragraph</option>
+                        <option value="9">MMQ — Matrix Match · Row × Column grid</option>
                     </select>
                 </div>
             </div>
@@ -690,13 +690,13 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
         4: ['fibCard'],
         5: ['tfCard'],
         6: ['mtfCard'],
-        7: ['mmqCard'],
-        8: ['arCard'],
-        9: ['pbqCard', 'pbqSubSection']
+        7: ['arCard'],              // AssertionReason = 7
+        8: ['pbqCard', 'pbqSubSection'], // PassageBased = 8
+        9: ['mmqCard']              // MatrixMatch = 9
     };
     const ALL_SECTIONS = ['mcqOptionsCard','numericalCard','fibCard','tfCard','mtfCard','mmqCard','arCard','pbqCard','pbqSubSection'];
-    // Types where the main question-text card is hidden (AR and PBQ have their own editors)
-    const HIDE_QUESTION_TEXT = [8, 9];
+    // Types where the main question-text card is hidden (AR=7 and PBQ=8 have their own editors)
+    const HIDE_QUESTION_TEXT = [7, 8];
 
     function applyType(val) {
         const v = parseInt(val);
@@ -995,15 +995,39 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
     });
     refreshTags();
 
+    // ── Validation helper ─────────────────────────────────────────────────────
+    function showClientError(msg, scrollId) {
+        let bar = document.getElementById('clientValidationBar');
+        if (!bar) {
+            bar = document.createElement('div');
+            bar.id = 'clientValidationBar';
+            bar.className = 'alert alert-danger d-flex align-items-center gap-2 py-2 mt-3 mb-0';
+            bar.style.cssText = 'border-radius:.375rem';
+            bar.innerHTML = '<i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>' +
+                '<span id="clientValidationMsg"></span>' +
+                '<button type="button" class="btn-close ms-auto" onclick="document.getElementById(\'clientValidationBar\').style.display=\'none\'"></button>';
+            const submitArea = document.querySelector('.d-grid.gap-2');
+            if (submitArea) submitArea.before(bar);
+            else document.getElementById('questionForm').appendChild(bar);
+        }
+        document.getElementById('clientValidationMsg').textContent = msg;
+        bar.style.display = '';
+        const target = scrollId ? document.getElementById(scrollId) : bar;
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    function hideClientError() {
+        const bar = document.getElementById('clientValidationBar');
+        if (bar) bar.style.display = 'none';
+    }
+
     // ── Form submit ───────────────────────────────────────────────────────────
     document.getElementById('questionForm').addEventListener('submit', function(e) {
-        const typeEl = document.querySelector('input[name="Form.QuestionType"]:checked');
-        const v = typeEl ? parseInt(typeEl.value) : 1;
+        const sel = document.getElementById('qtypeSelect');
+        const v = sel ? parseInt(sel.value) : 1;
 
-        // Sync editors
-        if (v !== 8 && v !== 9) {
-            syncField(qText, 'Form_Text');
-        }
+        // ── Sync all rich editors ────────────────────────────────────────────
+        // AR=7 and PBQ=8 use their own text editors, not the main question text
+        if (v !== 7 && v !== 8) syncField(qText, 'Form_Text');
         syncField(qSolution, 'Form_Solution');
         if (v === 1 || v === 2) {
             syncField(qOptA, 'Form_OptionA');
@@ -1011,20 +1035,22 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
             syncField(qOptC, 'Form_OptionC');
             syncField(qOptD, 'Form_OptionD');
         }
-        if (v === 8) {
+        if (v === 7) {   // AssertionReason
             syncField(qAssertion, 'Form_AssertionText');
             syncField(qReason,    'Form_ReasonText');
         }
-        if (v === 9) {
+        if (v === 8) {   // PassageBased
             syncField(qPassage, 'Form_PassageTextContent');
             document.getElementById('Form_SubQuestionsJson').value = JSON.stringify(getSubQData());
         }
-        if (v === 6) window.saveMtfJson();
-        if (v === 7) window.saveMmqJson();
-        if (v === 4) saveBlanksJson();
+        if (v === 6) window.saveMtfJson();   // MatchTheFollowing
+        if (v === 9) window.saveMmqJson();   // MatrixMatch
+        if (v === 4) saveBlanksJson();        // FillInBlanks
 
-        // Validate: require question text for non-AR, non-PBQ types
-        if (v !== 8 && v !== 9) {
+        // ── Client-side validation ───────────────────────────────────────────
+
+        // Require question text for all types except AR (7) and PBQ (8)
+        if (v !== 7 && v !== 8) {
             const txt = (document.getElementById('Form_Text').value || '').trim();
             if (!txt) {
                 e.preventDefault();
@@ -1040,8 +1066,92 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
             if (errDiv) errDiv.style.display = 'none';
             if (wrap)   wrap.style.borderColor = '';
         }
-        // Validate PBQ: require at least passage + 1 sub-question
+
+        // MCQ / MSQ — require at least one option with text
+        if (v === 1 || v === 2) {
+            const optIds = ['Form_OptionA','Form_OptionB','Form_OptionC','Form_OptionD'];
+            const hasOpts = optIds.some(function(id) {
+                const el = document.getElementById(id);
+                return el && (el.value || '').trim();
+            });
+            if (!hasOpts) {
+                e.preventDefault();
+                showClientError('MCQ/MSQ questions must have at least one option with text.', 'mcqOptionsCard');
+                return;
+            }
+        }
+
+        // FillInBlanks — require at least one blank + each blank must have a correct answer
+        if (v === 4) {
+            if (blanks.length === 0) {
+                e.preventDefault();
+                showClientError('Please add at least one blank answer. Use [BLANK_1] in the question text and click "Add Blank".', 'fibCard');
+                return;
+            }
+            const emptyBlank = blanks.find(function(b) { return !b.correctAnswer || !b.correctAnswer.trim(); });
+            if (emptyBlank) {
+                e.preventDefault();
+                showClientError('Blank #' + emptyBlank.blankIndex + ' is missing a correct answer. Please fill in all blank answers.', 'fibCard');
+                return;
+            }
+        }
+
+        // MatchTheFollowing — require at least one pair filled + one correct match
+        if (v === 6) {
+            var mtfRaw = document.getElementById('Form_MatchJson').value || '{}';
+            try {
+                var mtfData = JSON.parse(mtfRaw);
+                if (!mtfData.items || mtfData.items.length < 2) {
+                    e.preventDefault();
+                    showClientError('Please fill in at least two items (one on each side) for Match the Following.', 'mtfCard');
+                    return;
+                }
+                if (!mtfData.correct || mtfData.correct.length === 0) {
+                    e.preventDefault();
+                    showClientError('Please select at least one correct matching pair for Match the Following.', 'mtfCard');
+                    return;
+                }
+            } catch (ex) {}
+        }
+
+        // MatrixMatch (MMQ) — require at least one row + col + one ticked cell
         if (v === 9) {
+            var mmqRaw = document.getElementById('Form_MatchJson').value || '{}';
+            try {
+                var mmqData = JSON.parse(mmqRaw);
+                var hasRow = (mmqData.items || []).some(function(i) { return i.side === 'row'; });
+                var hasCol = (mmqData.items || []).some(function(i) { return i.side === 'col'; });
+                if (!hasRow || !hasCol) {
+                    e.preventDefault();
+                    showClientError('Please fill in at least one row and one column for Matrix Match.', 'mmqCard');
+                    return;
+                }
+                if (!mmqData.correct || mmqData.correct.length === 0) {
+                    e.preventDefault();
+                    showClientError('Please check at least one correct cell in the Matrix Match grid.', 'mmqCard');
+                    return;
+                }
+            } catch (ex) {}
+        }
+
+        // AssertionReason — require both assertion and reason text
+        if (v === 7) {
+            const atxt = (document.getElementById('Form_AssertionText').value || '').trim();
+            const rtxt = (document.getElementById('Form_ReasonText').value || '').trim();
+            if (!atxt) {
+                e.preventDefault();
+                showClientError('Assertion (A) text is required.', 'arCard');
+                return;
+            }
+            if (!rtxt) {
+                e.preventDefault();
+                showClientError('Reason (R) text is required.', 'arCard');
+                return;
+            }
+        }
+
+        // PassageBased — require passage text + at least one sub-question with option
+        if (v === 8) {
             const ptxt = (document.getElementById('Form_PassageTextContent').value || '').trim();
             if (!ptxt) {
                 e.preventDefault();
@@ -1053,10 +1163,18 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
             const sqs = getSubQData();
             if (sqs.length === 0) {
                 e.preventDefault();
-                alert('Please add at least one sub-question for the passage.');
+                showClientError('Please add at least one sub-question for the passage.', 'pbqSubSection');
+                return;
+            }
+            const sqNoOpts = sqs.find(function(sq) { return sq.options.length === 0; });
+            if (sqNoOpts) {
+                e.preventDefault();
+                showClientError('Each sub-question must have at least one option with text.', 'pbqSubSection');
                 return;
             }
         }
+
+        hideClientError();
     });
 
 })();

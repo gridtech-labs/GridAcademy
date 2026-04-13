@@ -352,7 +352,16 @@ public class QuestionService : IQuestionService
         switch (r.QuestionType)
         {
             case QuestionType.PassageBased:
-                break; // validated inside CreatePassageSetAsync
+                if (r.SubQuestions.Count == 0)
+                    throw new ArgumentException("At least one sub-question is required for Passage Based questions.");
+                foreach (var sq in r.SubQuestions)
+                {
+                    if (string.IsNullOrWhiteSpace(sq.Text))
+                        throw new ArgumentException("Each sub-question must have a question text.");
+                    if (sq.Options.Count == 0)
+                        throw new ArgumentException("Each sub-question must have at least one option.");
+                }
+                break;
 
             case QuestionType.NAT:
                 if (string.IsNullOrWhiteSpace(r.Text))
@@ -379,6 +388,8 @@ public class QuestionService : IQuestionService
             case QuestionType.FillInBlanks:
                 if (string.IsNullOrWhiteSpace(r.Text))
                     throw new ArgumentException("Question text is required (use [BLANK_1] markers).");
+                if (r.Blanks.Count == 0)
+                    throw new ArgumentException("At least one blank answer is required for Fill in the Blanks questions.");
                 break;
 
             case QuestionType.MatchTheFollowing:
@@ -387,6 +398,8 @@ public class QuestionService : IQuestionService
                     throw new ArgumentException("Question text / instruction is required.");
                 if (r.MatchItems.Count == 0)
                     throw new ArgumentException("At least one match item is required.");
+                if (r.MatchCorrect.Count == 0)
+                    throw new ArgumentException("At least one correct matching pair is required.");
                 break;
 
             case QuestionType.AssertionReason:
