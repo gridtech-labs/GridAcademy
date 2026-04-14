@@ -1,4 +1,5 @@
 using GridAcademy.Common;
+using GridAcademy.Data.Entities.Assessment;
 using GridAcademy.Data.Entities.Content;
 using GridAcademy.DTOs.Assessment;
 using GridAcademy.DTOs.Content.Masters;
@@ -36,6 +37,7 @@ public class BrowseModel : PageModel
 
     // ── Results ───────────────────────────────────────────────────────────────
     public string                     TestTitle        { get; set; } = "";
+    public QuestionMode               TestQuestionMode { get; set; } = QuestionMode.GlobalBank;
     public PagedResult<QuestionDto>   Questions        { get; set; } = new();
     public HashSet<Guid>              MappedIds        { get; set; } = [];
     public List<SubjectDto>           Subjects         { get; set; } = [];
@@ -53,7 +55,8 @@ public class BrowseModel : PageModel
         try
         {
             var test = await _tests.GetTestByIdAsync(TestId);
-            TestTitle = test.Title;
+            TestTitle        = test.Title;
+            TestQuestionMode = test.QuestionMode;
         }
         catch (KeyNotFoundException)
         {
@@ -68,10 +71,26 @@ public class BrowseModel : PageModel
     /// <summary>Add selected questions to the test (and optionally a section) then redirect back.</summary>
     public async Task<IActionResult> OnPostAddAsync()
     {
+        // Reload test to check mode
+        TestDetailDto testDetail;
+        try { testDetail = await _tests.GetTestByIdAsync(TestId); }
+        catch { TempData["Error"] = "Test not found."; return RedirectToPage("/Admin/Content/Tests/Index"); }
+        TestTitle        = testDetail.Title;
+        TestQuestionMode = testDetail.QuestionMode;
+
         if (SelectedIds.Count == 0)
         {
             TempData["Error"] = "Please select at least one question to add.";
-            await LoadTestTitleAsync();
+            await LoadPageDataAsync();
+            return Page();
+        }
+
+        // In Manual mode a section must be chosen
+        if (TestQuestionMode == QuestionMode.Manual &&
+            testDetail.Sections.Count > 0 &&
+            (!SectionId.HasValue || SectionId.Value == 0))
+        {
+            TempData["Error"] = "Section is required in Manual mode. Please select a section before adding questions.";
             await LoadPageDataAsync();
             return Page();
         }
@@ -110,7 +129,8 @@ public class BrowseModel : PageModel
         try
         {
             var test = await _tests.GetTestByIdAsync(TestId);
-            TestTitle = test.Title;
+            TestTitle        = test.Title;
+            TestQuestionMode = test.QuestionMode;
         }
         catch { /* ignore */ }
     }

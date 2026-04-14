@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using GridAcademy.Data.Entities.Assessment;
 using GridAcademy.DTOs.Assessment;
 using GridAcademy.DTOs.Content.Masters;
 using GridAcademy.Services;
@@ -45,7 +46,8 @@ public class EditModel : PageModel
                 DurationMinutes        = Test.DurationMinutes,
                 PassingPercent         = Test.PassingPercent,
                 NegativeMarkingEnabled = Test.NegativeMarkingEnabled,
-                ExamTypeId             = Test.ExamTypeId
+                ExamTypeId             = Test.ExamTypeId,
+                QuestionMode           = Test.QuestionMode
             };
         }
         catch (KeyNotFoundException)
@@ -130,6 +132,20 @@ public class EditModel : PageModel
         catch (Exception ex)
         {
             TempData["Error"] = $"Could not unpublish: {ex.Message}";
+        }
+        return RedirectToPage(new { id = Id });
+    }
+
+    public async Task<IActionResult> OnPostSetModeAsync(QuestionMode mode)
+    {
+        try
+        {
+            await _tests.SetQuestionModeAsync(Id, mode);
+            TempData["Success"] = $"Question mode set to {(mode == QuestionMode.Manual ? "Manual" : "Global Bank")}.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = $"Failed to change mode: {ex.Message}";
         }
         return RedirectToPage(new { id = Id });
     }

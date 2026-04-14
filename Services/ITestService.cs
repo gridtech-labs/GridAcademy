@@ -1,3 +1,4 @@
+using GridAcademy.Data.Entities.Assessment;
 using GridAcademy.DTOs.Assessment;
 
 namespace GridAcademy.Services;
@@ -69,4 +70,12 @@ public interface ITestService
     /// SubjectId constraint and (if set) DifficultyLevelId constraint.
     /// </summary>
     Task<int> GetSectionPoolCountAsync(int sectionId);
+
+    // ── Mode management ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// Changes the QuestionMode of a Draft/Archived test.
+    /// Throws <see cref="InvalidOperationException"/> if the test is Published.
+    /// </summary>
+    Task SetQuestionModeAsync(Guid testId, QuestionMode mode);
 }

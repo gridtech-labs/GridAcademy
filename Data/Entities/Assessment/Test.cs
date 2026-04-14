@@ -19,7 +19,14 @@ public class Test
 
     public int ExamTypeId { get; set; }
 
-    public TestStatus Status { get; set; } = TestStatus.Draft;
+    public TestStatus   Status       { get; set; } = TestStatus.Draft;
+
+    /// <summary>
+    /// Determines how questions are delivered at runtime.
+    /// GlobalBank = criteria-based random pool per section.
+    /// Manual     = teacher-curated, section-assigned questions.
+    /// </summary>
+    public QuestionMode QuestionMode { get; set; } = QuestionMode.GlobalBank;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

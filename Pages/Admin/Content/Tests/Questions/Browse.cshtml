@@ -1,10 +1,12 @@
 @page "{testId:guid}"
 @model GridAcademy.Pages.Admin.Content.Tests.Questions.BrowseModel
 @using GridAcademy.Data.Entities.Content
+@using GridAcademy.Data.Entities.Assessment
 @using System.Text.RegularExpressions
 @{
     ViewData["Title"] = $"Question Bank — {Model.TestTitle}";
-    int totalPages = (int)Math.Ceiling((double)(Model.Questions.TotalCount) / BrowseModel.PageSize);
+    int  totalPages = (int)Math.Ceiling((double)(Model.Questions.TotalCount) / BrowseModel.PageSize);
+    bool isManual   = Model.TestQuestionMode == QuestionMode.Manual;
 
     string StripHtml(string? html) =>
         Regex.Replace(html ?? "", "<[^>]+>", " ").Replace("  ", " ").Trim();
@@ -116,16 +118,27 @@
             @if (Model.Sections.Count > 0)
             {
                 <div class="d-flex align-items-center gap-2 ms-auto">
-                    <label class="form-label mb-0 small fw-semibold text-nowrap">Assign to section:</label>
-                    <select name="SectionId" class="form-select form-select-sm" style="min-width:160px" id="stickySection">
-                        <option value="0">— none —</option>
+                    <label class="form-label mb-0 small fw-semibold text-nowrap">
+                        Section:
+                        @if (isManual) { <span class="text-danger">*</span> }
+                    </label>
+                    <select name="SectionId" class="form-select form-select-sm" style="min-width:160px"
+                            id="stickySection" @(isManual ? "required" : "")>
+                        @if (!isManual) { <option value="0">— none —</option> }
                         @foreach (var sec in Model.Sections.OrderBy(s => s.SortOrder))
                         { <option value="@sec.Id">@sec.Name</option> }
                     </select>
                 </div>
-                <button type="submit" class="btn btn-primary btn-sm">
+                <button type="submit" class="btn btn-primary btn-sm" id="stickyAddBtn">
                     <i class="bi bi-plus-lg me-1"></i>Add to Test
                 </button>
+            }
+            else if (isManual)
+            {
+                <div class="alert alert-warning py-1 px-2 mb-0 ms-auto small">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    No sections found. <a asp-page="/Admin/Content/Tests/Edit" asp-route-id="@Model.TestId" class="alert-link">Create sections on the Edit page</a> before adding questions.
+                </div>
             }
             else
             {
@@ -284,13 +297,22 @@
                 <div class="d-flex align-items-center gap-2 flex-wrap">
                     @if (Model.Sections.Count > 0)
                     {
-                        <label class="form-label mb-0 small fw-semibold text-nowrap">Section:</label>
+                        <label class="form-label mb-0 small fw-semibold text-nowrap">
+                            Section:
+                            @if (isManual) { <span class="text-danger">*</span> }
+                        </label>
                         <select class="form-select form-select-sm" style="min-width:150px" id="bottomSection"
-                                onchange="document.getElementById('hiddenSectionId').value = this.value; var s=document.getElementById('stickySection'); if(s) s.value=this.value;">
-                            <option value="0">— none —</option>
+                                @(isManual ? "required" : "")
+                                onchange="document.getElementById('hiddenSectionId').value = this.value; var s=document.getElementById('stickySection'); if(s) s.value=this.value; updateCounts();">
+                            @if (!isManual) { <option value="0">— none —</option> }
                             @foreach (var sec in Model.Sections.OrderBy(s => s.SortOrder))
                             { <option value="@sec.Id">@sec.Name</option> }
                         </select>
+                        @* For Manual mode with sections: set hidden input to first section by default *@
+                        @if (isManual && Model.Sections.Count > 0)
+                        {
+                            <script>document.getElementById('hiddenSectionId').value = '@Model.Sections.OrderBy(s => s.SortOrder).First().Id';</script>
+                        }
                     }
                     <span class="text-muted small" id="bottomCount" style="display:none">
                         <span id="bottomCountNum">0</span> selected
@@ -314,6 +336,12 @@
     const bottomCount   = document.getElementById('bottomCount');
     const bottomCountNum= document.getElementById('bottomCountNum');
     const bottomAddBtn  = document.getElementById('bottomAddBtn');
+    const isManual      = @(isManual ? "true" : "false");
+
+    function isSectionSelected() {
+        const h = document.getElementById('hiddenSectionId');
+        return !isManual || (h && h.value && h.value !== '0' && h.value !== '');
+    }
 
     function updateCounts() {
         const n = document.querySelectorAll('.question-chk:checked').length;
@@ -323,7 +351,8 @@
         const show = n > 0;
         if (stickyBar)    stickyBar.style.display    = show ? '' : 'none';
         if (bottomCount)  bottomCount.style.display  = show ? '' : 'none';
-        if (bottomAddBtn) bottomAddBtn.disabled       = !show;
+        // In manual mode: also require a section to be selected
+        if (bottomAddBtn) bottomAddBtn.disabled = !(show && isSectionSelected());
 
         // Update select-all indeterminate state
         if (selectAllChk) {

@@ -10,7 +10,12 @@ public class TestSection
 
     public string Name { get; set; } = string.Empty;
 
-    public int SubjectId { get; set; }
+    /// <summary>
+    /// FK → subjects.id.
+    /// Required for GlobalBank mode (used to match questions from the pool).
+    /// Null is allowed for Manual mode sections (which are name-only buckets).
+    /// </summary>
+    public int? SubjectId { get; set; }
 
     /// <summary>Nullable FK → difficulty_levels.id; null means any difficulty is eligible.</summary>
     public int? DifficultyLevelId { get; set; }
