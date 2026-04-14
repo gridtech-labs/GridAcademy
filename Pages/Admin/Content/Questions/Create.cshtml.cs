@@ -65,7 +65,7 @@ public class CreateModel : PageModel
         public int          MarksId       { get; set; }
         public int          NegativeMarksId   { get; set; }
         public int          ExamTypeId    { get; set; }
-        public QuestionStatus Status      { get; set; } = QuestionStatus.Draft;
+        public QuestionStatus Status      { get; set; } = QuestionStatus.Published;
         public string?      SelectedTagIds    { get; set; }
 
         // ── MCQ / MSQ: fixed options A–D ──────────────────────────────────────

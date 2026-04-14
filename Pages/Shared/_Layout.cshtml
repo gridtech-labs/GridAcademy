@@ -69,10 +69,10 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <span class="nav-link py-1 text-white-50" style="cursor:default">
-                                <i class="bi bi-shield me-2"></i>System Roles
-                                <span class="badge bg-secondary ms-1" style="font-size:.65rem">soon</span>
-                            </span>
+                            <a asp-page="/Admin/UserMgmt/Roles/Index"
+                               class="nav-link py-1 @(Context.Request.Path.StartsWithSegments("/Admin/UserMgmt/Roles") ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-shield-check me-2"></i>System Roles
+                            </a>
                         </li>
                         <li class="nav-item">
                             <span class="nav-link py-1 text-white-50" style="cursor:default">
@@ -138,19 +138,13 @@
                         <li class="nav-item">
                             <a asp-page="/Admin/Content/Questions/Index"
                                class="nav-link py-1 @(inQuestions ? "text-white active" : "text-white-50")">
-                                <i class="bi bi-patch-question me-2"></i>Questions
+                                <i class="bi bi-bank me-2"></i>Global Bank
                             </a>
                         </li>
                         <li class="nav-item">
                             <a asp-page="/Admin/Content/Tests/Index"
                                class="nav-link py-1 @(inTests ? "text-white active" : "text-white-50")">
                                 <i class="bi bi-journal-check me-2"></i>Tests / Assessments
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a asp-page="/Admin/Content/Import/Index"
-                               class="nav-link py-1 @(inImport ? "text-white active" : "text-white-50")">
-                                <i class="bi bi-cloud-upload me-2"></i>Import
                             </a>
                         </li>
                     </ul>

@@ -1,10 +1,14 @@
 @page "{testId:guid}"
 @model GridAcademy.Pages.Admin.Content.Tests.Questions.IndexModel
 @using GridAcademy.Data.Entities.Content
+@using GridAcademy.Data.Entities.Assessment
 @using System.Text.RegularExpressions
 @{
     ViewData["Title"] = $"Questions — {Model.Test?.Title ?? "Test"}";
-    int totalPages = (int)Math.Ceiling((double)(Model.Questions.TotalCount) / IndexModel.PageSize);
+    int  totalPages  = (int)Math.Ceiling((double)(Model.Questions.TotalCount) / IndexModel.PageSize);
+    var  sections    = Model.Test?.Sections ?? [];
+    bool isPublished = Model.Test?.Status == TestStatus.Published;
+    bool isManual    = Model.Test?.QuestionMode == GridAcademy.Data.Entities.Assessment.QuestionMode.Manual;
 
     string StripHtml(string? html) =>
         Regex.Replace(html ?? "", "<[^>]+>", " ").Replace("  ", " ").Trim();
@@ -28,6 +32,7 @@
                 <i class="bi bi-arrow-left me-1"></i>@(Model.Test?.Title ?? "Test")
             </a>
             &nbsp;·&nbsp; @Model.Questions.TotalCount mapped question(s)
+            &nbsp;·&nbsp; @sections.Count section(s)
         </p>
     </div>
     <div class="d-flex gap-2 flex-wrap justify-content-end">
@@ -63,6 +68,176 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 }
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     SECTIONS PANEL
+     ══════════════════════════════════════════════════════════════════════ -->
+<div class="card shadow-sm mb-3">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2"
+         style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#sectionsCollapse" aria-expanded="@(sections.Count == 0 ? "true" : "false")">
+        <span class="fw-semibold">
+            <i class="bi bi-grid-3x3-gap me-2 text-primary"></i>Sections
+            @if (sections.Count > 0)
+            {
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1">@sections.Count</span>
+            }
+            @if (isManual)
+            {
+                <span class="badge bg-info-subtle text-info border border-info-subtle ms-1" style="font-size:0.7rem">Manual — name only</span>
+            }
+            else
+            {
+                <span class="badge bg-success-subtle text-success border border-success-subtle ms-1" style="font-size:0.7rem">Global Bank</span>
+            }
+        </span>
+        <i class="bi bi-chevron-down small text-muted"></i>
+    </div>
+    <div class="collapse @(sections.Count == 0 ? "show" : "")" id="sectionsCollapse">
+        <div class="card-body pt-2 pb-3">
+
+            @if (sections.Count == 0)
+            {
+                <div class="text-muted small mb-3">
+                    <i class="bi bi-info-circle me-1"></i>
+                    @if (isManual)
+                    {
+                        <text>No sections yet. Add named sections below so you can assign questions to them. In Manual mode, section assignment is <strong>required</strong> for each question.</text>
+                    }
+                    else
+                    {
+                        <text>No sections yet. Sections let you organise questions into groups (e.g. "Reasoning", "Maths", "GK"). Questions can then be assigned to a section below.</text>
+                    }
+                </div>
+            }
+            else
+            {
+                <!-- Existing sections list -->
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Section Name</th>
+                                @if (!isManual)
+                                {
+                                    <th>Subject</th>
+                                    <th>Difficulty</th>
+                                    <th class="text-center">Questions Needed</th>
+                                    <th class="text-center">Marks/Q</th>
+                                    <th class="text-center">Neg/Q</th>
+                                }
+                                @if (!isPublished) { <th></th> }
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var sec in sections.OrderBy(s => s.SortOrder).ThenBy(s => s.Id))
+                        {
+                            <tr>
+                                <td class="fw-semibold">@sec.Name</td>
+                                @if (!isManual)
+                                {
+                                    <td class="small">@sec.SubjectName</td>
+                                    <td class="small text-muted">@(sec.DifficultyLevelName ?? "Any")</td>
+                                    <td class="text-center small">@sec.QuestionCount</td>
+                                    <td class="text-center small text-success fw-semibold">+@sec.MarksPerQuestion</td>
+                                    <td class="text-center small text-danger">-@sec.NegativeMarksPerQuestion</td>
+                                }
+                                @if (!isPublished)
+                                {
+                                    <td class="text-end">
+                                        <form method="post" asp-page-handler="DeleteSection"
+                                              onsubmit="return confirm('Remove section \'@sec.Name\'? Questions assigned to it will become unassigned.')">
+                                            <input type="hidden" name="sectionId" value="@sec.Id" />
+                                            <button class="btn btn-xs btn-outline-danger btn-sm" title="Delete section">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                }
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            @if (!isPublished)
+            {
+                if (isManual)
+                {
+                    <!-- Manual mode: name-only section form -->
+                    <form method="post" asp-page-handler="AddSection" class="border rounded p-3 bg-light">
+                        <p class="fw-semibold small mb-2"><i class="bi bi-plus-circle me-1 text-primary"></i>Add New Section</p>
+                        <div class="row g-2 align-items-end">
+                            <div class="col-12 col-sm-5">
+                                <label class="form-label form-label-sm mb-1">Section Name <span class="text-danger">*</span></label>
+                                <input asp-for="SectionForm.Name" class="form-control form-control-sm"
+                                       placeholder="e.g. Reasoning, Maths, GK" required />
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-plus-lg me-1"></i>Add Section
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-text text-info-emphasis mt-1">
+                            <i class="bi bi-info-circle me-1"></i>In Manual mode, sections are just named groups — no subject or criteria needed.
+                        </div>
+                    </form>
+                }
+                else
+                {
+                    <!-- GlobalBank mode: full form -->
+                    <form method="post" asp-page-handler="AddSection" class="border rounded p-3 bg-light">
+                        <p class="fw-semibold small mb-2"><i class="bi bi-plus-circle me-1 text-primary"></i>Add New Section</p>
+                        <div class="row g-2 align-items-end">
+                            <div class="col-12 col-sm-3">
+                                <label class="form-label form-label-sm mb-1">Name <span class="text-danger">*</span></label>
+                                <input asp-for="SectionForm.Name" class="form-control form-control-sm"
+                                       placeholder="e.g. Reasoning" required />
+                            </div>
+                            <div class="col-6 col-sm-2">
+                                <label class="form-label form-label-sm mb-1">Subject <span class="text-danger">*</span></label>
+                                <select asp-for="SectionForm.SubjectId" class="form-select form-select-sm" required>
+                                    <option value="">— select —</option>
+                                    @foreach (var s in Model.Subjects)
+                                    { <option value="@s.Id">@s.Name</option> }
+                                </select>
+                            </div>
+                            <div class="col-6 col-sm-2">
+                                <label class="form-label form-label-sm mb-1">Difficulty</label>
+                                <select asp-for="SectionForm.DifficultyLevelId" class="form-select form-select-sm">
+                                    <option value="">Any</option>
+                                    @foreach (var d in Model.DifficultyLevels)
+                                    { <option value="@d.Id">@d.Name</option> }
+                                </select>
+                            </div>
+                            <div class="col-4 col-sm-1">
+                                <label class="form-label form-label-sm mb-1">Q Count</label>
+                                <input asp-for="SectionForm.QuestionCount" type="number" min="1"
+                                       class="form-control form-control-sm" />
+                            </div>
+                            <div class="col-4 col-sm-1">
+                                <label class="form-label form-label-sm mb-1">+Marks</label>
+                                <input asp-for="SectionForm.MarksPerQuestion" type="number" min="0" step="0.25"
+                                       class="form-control form-control-sm" />
+                            </div>
+                            <div class="col-4 col-sm-1">
+                                <label class="form-label form-label-sm mb-1">-Marks</label>
+                                <input asp-for="SectionForm.NegativeMarksPerQuestion" type="number" min="0" step="0.25"
+                                       class="form-control form-control-sm" />
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-plus-lg me-1"></i>Add
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                }
+            }
+        </div>
+    </div>
+</div>
 
 <!-- ── Filter bar ──────────────────────────────────────────────────────── -->
 <div class="card shadow-sm mb-3">
@@ -147,11 +322,12 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th style="width:40%">Question</th>
+                            <th style="width:35%">Question</th>
                             <th>Subject / Topic</th>
                             <th>Type</th>
                             <th>Difficulty</th>
                             <th>Marks</th>
+                            <th>Section</th>
                             <th>Status</th>
                             <th class="text-end">Actions</th>
                         </tr>
@@ -159,9 +335,11 @@
                     <tbody>
                     @foreach (var q in Model.Questions.Items)
                     {
+                        @* Look up the SectionId for this question from the mapped list *@
+                        @* We use the QuestionDto which doesn't have SectionId — we rely on the Section dropdown values *@
                         <tr>
                             <td>
-                                <div class="fw-semibold small" style="max-width:360px">
+                                <div class="fw-semibold small" style="max-width:320px">
                                     @TextPreview(q.Text)
                                 </div>
                                 @if (q.Tags.Any())
@@ -199,6 +377,40 @@
                                 @if (q.NegativeMarks != 0)
                                 { <span class="text-danger ms-1">@q.NegativeMarks</span> }
                             </td>
+
+                            <!-- ── Section assignment ──────────────────── -->
+                            <td>
+                                @if (sections.Count > 0 && !isPublished)
+                                {
+                                    <form method="post" asp-page-handler="AssignSection" class="d-flex gap-1 align-items-center">
+                                        <input type="hidden" name="questionId" value="@q.Id" />
+                                        <select name="sectionId" class="form-select form-select-sm sec-select"
+                                                style="min-width:110px;max-width:150px"
+                                                data-qid="@q.Id"
+                                                onchange="this.form.submit()" title="Assign to section"
+                                                @(isManual ? "required" : "")>
+                                            @if (!isManual)
+                                            {
+                                                <option value="0">— none —</option>
+                                            }
+                                            @foreach (var sec in sections.OrderBy(s => s.SortOrder))
+                                            {
+                                                <option value="@sec.Id">@sec.Name</option>
+                                            }
+                                        </select>
+                                    </form>
+                                }
+                                else if (sections.Count > 0 && isPublished)
+                                {
+                                    @* Show read-only section badge *@
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle small" id="secbadge-@q.Id">—</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">—</span>
+                                }
+                            </td>
+
                             <td>
                                 @if (q.Status == QuestionStatus.Published)
                                 { <span class="badge bg-success-subtle text-success border border-success-subtle">Published</span> }
@@ -207,14 +419,12 @@
                             </td>
                             <td class="text-end">
                                 <div class="d-flex gap-1 justify-content-end flex-wrap">
-                                    <!-- Edit — returns to this page after save -->
                                     <a asp-page="/Admin/Content/Questions/Create"
                                        asp-route-id="@q.Id"
                                        asp-route-testId="@Model.TestId"
                                        class="btn btn-sm btn-outline-secondary" title="Edit">
                                         <i class="bi bi-pencil"></i>
                                     </a>
-                                    <!-- Publish / Unpublish -->
                                     @if (q.Status == QuestionStatus.Draft)
                                     {
                                         <form method="post" asp-page-handler="Publish">
@@ -233,19 +443,17 @@
                                             </button>
                                         </form>
                                     }
-                                    <!-- Remove from test only -->
                                     <form method="post" asp-page-handler="Remove"
-                                          onsubmit="return confirm('Remove this question from the test? (Question stays in the bank)')">
+                                          onsubmit="return confirm('Remove from test? (Question stays in the bank)')">
                                         <input type="hidden" name="id" value="@q.Id" />
                                         <button class="btn btn-sm btn-outline-secondary" title="Remove from test">
                                             <i class="bi bi-x-circle"></i>
                                         </button>
                                     </form>
-                                    <!-- Delete permanently -->
                                     @if (User.IsInRole("Admin"))
                                     {
                                         <form method="post" asp-page-handler="Delete"
-                                              onsubmit="return confirm('Delete this question permanently? This cannot be undone.')">
+                                              onsubmit="return confirm('Delete permanently? Cannot be undone.')">
                                             <input type="hidden" name="id" value="@q.Id" />
                                             <button class="btn btn-sm btn-outline-danger" title="Delete">
                                                 <i class="bi bi-trash"></i>
@@ -300,3 +508,27 @@
         </div>
     }
 </div>
+
+@section Scripts {
+<script>
+(function () {
+    // ── Pre-select the correct section in each dropdown using AJAX ────────
+    const testId = '@Model.TestId';
+    if (!testId) return;
+
+    fetch('?handler=TestQuestions&testId=' + testId, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(function(r) { return r.ok ? r.json() : []; })
+    .then(function(mappings) {
+        mappings.forEach(function(m) {
+            if (!m.sectionId) return;
+            // Use the data-qid attribute to find the correct select per question
+            const sel = document.querySelector('.sec-select[data-qid="' + m.questionId + '"]');
+            if (sel) sel.value = String(m.sectionId);
+        });
+    })
+    .catch(function() { /* silently ignore */ });
+})();
+</script>
+}

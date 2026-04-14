@@ -3,7 +3,9 @@
 @using GridAcademy.Data.Entities.Assessment
 @{
     ViewData["Title"] = Model.Test is not null ? $"Edit — {Model.Test.Title}" : "Edit Test";
-    bool isPublished = Model.Test?.Status == TestStatus.Published;
+    bool isPublished  = Model.Test?.Status == TestStatus.Published;
+    bool isManual     = Model.Test?.QuestionMode == QuestionMode.Manual;
+    var  sections     = Model.Test?.Sections ?? [];
 }
 
 <!-- ── Page header ─────────────────────────────────────────────────────────── -->
@@ -12,20 +14,24 @@
         <h4 class="fw-bold mb-0"><i class="bi bi-pencil-square me-2 text-primary"></i>Edit Test</h4>
         <p class="text-muted small mb-0">@(Model.Test?.Title ?? "")</p>
     </div>
-    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
-        <a asp-page="/Admin/Content/Tests/Questions/Index"
-           asp-route-testId="@Model.Id"
-           class="btn btn-outline-primary btn-sm">
-            <i class="bi bi-patch-question me-1"></i>Manage Questions
-        </a>
-        @if (!isPublished)
-        {
-            <a asp-page="/Admin/Content/Questions/Create"
+    <div class="d-flex flex-column align-items-end gap-2">
+        <!-- Primary actions row -->
+        <div class="d-flex gap-2 flex-wrap justify-content-end">
+            <a asp-page="/Admin/Content/Tests/Questions/Index"
                asp-route-testId="@Model.Id"
-               class="btn btn-success btn-sm">
-                <i class="bi bi-plus-lg me-1"></i>Add Question
+               class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-patch-question me-1"></i>Manage Questions
             </a>
-        }
+            @if (!isPublished)
+            {
+                <a asp-page="/Admin/Content/Questions/Create"
+                   asp-route-testId="@Model.Id"
+                   class="btn btn-success btn-sm">
+                    <i class="bi bi-plus-lg me-1"></i>Add Question
+                </a>
+            }
+        </div>
+        <!-- Back link on second row -->
         <a asp-page="/Admin/Content/Tests/Index" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i>Back to Tests
         </a>
@@ -127,6 +133,42 @@
                 </div>
             </div>
 
+            <!-- ── Question Mode ─────────────────────────────────────────── -->
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Question Mode</label>
+                <div class="d-flex gap-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio"
+                               asp-for="TestForm.QuestionMode" value="0"
+                               id="modeGlobalBank" disabled="@isPublished" />
+                        <label class="form-check-label" for="modeGlobalBank">
+                            <span class="fw-semibold">Global Bank</span>
+                            <span class="text-muted small d-block">
+                                Questions are randomly picked from the pool matching section criteria (Subject / Difficulty).
+                            </span>
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio"
+                               asp-for="TestForm.QuestionMode" value="1"
+                               id="modeManual" disabled="@isPublished" />
+                        <label class="form-check-label" for="modeManual">
+                            <span class="fw-semibold">Manual</span>
+                            <span class="text-muted small d-block">
+                                Teacher hand-picks specific questions and assigns them to named sections.
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                @if (sections.Count > 0 && !isPublished)
+                {
+                    <div class="form-text text-warning-emphasis">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        Changing the mode will affect how existing sections are used. Sections already created will be preserved.
+                    </div>
+                }
+            </div>
+
             @if (!isPublished)
             {
                 <button type="submit" class="btn btn-primary btn-sm">
@@ -154,6 +196,179 @@
                         <i class="bi bi-arrow-counterclockwise me-1"></i>Unpublish
                     </button>
                 </form>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     Sections card
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="card shadow-sm mt-3">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2"
+         style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#sectionsCollapse"
+         aria-expanded="@(sections.Count == 0 ? "true" : "false")">
+        <span class="fw-semibold">
+            <i class="bi bi-grid-3x3-gap me-2 text-primary"></i>Sections
+            @if (sections.Count > 0)
+            {
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1">@sections.Count</span>
+            }
+            @if (isManual)
+            {
+                <span class="badge bg-info-subtle text-info border border-info-subtle ms-1" style="font-size:0.7rem">Manual mode — name only</span>
+            }
+            else
+            {
+                <span class="badge bg-success-subtle text-success border border-success-subtle ms-1" style="font-size:0.7rem">Global Bank — criteria based</span>
+            }
+        </span>
+        <i class="bi bi-chevron-down small text-muted"></i>
+    </div>
+    <div class="collapse @(sections.Count == 0 ? "show" : "")" id="sectionsCollapse">
+        <div class="card-body pt-2 pb-3">
+
+            @if (sections.Count == 0)
+            {
+                <div class="text-muted small mb-3">
+                    <i class="bi bi-info-circle me-1"></i>
+                    @if (isManual)
+                    {
+                        <text>No sections yet. In Manual mode, sections are named groupings (e.g. "Reasoning", "Maths"). Questions are assigned to sections when added.</text>
+                    }
+                    else
+                    {
+                        <text>No sections yet. In Global Bank mode, sections define which questions are picked (by Subject and optional Difficulty).</text>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Section Name</th>
+                                @if (!isManual)
+                                {
+                                    <th>Subject</th>
+                                    <th>Difficulty</th>
+                                    <th class="text-center">Questions</th>
+                                    <th class="text-center">Marks/Q</th>
+                                    <th class="text-center">Neg/Q</th>
+                                }
+                                @if (!isPublished) { <th></th> }
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var sec in sections.OrderBy(s => s.SortOrder).ThenBy(s => s.Id))
+                        {
+                            <tr>
+                                <td class="fw-semibold">@sec.Name</td>
+                                @if (!isManual)
+                                {
+                                    <td class="small">@sec.SubjectName</td>
+                                    <td class="small text-muted">@(sec.DifficultyLevelName ?? "Any")</td>
+                                    <td class="text-center small">@sec.QuestionCount</td>
+                                    <td class="text-center small text-success fw-semibold">+@sec.MarksPerQuestion</td>
+                                    <td class="text-center small text-danger">-@sec.NegativeMarksPerQuestion</td>
+                                }
+                                @if (!isPublished)
+                                {
+                                    <td class="text-end">
+                                        <form method="post" asp-page-handler="DeleteSection"
+                                              onsubmit="return confirm('Remove section \'@sec.Name\'? Questions assigned to it will be unassigned.')">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="sectionId" value="@sec.Id" />
+                                            <button class="btn btn-xs btn-outline-danger btn-sm" title="Delete section">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                }
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            @if (!isPublished)
+            {
+                if (isManual)
+                {
+                    <!-- Manual mode: name-only section form -->
+                    <form method="post" asp-page-handler="AddSection" class="border rounded p-3 bg-light">
+                        @Html.AntiForgeryToken()
+                        <p class="fw-semibold small mb-2"><i class="bi bi-plus-circle me-1 text-primary"></i>Add Section</p>
+                        <div class="row g-2 align-items-end">
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label form-label-sm mb-1">Section Name <span class="text-danger">*</span></label>
+                                <input asp-for="SectionForm.Name" class="form-control form-control-sm"
+                                       placeholder="e.g. Reasoning, Maths, GK" required />
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-plus-lg me-1"></i>Add Section
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-text text-info-emphasis mt-1">
+                            <i class="bi bi-info-circle me-1"></i>In Manual mode, sections are just labels. No subject or criteria needed.
+                        </div>
+                    </form>
+                }
+                else
+                {
+                    <!-- GlobalBank mode: full form -->
+                    <form method="post" asp-page-handler="AddSection" class="border rounded p-3 bg-light">
+                        @Html.AntiForgeryToken()
+                        <p class="fw-semibold small mb-2"><i class="bi bi-plus-circle me-1 text-primary"></i>Add Section</p>
+                        <div class="row g-2 align-items-end">
+                            <div class="col-12 col-sm-3">
+                                <label class="form-label form-label-sm mb-1">Name <span class="text-danger">*</span></label>
+                                <input asp-for="SectionForm.Name" class="form-control form-control-sm"
+                                       placeholder="e.g. Reasoning" required />
+                            </div>
+                            <div class="col-6 col-sm-2">
+                                <label class="form-label form-label-sm mb-1">Subject <span class="text-danger">*</span></label>
+                                <select asp-for="SectionForm.SubjectId" class="form-select form-select-sm" required>
+                                    <option value="">— select —</option>
+                                    @foreach (var s in Model.Subjects)
+                                    { <option value="@s.Id">@s.Name</option> }
+                                </select>
+                            </div>
+                            <div class="col-6 col-sm-2">
+                                <label class="form-label form-label-sm mb-1">Difficulty</label>
+                                <select asp-for="SectionForm.DifficultyLevelId" class="form-select form-select-sm">
+                                    <option value="">Any</option>
+                                    @foreach (var d in Model.DifficultyLevels)
+                                    { <option value="@d.Id">@d.Name</option> }
+                                </select>
+                            </div>
+                            <div class="col-4 col-sm-1">
+                                <label class="form-label form-label-sm mb-1">Q Count</label>
+                                <input asp-for="SectionForm.QuestionCount" type="number" min="1"
+                                       class="form-control form-control-sm" />
+                            </div>
+                            <div class="col-4 col-sm-1">
+                                <label class="form-label form-label-sm mb-1">+Marks</label>
+                                <input asp-for="SectionForm.MarksPerQuestion" type="number" min="0" step="0.25"
+                                       class="form-control form-control-sm" />
+                            </div>
+                            <div class="col-4 col-sm-1">
+                                <label class="form-label form-label-sm mb-1">-Marks</label>
+                                <input asp-for="SectionForm.NegativeMarksPerQuestion" type="number" min="0" step="0.25"
+                                       class="form-control form-control-sm" />
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-plus-lg me-1"></i>Add
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                }
             }
         </div>
     </div>

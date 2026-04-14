@@ -46,9 +46,12 @@
                         <div class="col-12">
                             <label asp-for="Input.Role" class="form-label fw-semibold">Role</label>
                             <select asp-for="Input.Role" class="form-select">
-                                <option value="User">Student (default)</option>
-                                <option value="Instructor">Instructor</option>
-                                <option value="Admin">Admin</option>
+                                @foreach (var r in Model.AvailableRoles.Where(r => r.IsActive))
+                                {
+                                    <option value="@r.Name" selected="@(r.Name == "User")">
+                                        @r.DisplayName
+                                    </option>
+                                }
                             </select>
                             <span asp-validation-for="Input.Role" class="text-danger small"></span>
                         </div>

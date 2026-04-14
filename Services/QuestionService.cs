@@ -173,7 +173,7 @@ public class QuestionService : IQuestionService
     {
         var entity = await _db.Questions.FindAsync(id)
             ?? throw new KeyNotFoundException($"Question {id} not found.");
-        entity.Status = QuestionStatus.Draft;
+        entity.Status = QuestionStatus.Published;
         await _db.SaveChangesAsync();
     }
 

@@ -16,11 +16,13 @@ public class EditModel : PageModel
 {
     private readonly AppDbContext _db;
     private readonly IUserService _users;
+    private readonly IRoleService _roles;
 
-    public EditModel(AppDbContext db, IUserService users)
+    public EditModel(AppDbContext db, IUserService users, IRoleService roles)
     {
         _db    = db;
         _users = users;
+        _roles = roles;
     }
 
     [BindProperty]
@@ -28,6 +30,7 @@ public class EditModel : PageModel
 
     public string Email    { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
+    public List<SystemRoleDto> AvailableRoles { get; set; } = [];
 
     // Populated when the user has a Provider profile
     public ProviderProfileInfo? ProviderProfile { get; set; }
@@ -49,6 +52,7 @@ public class EditModel : PageModel
             IsActive  = user.IsActive
         };
 
+        AvailableRoles = await _roles.GetRolesAsync();
         await LoadProviderProfileAsync(id);
         return Page();
     }
@@ -59,6 +63,7 @@ public class EditModel : PageModel
         if (existing is null) return NotFound();
         Email    = existing.Email;
         FullName = existing.FullName;
+        AvailableRoles = await _roles.GetRolesAsync();
 
         if (!ModelState.IsValid)
         {

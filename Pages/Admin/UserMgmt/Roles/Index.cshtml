@@ -1,0 +1,271 @@
+@page
+@model GridAcademy.Pages.Admin.UserMgmt.Roles.IndexModel
+@{
+    ViewData["Title"] = "System Roles";
+    var colors = new[] { "primary","secondary","success","danger","warning","info","dark" };
+}
+
+<!-- ── Header ──────────────────────────────────────────────────────────── -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-shield-check me-2 text-primary"></i>System Roles</h4>
+        <p class="text-muted small mb-0">@Model.Roles.Count role(s) defined &nbsp;·&nbsp; manage access levels for the platform</p>
+    </div>
+    <a asp-page="/Admin/Users/Index" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-people me-1"></i>Back to Users
+    </a>
+</div>
+
+@if (TempData["Success"] is string succ)
+{
+    <div class="alert alert-success alert-dismissible fade show py-2" role="alert">
+        <i class="bi bi-check-circle me-1"></i>@succ
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
+        <i class="bi bi-exclamation-circle me-1"></i>@err
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row g-4">
+
+    <!-- ══ Left: Roles list ═════════════════════════════════════════════════ -->
+    <div class="col-12 col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white py-2 fw-semibold">
+                <i class="bi bi-list-ul me-2 text-primary"></i>All Roles
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:36px">#</th>
+                            <th>Role</th>
+                            <th>Description</th>
+                            <th class="text-center">Users</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var role in Model.Roles)
+                    {
+                        <tr>
+                            <td class="text-muted small">@role.SortOrder</td>
+                            <td>
+                                <span class="badge bg-@(role.Color ?? "secondary") me-2">@role.Name</span>
+                                <span class="fw-semibold">@role.DisplayName</span>
+                                @if (role.IsSystem)
+                                {
+                                    <span class="badge bg-light text-secondary border ms-1" style="font-size:.65rem">
+                                        <i class="bi bi-lock-fill me-1"></i>system
+                                    </span>
+                                }
+                            </td>
+                            <td class="small text-muted" style="max-width:280px">@role.Description</td>
+                            <td class="text-center">
+                                <a asp-page="/Admin/Users/Index"
+                                   asp-route-role="@role.Name"
+                                   class="badge bg-primary-subtle text-primary border border-primary-subtle text-decoration-none">
+                                    @role.UserCount user(s)
+                                </a>
+                            </td>
+                            <td class="text-center">
+                                @if (role.IsActive)
+                                {
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Inactive</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <div class="d-flex gap-1 justify-content-end">
+                                    <!-- Edit button triggers inline modal -->
+                                    <button class="btn btn-sm btn-outline-secondary"
+                                            data-bs-toggle="modal" data-bs-target="#editModal"
+                                            data-id="@role.Id"
+                                            data-name="@role.Name"
+                                            data-displayname="@role.DisplayName"
+                                            data-description="@(role.Description ?? "")"
+                                            data-color="@(role.Color ?? "secondary")"
+                                            data-isactive="@role.IsActive.ToString().ToLower()"
+                                            data-sortorder="@role.SortOrder"
+                                            data-issystem="@role.IsSystem.ToString().ToLower()"
+                                            title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    @if (!role.IsSystem)
+                                    {
+                                        <form method="post" asp-page-handler="Toggle">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@role.Id" />
+                                            <button class="btn btn-sm @(role.IsActive ? "btn-outline-warning" : "btn-outline-success")"
+                                                    title="@(role.IsActive ? "Deactivate" : "Activate")">
+                                                <i class="bi @(role.IsActive ? "bi-pause-circle" : "bi-play-circle")"></i>
+                                            </button>
+                                        </form>
+                                        @if (role.UserCount == 0)
+                                        {
+                                            <form method="post" asp-page-handler="Delete"
+                                                  onsubmit="return confirm('Delete role \'@role.Name\'? This cannot be undone.')">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@role.Id" />
+                                                <button class="btn btn-sm btn-outline-danger" title="Delete">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        }
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ Right: Add new role ══════════════════════════════════════════════ -->
+    <div class="col-12 col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white py-2 fw-semibold">
+                <i class="bi bi-plus-circle me-2 text-success"></i>Add New Role
+            </div>
+            <div class="card-body">
+                <form method="post" asp-page-handler="Create">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label asp-for="Form.Name" class="form-label fw-semibold">
+                            Role Key <span class="text-danger">*</span>
+                            <small class="text-muted fw-normal">(used in code)</small>
+                        </label>
+                        <input asp-for="Form.Name" class="form-control" placeholder="e.g. Moderator" />
+                        <span asp-validation-for="Form.Name" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Form.DisplayName" class="form-label fw-semibold">
+                            Display Name <span class="text-danger">*</span>
+                        </label>
+                        <input asp-for="Form.DisplayName" class="form-control" placeholder="e.g. Content Moderator" />
+                        <span asp-validation-for="Form.DisplayName" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Form.Description" class="form-label fw-semibold">Description</label>
+                        <textarea asp-for="Form.Description" class="form-control" rows="2"
+                                  placeholder="What can this role do?"></textarea>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-7">
+                            <label asp-for="Form.Color" class="form-label fw-semibold">Badge Color</label>
+                            <select asp-for="Form.Color" class="form-select">
+                                @foreach (var c in colors)
+                                { <option value="@c">@System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(c)</option> }
+                            </select>
+                        </div>
+                        <div class="col-5">
+                            <label asp-for="Form.SortOrder" class="form-label fw-semibold">Sort Order</label>
+                            <input asp-for="Form.SortOrder" type="number" min="0" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input asp-for="Form.IsActive" class="form-check-input" type="checkbox" role="switch" checked />
+                            <label asp-for="Form.IsActive" class="form-check-label">Active</label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-plus-lg me-1"></i>Create Role
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Info box -->
+        <div class="alert alert-info mt-3 small">
+            <i class="bi bi-info-circle me-1"></i>
+            <strong>System roles</strong> (marked <i class="bi bi-lock-fill"></i>) are built-in and cannot be deleted or renamed.
+            You can add custom roles for future feature-based access control.
+        </div>
+    </div>
+</div>
+
+<!-- ══ Edit Modal ══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="Save">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="EditId" id="editId" />
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Edit Role</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Role Key</label>
+                        <input asp-for="EditForm.Name" id="editName" class="form-control" />
+                        <div class="form-text" id="editNameNote"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Display Name <span class="text-danger">*</span></label>
+                        <input asp-for="EditForm.DisplayName" id="editDisplayName" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Description</label>
+                        <textarea asp-for="EditForm.Description" id="editDescription" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-7">
+                            <label class="form-label fw-semibold">Badge Color</label>
+                            <select asp-for="EditForm.Color" id="editColor" class="form-select">
+                                @foreach (var c in colors)
+                                { <option value="@c">@System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(c)</option> }
+                            </select>
+                        </div>
+                        <div class="col-5">
+                            <label class="form-label fw-semibold">Sort Order</label>
+                            <input asp-for="EditForm.SortOrder" id="editSortOrder" type="number" min="0" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input asp-for="EditForm.IsActive" id="editIsActive" class="form-check-input" type="checkbox" role="switch" />
+                        <label class="form-check-label">Active</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-floppy me-1"></i>Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+document.getElementById('editModal').addEventListener('show.bs.modal', function (e) {
+    var btn = e.relatedTarget;
+    document.getElementById('editId').value           = btn.dataset.id;
+    document.getElementById('editName').value         = btn.dataset.name;
+    document.getElementById('editDisplayName').value  = btn.dataset.displayname;
+    document.getElementById('editDescription').value  = btn.dataset.description;
+    document.getElementById('editColor').value        = btn.dataset.color;
+    document.getElementById('editSortOrder').value    = btn.dataset.sortorder;
+    document.getElementById('editIsActive').checked   = btn.dataset.isactive === 'true';
+
+    var isSystem = btn.dataset.issystem === 'true';
+    document.getElementById('editName').readOnly = isSystem;
+    document.getElementById('editNameNote').textContent =
+        isSystem ? 'System role — name cannot be changed.' : '';
+});
+</script>
+}

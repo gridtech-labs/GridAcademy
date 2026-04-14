@@ -4,6 +4,7 @@ using GridAcademy.Data.Entities;
 using GridAcademy.DTOs.Users;
 using GridAcademy.Helpers;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace GridAcademy.Services;
 
@@ -12,8 +13,9 @@ public class UserService : IUserService
     private readonly AppDbContext _db;
     private readonly ILogger<UserService> _logger;
 
-    // Valid role values — Admin manages everything, Instructor manages content, Student/Provider for marketplace
-    private static readonly HashSet<string> ValidRoles = ["Admin", "Instructor", "User", "Student", "Provider"];
+    // Fallback valid roles used only when system_roles table is empty (e.g. first boot before seeding).
+    // After seeding, validation is done against the DB.
+    private static readonly HashSet<string> FallbackRoles = ["Admin", "Instructor", "User", "Student", "Provider"];
 
     public UserService(AppDbContext db, ILogger<UserService> logger)
     {
@@ -72,10 +74,9 @@ public class UserService : IUserService
     // ── Create ──────────────────────────────────────────────────────────────
     public async Task<UserDto> CreateAsync(CreateUserRequest request)
     {
-        // Validate role
+        // Validate role against DB (fallback to hardcoded list if roles table not seeded yet)
         var role = request.Role.Trim();
-        if (!ValidRoles.Contains(role))
-            throw new ArgumentException($"Invalid role '{role}'. Allowed: {string.Join(", ", ValidRoles)}");
+        await ValidateRoleAsync(role);
 
         // Validate password strength
         var pwError = PasswordHelper.Validate(request.Password);
@@ -101,6 +102,9 @@ public class UserService : IUserService
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
 
+        // Map to system role table
+        await SyncUserRoleMapAsync(user.Id, role, assignedBy: null);
+
         _logger.LogInformation("User created: {Email} ({Role})", user.Email, user.Role);
         return MapToDto(user);
     }
@@ -112,8 +116,7 @@ public class UserService : IUserService
             ?? throw new KeyNotFoundException($"User {id} not found.");
 
         var role = request.Role.Trim();
-        if (!ValidRoles.Contains(role))
-            throw new ArgumentException($"Invalid role '{role}'. Allowed: {string.Join(", ", ValidRoles)}");
+        await ValidateRoleAsync(role);
 
         user.FirstName = request.FirstName.Trim();
         user.LastName  = request.LastName.Trim();
@@ -122,6 +125,10 @@ public class UserService : IUserService
         // UpdatedAt is stamped automatically by AppDbContext.SaveChangesAsync()
 
         await _db.SaveChangesAsync();
+
+        // Keep user_role_maps in sync when role changes
+        await SyncUserRoleMapAsync(user.Id, role, assignedBy: null);
+
         _logger.LogInformation("User updated: {Id}", id);
         return MapToDto(user);
     }
@@ -135,6 +142,58 @@ public class UserService : IUserService
         _db.Users.Remove(user);
         await _db.SaveChangesAsync();
         _logger.LogInformation("User deleted: {Id}", id);
+    }
+
+    // ── Role validation ──────────────────────────────────────────────────────
+    private async Task ValidateRoleAsync(string role)
+    {
+        // Try DB first; fall back to hardcoded list during first-boot before seeder runs
+        var dbRoles = await _db.SystemRoles
+            .AsNoTracking()
+            .Where(r => r.IsActive)
+            .Select(r => r.Name)
+            .ToListAsync();
+
+        var valid = dbRoles.Count > 0 ? dbRoles.ToHashSet() : FallbackRoles;
+
+        if (!valid.Contains(role))
+            throw new ArgumentException(
+                $"Invalid role '{role}'. Allowed: {string.Join(", ", valid.OrderBy(r => r))}");
+    }
+
+    // ── Role map sync ────────────────────────────────────────────────────────
+    /// <summary>
+    /// Ensures user_role_maps has exactly one record for this user pointing to the
+    /// SystemRole whose Name matches <paramref name="roleName"/>.
+    /// Silently no-ops if the SystemRole table hasn't been seeded yet.
+    /// </summary>
+    private async Task SyncUserRoleMapAsync(Guid userId, string roleName, Guid? assignedBy)
+    {
+        var systemRole = await _db.SystemRoles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Name == roleName);
+
+        if (systemRole is null) return; // roles not seeded yet — skip
+
+        // Remove any existing mappings for this user (one user → one primary role)
+        var existing = await _db.UserRoleMaps
+            .Where(m => m.UserId == userId)
+            .ToListAsync();
+
+        if (existing.Count == 1 && existing[0].RoleId == systemRole.Id)
+            return; // already correct — nothing to do
+
+        _db.UserRoleMaps.RemoveRange(existing);
+
+        _db.UserRoleMaps.Add(new UserRoleMap
+        {
+            UserId     = userId,
+            RoleId     = systemRole.Id,
+            AssignedAt = DateTime.UtcNow,
+            AssignedBy = assignedBy
+        });
+
+        await _db.SaveChangesAsync();
     }
 
     // ── Mapping helper (keeps controllers clean) ────────────────────────────

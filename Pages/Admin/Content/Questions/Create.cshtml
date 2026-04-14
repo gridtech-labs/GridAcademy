@@ -65,9 +65,20 @@
             Fill in all required fields. Use the <kbd>ƒ</kbd> button in any toolbar to insert a LaTeX formula.
         </p>
     </div>
-    <a asp-page="/Admin/Content/Questions/Index" class="btn btn-sm btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i>Back to Questions
-    </a>
+    @if (Model.TestId.HasValue)
+    {
+        <a asp-page="/Admin/Content/Tests/Questions/Index"
+           asp-route-testId="@Model.TestId"
+           class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to Questions
+        </a>
+    }
+    else
+    {
+        <a asp-page="/Admin/Content/Questions/Index" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to Questions
+        </a>
+    }
 </div>
 
 <form method="post" id="questionForm" novalidate>

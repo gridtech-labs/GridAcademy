@@ -43,10 +43,10 @@
                         <div class="col-6">
                             <label asp-for="Input.Role" class="form-label fw-semibold">Role</label>
                             <select asp-for="Input.Role" class="form-select">
-                                <option value="User">Student</option>
-                                <option value="Provider">Provider</option>
-                                <option value="Instructor">Instructor</option>
-                                <option value="Admin">Admin</option>
+                                @foreach (var r in Model.AvailableRoles.Where(r => r.IsActive))
+                                {
+                                    <option value="@r.Name">@r.DisplayName</option>
+                                }
                             </select>
                         </div>
                         <div class="col-6 d-flex align-items-end pb-1">

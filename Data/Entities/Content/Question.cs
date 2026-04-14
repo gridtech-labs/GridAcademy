@@ -14,8 +14,8 @@ public class Question
     public string? Subtopic { get; set; }
 
     // ── Classification ─────────────────────────────────────────────────────
-    public QuestionType   QuestionType { get; set; }
-    public QuestionStatus Status       { get; set; } = QuestionStatus.Draft;
+    public QuestionType   QuestionType { get; set; } public string QuestionText { get; set; }
+    public QuestionStatus Status       { get; set; } = QuestionStatus.Published;
 
     // ── FK references ──────────────────────────────────────────────────────
     public int SubjectId          { get; set; }

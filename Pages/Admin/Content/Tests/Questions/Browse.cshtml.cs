@@ -1,5 +1,7 @@
 using GridAcademy.Common;
+using GridAcademy.Data.Entities.Assessment;
 using GridAcademy.Data.Entities.Content;
+using GridAcademy.DTOs.Assessment;
 using GridAcademy.DTOs.Content.Masters;
 using GridAcademy.DTOs.Content.Questions;
 using GridAcademy.Services;
@@ -35,14 +37,17 @@ public class BrowseModel : PageModel
 
     // ── Results ───────────────────────────────────────────────────────────────
     public string                     TestTitle        { get; set; } = "";
+    public QuestionMode               TestQuestionMode { get; set; } = QuestionMode.GlobalBank;
     public PagedResult<QuestionDto>   Questions        { get; set; } = new();
     public HashSet<Guid>              MappedIds        { get; set; } = [];
     public List<SubjectDto>           Subjects         { get; set; } = [];
     public List<TopicDto>             Topics           { get; set; } = [];
     public List<DifficultyLevelDto>   DifficultyLevels { get; set; } = [];
+    public List<TestSectionDto>       Sections         { get; set; } = [];
 
     // ── POST binding ──────────────────────────────────────────────────────────
-    [BindProperty] public List<Guid> SelectedIds { get; set; } = [];
+    [BindProperty] public List<Guid> SelectedIds  { get; set; } = [];
+    [BindProperty] public int?       SectionId    { get; set; }
 
     public async Task<IActionResult> OnGetAsync()
     {
@@ -50,7 +55,8 @@ public class BrowseModel : PageModel
         try
         {
             var test = await _tests.GetTestByIdAsync(TestId);
-            TestTitle = test.Title;
+            TestTitle        = test.Title;
+            TestQuestionMode = test.QuestionMode;
         }
         catch (KeyNotFoundException)
         {
@@ -62,13 +68,29 @@ public class BrowseModel : PageModel
         return Page();
     }
 
-    /// <summary>Add selected questions to the test and redirect back to Manage Questions.</summary>
+    /// <summary>Add selected questions to the test (and optionally a section) then redirect back.</summary>
     public async Task<IActionResult> OnPostAddAsync()
     {
+        // Reload test to check mode
+        TestDetailDto testDetail;
+        try { testDetail = await _tests.GetTestByIdAsync(TestId); }
+        catch { TempData["Error"] = "Test not found."; return RedirectToPage("/Admin/Content/Tests/Index"); }
+        TestTitle        = testDetail.Title;
+        TestQuestionMode = testDetail.QuestionMode;
+
         if (SelectedIds.Count == 0)
         {
             TempData["Error"] = "Please select at least one question to add.";
-            await LoadTestTitleAsync();
+            await LoadPageDataAsync();
+            return Page();
+        }
+
+        // In Manual mode a section must be chosen
+        if (TestQuestionMode == QuestionMode.Manual &&
+            testDetail.Sections.Count > 0 &&
+            (!SectionId.HasValue || SectionId.Value == 0))
+        {
+            TempData["Error"] = "Section is required in Manual mode. Please select a section before adding questions.";
             await LoadPageDataAsync();
             return Page();
         }
@@ -76,7 +98,21 @@ public class BrowseModel : PageModel
         try
         {
             await _tests.AddQuestionsToTestAsync(TestId, SelectedIds);
-            TempData["Success"] = $"{SelectedIds.Count} question(s) added to the test.";
+
+            // Assign to section if one was chosen
+            if (SectionId.HasValue && SectionId.Value > 0)
+            {
+                foreach (var qId in SelectedIds)
+                {
+                    try { await _tests.AssignQuestionToSectionAsync(TestId, qId, SectionId.Value); }
+                    catch { /* ignore if individual assignment fails */ }
+                }
+                TempData["Success"] = $"{SelectedIds.Count} question(s) added and assigned to section.";
+            }
+            else
+            {
+                TempData["Success"] = $"{SelectedIds.Count} question(s) added to the test.";
+            }
         }
         catch (Exception ex)
         {
@@ -93,7 +129,8 @@ public class BrowseModel : PageModel
         try
         {
             var test = await _tests.GetTestByIdAsync(TestId);
-            TestTitle = test.Title;
+            TestTitle        = test.Title;
+            TestQuestionMode = test.QuestionMode;
         }
         catch { /* ignore */ }
     }
@@ -117,6 +154,10 @@ public class BrowseModel : PageModel
         // Get already-mapped question IDs so we can show them as checked/disabled
         var mapped = await _tests.GetTestQuestionsAsync(TestId);
         MappedIds  = mapped.Select(q => q.QuestionId).ToHashSet();
+
+        // Sections for the "Assign to Section" dropdown
+        var testDetail = await _tests.GetTestByIdAsync(TestId);
+        Sections = testDetail.Sections;
 
         // Dropdowns
         Subjects         = await _masters.GetSubjectsAsync();

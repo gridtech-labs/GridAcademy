@@ -12,22 +12,33 @@ namespace GridAcademy.Pages.Admin.Users;
 public class CreateModel : PageModel
 {
     private readonly IUserService _users;
+    private readonly IRoleService _roles;
     private readonly IBackgroundJobClient _jobs;
 
-    public CreateModel(IUserService users, IBackgroundJobClient jobs)
+    public CreateModel(IUserService users, IRoleService roles, IBackgroundJobClient jobs)
     {
         _users = users;
+        _roles = roles;
         _jobs  = jobs;
     }
 
     [BindProperty]
     public CreateUserRequest Input { get; set; } = new();
 
-    public void OnGet() { }
+    public List<SystemRoleDto> AvailableRoles { get; set; } = [];
+
+    public async Task OnGetAsync()
+    {
+        AvailableRoles = await _roles.GetRolesAsync();
+    }
 
     public async Task<IActionResult> OnPostAsync()
     {
-        if (!ModelState.IsValid) return Page();
+        if (!ModelState.IsValid)
+        {
+            AvailableRoles = await _roles.GetRolesAsync();
+            return Page();
+        }
 
         try
         {
@@ -42,6 +53,7 @@ public class CreateModel : PageModel
         catch (ArgumentException ex)
         {
             ModelState.AddModelError(string.Empty, ex.Message);
+            AvailableRoles = await _roles.GetRolesAsync();
             return Page();
         }
     }

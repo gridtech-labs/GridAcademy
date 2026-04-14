@@ -10,6 +10,7 @@ public class TestListDto
     public string Title { get; set; } = "";
     public string ExamTypeName { get; set; } = "";
     public TestStatus Status { get; set; }
+    public QuestionMode QuestionMode { get; set; }
     public int SectionCount { get; set; }
     public int TotalQuestions { get; set; }  // sum of QuestionCount across sections
     public int DurationMinutes { get; set; }
@@ -29,6 +30,7 @@ public class TestDetailDto
     public int ExamTypeId { get; set; }
     public string ExamTypeName { get; set; } = "";
     public TestStatus Status { get; set; }
+    public QuestionMode QuestionMode { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public List<TestSectionDto> Sections { get; set; } = [];
@@ -39,7 +41,7 @@ public class TestSectionDto
     public int Id { get; set; }
     public Guid TestId { get; set; }
     public string Name { get; set; } = "";
-    public int SubjectId { get; set; }
+    public int? SubjectId { get; set; }
     public string SubjectName { get; set; } = "";
     public int? DifficultyLevelId { get; set; }
     public string? DifficultyLevelName { get; set; }
@@ -47,7 +49,7 @@ public class TestSectionDto
     public decimal MarksPerQuestion { get; set; }
     public decimal NegativeMarksPerQuestion { get; set; }
     public int SortOrder { get; set; }
-    public int AvailableInPool { get; set; }  // filled by ValidateSectionPool
+    public int AvailableInPool { get; set; }  // filled by ValidateSectionPool (GlobalBank mode only)
 }
 
 // ── Requests ─────────────────────────────────────────────────────────────
@@ -60,6 +62,7 @@ public class CreateTestRequest
     public decimal PassingPercent { get; set; } = 35;
     public bool NegativeMarkingEnabled { get; set; } = false;
     public int ExamTypeId { get; set; }
+    public QuestionMode QuestionMode { get; set; } = QuestionMode.GlobalBank;
 }
 
 public class UpdateTestRequest : CreateTestRequest { }
@@ -67,7 +70,8 @@ public class UpdateTestRequest : CreateTestRequest { }
 public class CreateTestSectionRequest
 {
     public string Name { get; set; } = "";
-    public int SubjectId { get; set; }
+    /// <summary>Required for GlobalBank sections; null/0 for Manual name-only sections.</summary>
+    public int? SubjectId { get; set; }
     public int? DifficultyLevelId { get; set; }
     public int QuestionCount { get; set; } = 10;
     public decimal MarksPerQuestion { get; set; } = 4;
@@ -118,9 +122,11 @@ public class TestQuestionDto
     public string DifficultyLevel { get; set; } = "";
     public string QuestionType    { get; set; } = "";
     public int    SortOrder       { get; set; }
+    public int?   SectionId       { get; set; }
+    public string SectionName     { get; set; } = "";
 }
 
-/// <summary>A question from the bank shown in the "Add Questions" picker modal.</summary>
+/// <summary>A question from the bank shown in the "Add Questions" picker.</summary>
 public class QuestionBrowseItem
 {
     public Guid   Id              { get; set; }

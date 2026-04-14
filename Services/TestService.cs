@@ -49,6 +49,7 @@ public class TestService : ITestService
                 Title                 = t.Title,
                 ExamTypeName          = t.ExamType.Name,
                 Status                = t.Status,
+                QuestionMode          = t.QuestionMode,
                 SectionCount          = t.Sections.Count,
                 TotalQuestions        = t.Sections.Sum(s => s.QuestionCount),
                 DurationMinutes       = t.DurationMinutes,
@@ -86,6 +87,7 @@ public class TestService : ITestService
             PassingPercent        = request.PassingPercent,
             NegativeMarkingEnabled = request.NegativeMarkingEnabled,
             ExamTypeId            = request.ExamTypeId,
+            QuestionMode          = request.QuestionMode,
             Status                = TestStatus.Draft,
             CreatedAt             = DateTime.UtcNow,
             UpdatedAt             = DateTime.UtcNow,
@@ -111,6 +113,9 @@ public class TestService : ITestService
         test.NegativeMarkingEnabled = request.NegativeMarkingEnabled;
         test.ExamTypeId            = request.ExamTypeId;
         test.UpdatedBy             = updatedBy;
+        // Only allow QuestionMode change on non-published tests
+        if (test.Status != TestStatus.Published)
+            test.QuestionMode = request.QuestionMode;
         // UpdatedAt set by AppDbContext.SaveChangesAsync interceptor
 
         await _db.SaveChangesAsync();
@@ -125,25 +130,49 @@ public class TestService : ITestService
             .FirstOrDefaultAsync(t => t.Id == id)
             ?? throw new KeyNotFoundException($"Test {id} not found.");
 
-        if (!test.Sections.Any())
-            throw new InvalidOperationException("Cannot publish a test with no sections.");
-
-        // Validate each section has enough questions available.
-        // Uses same logic as runtime (direct TestQuestion mappings first, criteria pool fallback).
-        var underFilled = new List<string>();
-        foreach (var section in test.Sections)
+        if (test.QuestionMode == QuestionMode.GlobalBank)
         {
-            var poolCount = await GetSectionPoolCountAsync(section.Id);
-            if (poolCount < section.QuestionCount)
-                underFilled.Add(
-                    $"Section \"{section.Name}\" needs {section.QuestionCount} question(s) " +
-                    $"but only {poolCount} are available " +
-                    $"(import questions for this subject or use Content → Import → Map to Test)");
-        }
+            // ── GlobalBank: must have sections with sufficient pool counts ──
+            if (!test.Sections.Any())
+                throw new InvalidOperationException(
+                    "Cannot publish a GlobalBank test with no sections. " +
+                    "Add at least one section with subject/difficulty criteria.");
 
-        if (underFilled.Any())
-            throw new InvalidOperationException(
-                "Cannot publish — insufficient questions: " + string.Join("; ", underFilled) + ".");
+            var underFilled = new List<string>();
+            foreach (var section in test.Sections)
+            {
+                var poolCount = await GetSectionPoolCountAsync(section.Id);
+                if (poolCount < section.QuestionCount)
+                    underFilled.Add(
+                        $"Section \"{section.Name}\" needs {section.QuestionCount} question(s) " +
+                        $"but only {poolCount} are available.");
+            }
+
+            if (underFilled.Any())
+                throw new InvalidOperationException(
+                    "Cannot publish — insufficient questions in pool: " +
+                    string.Join("; ", underFilled) + ".");
+        }
+        else
+        {
+            // ── Manual: must have directly-mapped questions ──
+            var questionCount = await _db.TestQuestions.CountAsync(tq => tq.TestId == id);
+            if (questionCount == 0)
+                throw new InvalidOperationException(
+                    "Cannot publish a Manual test with no questions. " +
+                    "Add questions via 'Add Question', 'Add from Bank', or 'Import'.");
+
+            // If sections exist, every question must be assigned to a section.
+            if (test.Sections.Any())
+            {
+                var unassigned = await _db.TestQuestions
+                    .CountAsync(tq => tq.TestId == id && tq.SectionId == null);
+                if (unassigned > 0)
+                    throw new InvalidOperationException(
+                        $"Cannot publish — {unassigned} question(s) are not assigned to any section. " +
+                        "Please assign all questions to their sections on the Manage Questions page.");
+            }
+        }
 
         test.Status = TestStatus.Published;
         await _db.SaveChangesAsync();
@@ -185,19 +214,24 @@ public class TestService : ITestService
 
     public async Task<TestSectionDto> AddSectionAsync(Guid testId, CreateTestSectionRequest request)
     {
-        var testExists = await _db.Tests.AnyAsync(t => t.Id == testId);
-        if (!testExists)
-            throw new KeyNotFoundException($"Test {testId} not found.");
+        var test = await _db.Tests.FindAsync(testId)
+            ?? throw new KeyNotFoundException($"Test {testId} not found.");
+
+        // In GlobalBank mode, Subject is required for pool-matching.
+        if (test.QuestionMode == QuestionMode.GlobalBank &&
+            (!request.SubjectId.HasValue || request.SubjectId.Value == 0))
+            throw new InvalidOperationException(
+                "A subject is required for GlobalBank sections (used to match questions from the pool).");
 
         var section = new TestSection
         {
             TestId                   = testId,
             Name                     = request.Name,
-            SubjectId                = request.SubjectId,
-            DifficultyLevelId        = request.DifficultyLevelId,
-            QuestionCount            = request.QuestionCount,
-            MarksPerQuestion         = request.MarksPerQuestion,
-            NegativeMarksPerQuestion  = request.NegativeMarksPerQuestion,
+            SubjectId                = test.QuestionMode == QuestionMode.Manual ? null : request.SubjectId,
+            DifficultyLevelId        = test.QuestionMode == QuestionMode.Manual ? null : request.DifficultyLevelId,
+            QuestionCount            = test.QuestionMode == QuestionMode.Manual ? 0  : request.QuestionCount,
+            MarksPerQuestion         = test.QuestionMode == QuestionMode.Manual ? 0  : request.MarksPerQuestion,
+            NegativeMarksPerQuestion  = test.QuestionMode == QuestionMode.Manual ? 0  : request.NegativeMarksPerQuestion,
             SortOrder                = request.SortOrder
         };
 
@@ -343,6 +377,7 @@ public class TestService : ITestService
             .Where(tq => tq.TestId == testId)
             .Include(tq => tq.Question).ThenInclude(q => q.Subject)
             .Include(tq => tq.Question).ThenInclude(q => q.DifficultyLevel)
+            .Include(tq => tq.Section)
             .AsNoTracking()
             .OrderBy(tq => tq.SortOrder).ThenBy(tq => tq.AddedAt)
             .Select(tq => new TestQuestionDto
@@ -352,9 +387,30 @@ public class TestService : ITestService
                 SubjectName     = tq.Question.Subject != null ? tq.Question.Subject.Name : "",
                 DifficultyLevel = tq.Question.DifficultyLevel != null ? tq.Question.DifficultyLevel.Name : "",
                 QuestionType    = tq.Question.QuestionType.ToString(),
-                SortOrder       = tq.SortOrder
+                SortOrder       = tq.SortOrder,
+                SectionId       = tq.SectionId,
+                SectionName     = tq.Section != null ? tq.Section.Name : ""
             })
             .ToListAsync();
+    }
+
+    public async Task AssignQuestionToSectionAsync(Guid testId, Guid questionId, int? sectionId)
+    {
+        var tq = await _db.TestQuestions
+            .FirstOrDefaultAsync(x => x.TestId == testId && x.QuestionId == questionId)
+            ?? throw new KeyNotFoundException("Question is not mapped to this test.");
+
+        // Validate section belongs to this test if provided
+        if (sectionId.HasValue)
+        {
+            var sectionExists = await _db.TestSections
+                .AnyAsync(s => s.Id == sectionId.Value && s.TestId == testId);
+            if (!sectionExists)
+                throw new InvalidOperationException("Section does not belong to this test.");
+        }
+
+        tq.SectionId = sectionId;
+        await _db.SaveChangesAsync();
     }
 
     public async Task<List<QuestionBrowseItem>> BrowseQuestionsForTestAsync(
@@ -481,6 +537,19 @@ public class TestService : ITestService
     // PRIVATE HELPERS
     // ════════════════════════════════════════════════════════════════════════
 
+    public async Task SetQuestionModeAsync(Guid testId, QuestionMode mode)
+    {
+        var test = await _db.Tests.FindAsync(testId)
+            ?? throw new KeyNotFoundException($"Test {testId} not found.");
+
+        if (test.Status == TestStatus.Published)
+            throw new InvalidOperationException(
+                "Cannot change the question mode of a Published test. Unpublish the test first.");
+
+        test.QuestionMode = mode;
+        await _db.SaveChangesAsync();
+    }
+
     private static TestDetailDto MapToDetailDto(Test test)
     {
         return new TestDetailDto
@@ -494,6 +563,7 @@ public class TestService : ITestService
             ExamTypeId             = test.ExamTypeId,
             ExamTypeName           = test.ExamType?.Name ?? "",
             Status                 = test.Status,
+            QuestionMode           = test.QuestionMode,
             CreatedAt              = test.CreatedAt,
             UpdatedAt              = test.UpdatedAt,
             Sections               = test.Sections
