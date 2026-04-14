@@ -15,7 +15,7 @@ public class Question
 
     // ── Classification ─────────────────────────────────────────────────────
     public QuestionType   QuestionType { get; set; }
-    public QuestionStatus Status       { get; set; } = QuestionStatus.Draft;
+    public QuestionStatus Status       { get; set; } = QuestionStatus.Published;
 
     // ── FK references ──────────────────────────────────────────────────────
     public int SubjectId          { get; set; }

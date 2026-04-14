@@ -4,6 +4,7 @@ using GridAcademy.Data.Entities;
 using GridAcademy.DTOs.Users;
 using GridAcademy.Helpers;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace GridAcademy.Services;
 
@@ -101,6 +102,9 @@ public class UserService : IUserService
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
 
+        // Map to system role table
+        await SyncUserRoleMapAsync(user.Id, role, assignedBy: null);
+
         _logger.LogInformation("User created: {Email} ({Role})", user.Email, user.Role);
         return MapToDto(user);
     }
@@ -122,6 +126,10 @@ public class UserService : IUserService
         // UpdatedAt is stamped automatically by AppDbContext.SaveChangesAsync()
 
         await _db.SaveChangesAsync();
+
+        // Keep user_role_maps in sync when role changes
+        await SyncUserRoleMapAsync(user.Id, role, assignedBy: null);
+
         _logger.LogInformation("User updated: {Id}", id);
         return MapToDto(user);
     }
@@ -135,6 +143,41 @@ public class UserService : IUserService
         _db.Users.Remove(user);
         await _db.SaveChangesAsync();
         _logger.LogInformation("User deleted: {Id}", id);
+    }
+
+    // ── Role map sync ────────────────────────────────────────────────────────
+    /// <summary>
+    /// Ensures user_role_maps has exactly one record for this user pointing to the
+    /// SystemRole whose Name matches <paramref name="roleName"/>.
+    /// Silently no-ops if the SystemRole table hasn't been seeded yet.
+    /// </summary>
+    private async Task SyncUserRoleMapAsync(Guid userId, string roleName, Guid? assignedBy)
+    {
+        var systemRole = await _db.SystemRoles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Name == roleName);
+
+        if (systemRole is null) return; // roles not seeded yet — skip
+
+        // Remove any existing mappings for this user (one user → one primary role)
+        var existing = await _db.UserRoleMaps
+            .Where(m => m.UserId == userId)
+            .ToListAsync();
+
+        if (existing.Count == 1 && existing[0].RoleId == systemRole.Id)
+            return; // already correct — nothing to do
+
+        _db.UserRoleMaps.RemoveRange(existing);
+
+        _db.UserRoleMaps.Add(new UserRoleMap
+        {
+            UserId     = userId,
+            RoleId     = systemRole.Id,
+            AssignedAt = DateTime.UtcNow,
+            AssignedBy = assignedBy
+        });
+
+        await _db.SaveChangesAsync();
     }
 
     // ── Mapping helper (keeps controllers clean) ────────────────────────────

@@ -76,6 +76,31 @@ public static class DbSeeder
 
         await db.SaveChangesAsync();
 
+        // ── System Roles ──────────────────────────────────────────────────
+        if (!await db.SystemRoles.AnyAsync())
+        {
+            db.SystemRoles.AddRange(
+                new SystemRole { Name = "Admin",      DisplayName = "Administrator", Description = "Full access — manage users, content, tests, and platform settings.", Color = "danger",   IsSystem = true, IsActive = true, SortOrder = 1, CreatedAt = DateTime.UtcNow },
+                new SystemRole { Name = "Instructor", DisplayName = "Instructor",    Description = "Manage content, questions, and tests. Cannot manage users.",          Color = "primary",  IsSystem = true, IsActive = true, SortOrder = 2, CreatedAt = DateTime.UtcNow },
+                new SystemRole { Name = "Provider",   DisplayName = "Provider",      Description = "Marketplace provider — can publish test series for sale.",            Color = "purple",   IsSystem = true, IsActive = true, SortOrder = 3, CreatedAt = DateTime.UtcNow },
+                new SystemRole { Name = "Student",    DisplayName = "Student",       Description = "Enrolled student — can take tests and access purchased content.",     Color = "success",  IsSystem = true, IsActive = true, SortOrder = 4, CreatedAt = DateTime.UtcNow },
+                new SystemRole { Name = "User",       DisplayName = "Standard User", Description = "Default role — basic access to the platform.",                       Color = "secondary",IsSystem = true, IsActive = true, SortOrder = 5, CreatedAt = DateTime.UtcNow }
+            );
+            await db.SaveChangesAsync();
+            logger.LogInformation("System roles seeded (5 roles).");
+
+            // Backfill user_role_maps from existing users.role string
+            var users       = await db.Users.Select(u => new { u.Id, u.Role }).ToListAsync();
+            var roleIdMap   = await db.SystemRoles.ToDictionaryAsync(r => r.Name, r => r.Id);
+            foreach (var u in users)
+            {
+                if (roleIdMap.TryGetValue(u.Role, out var rid))
+                    db.UserRoleMaps.Add(new UserRoleMap { UserId = u.Id, RoleId = rid, AssignedAt = DateTime.UtcNow });
+            }
+            await db.SaveChangesAsync();
+            logger.LogInformation("User role maps backfilled for {Count} users.", users.Count);
+        }
+
         // ── Question Types ────────────────────────────────────────────────
         // IDs MUST match the QuestionType enum values — do NOT change them.
         if (!await db.QuestionTypes.AnyAsync())

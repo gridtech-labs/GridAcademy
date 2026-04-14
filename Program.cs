@@ -236,6 +236,7 @@ builder.Services.AddHangfireServer(options =>
 // ═══════════════════════════════════════════════════════════════════════════
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<IMasterService, MasterService>();
 builder.Services.AddScoped<IQuestionService, QuestionService>();
 builder.Services.AddScoped<IImportService, ImportService>();

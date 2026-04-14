@@ -14,20 +14,24 @@
         <h4 class="fw-bold mb-0"><i class="bi bi-pencil-square me-2 text-primary"></i>Edit Test</h4>
         <p class="text-muted small mb-0">@(Model.Test?.Title ?? "")</p>
     </div>
-    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
-        <a asp-page="/Admin/Content/Tests/Questions/Index"
-           asp-route-testId="@Model.Id"
-           class="btn btn-outline-primary btn-sm">
-            <i class="bi bi-patch-question me-1"></i>Manage Questions
-        </a>
-        @if (!isPublished)
-        {
-            <a asp-page="/Admin/Content/Questions/Create"
+    <div class="d-flex flex-column align-items-end gap-2">
+        <!-- Primary actions row -->
+        <div class="d-flex gap-2 flex-wrap justify-content-end">
+            <a asp-page="/Admin/Content/Tests/Questions/Index"
                asp-route-testId="@Model.Id"
-               class="btn btn-success btn-sm">
-                <i class="bi bi-plus-lg me-1"></i>Add Question
+               class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-patch-question me-1"></i>Manage Questions
             </a>
-        }
+            @if (!isPublished)
+            {
+                <a asp-page="/Admin/Content/Questions/Create"
+                   asp-route-testId="@Model.Id"
+                   class="btn btn-success btn-sm">
+                    <i class="bi bi-plus-lg me-1"></i>Add Question
+                </a>
+            }
+        </div>
+        <!-- Back link on second row -->
         <a asp-page="/Admin/Content/Tests/Index" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i>Back to Tests
         </a>
