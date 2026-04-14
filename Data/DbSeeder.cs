@@ -31,6 +31,7 @@ public static class DbSeeder
             {
                 await db.Database.MigrateAsync();
                 await EnsureExamContentTablesAsync(db);
+                await EnsureManualMigrationColumnsAsync(db);
                 break; // success
             }
             catch (Exception ex) when (attempt < maxRetries)
@@ -322,6 +323,143 @@ public static class DbSeeder
             """
             CREATE UNIQUE INDEX IF NOT EXISTS ix_content_hashes_hash_value
             ON content_hashes (hash_value);
+            """);
+    }
+
+    /// <summary>
+    /// Idempotent raw-SQL method that applies schema changes which were introduced
+    /// outside of proper EF migrations (local psql patches).  Safe to re-run on
+    /// every startup — every statement uses IF NOT EXISTS / DO-block guards.
+    /// </summary>
+    private static async Task EnsureManualMigrationColumnsAsync(AppDbContext db)
+    {
+        // ── 1. tests.question_mode ────────────────────────────────────────────
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE tests
+                ADD COLUMN IF NOT EXISTS question_mode integer NOT NULL DEFAULT 0;
+            """);
+
+        // ── 2. test_sections.subject_id → make nullable ───────────────────────
+        // PostgreSQL has no "ALTER COLUMN … DROP NOT NULL IF EXISTS" shorthand,
+        // so we use a DO block that checks the column's nullable flag first.
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE  table_name  = 'test_sections'
+                    AND    column_name = 'subject_id'
+                    AND    is_nullable = 'NO'
+                ) THEN
+                    ALTER TABLE test_sections ALTER COLUMN subject_id DROP NOT NULL;
+                END IF;
+            END;
+            $$;
+            """);
+
+        // ── 3. test_questions.section_id ──────────────────────────────────────
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE test_questions
+                ADD COLUMN IF NOT EXISTS section_id integer;
+            """);
+
+        // ── 4. FK + index for test_questions.section_id ───────────────────────
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS ix_test_questions_section_id
+                ON test_questions (section_id);
+            """);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE  constraint_type = 'FOREIGN KEY'
+                    AND    table_name      = 'test_questions'
+                    AND    constraint_name = 'fk_test_questions_section_id'
+                ) THEN
+                    ALTER TABLE test_questions
+                        ADD CONSTRAINT fk_test_questions_section_id
+                        FOREIGN KEY (section_id) REFERENCES test_sections(id)
+                        ON DELETE SET NULL;
+                END IF;
+            END;
+            $$;
+            """);
+
+        // ── 5. system_roles table ─────────────────────────────────────────────
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS system_roles (
+                id           serial       PRIMARY KEY,
+                name         varchar(50)  NOT NULL,
+                display_name varchar(100) NOT NULL,
+                description  text,
+                color        varchar(30),
+                is_system    boolean      NOT NULL DEFAULT false,
+                is_active    boolean      NOT NULL DEFAULT true,
+                sort_order   integer      NOT NULL DEFAULT 0,
+                created_at   timestamptz  NOT NULL DEFAULT now()
+            );
+            """);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS ix_system_roles_name
+                ON system_roles (name);
+            """);
+
+        // ── 6. user_role_maps table ───────────────────────────────────────────
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS user_role_maps (
+                id          serial      PRIMARY KEY,
+                user_id     uuid        NOT NULL,
+                role_id     integer     NOT NULL,
+                assigned_at timestamptz NOT NULL DEFAULT now(),
+                assigned_by uuid,
+                CONSTRAINT fk_urm_user FOREIGN KEY (user_id) REFERENCES users(id)        ON DELETE CASCADE,
+                CONSTRAINT fk_urm_role FOREIGN KEY (role_id) REFERENCES system_roles(id) ON DELETE CASCADE
+            );
+            """);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS ix_user_role_maps_user_role
+                ON user_role_maps (user_id, role_id);
+            """);
+
+        // ── 7. Seed default system roles (if table is empty) ─────────────────
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            INSERT INTO system_roles (name, display_name, description, color, is_system, is_active, sort_order, created_at)
+            SELECT name, display_name, description, color, is_system, is_active, sort_order, now()
+            FROM (VALUES
+                ('Admin',      'Administrator', 'Full access — manage users, content, tests, and platform settings.', 'danger',    true,  true, 1),
+                ('Instructor', 'Instructor',    'Manage content, questions, and tests. Cannot manage users.',          'primary',   true,  true, 2),
+                ('Provider',   'Provider',      'Marketplace provider — can publish test series for sale.',            'purple',    true,  true, 3),
+                ('Student',    'Student',       'Enrolled student — can take tests and access purchased content.',     'success',   true,  true, 4),
+                ('User',       'Standard User', 'Default role — basic access to the platform.',                       'secondary', true,  true, 5)
+            ) AS t(name, display_name, description, color, is_system, is_active, sort_order)
+            WHERE NOT EXISTS (SELECT 1 FROM system_roles LIMIT 1);
+            """);
+
+        // ── 8. Backfill user_role_maps from users.role (idempotent) ──────────
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            INSERT INTO user_role_maps (user_id, role_id, assigned_at)
+            SELECT u.id, sr.id, now()
+            FROM   users u
+            JOIN   system_roles sr ON sr.name = u.role
+            WHERE  NOT EXISTS (
+                SELECT 1 FROM user_role_maps m
+                WHERE  m.user_id = u.id
+            );
             """);
     }
 }
