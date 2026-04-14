@@ -338,6 +338,7 @@ public class AppDbContext : DbContext
             e.Property(t => t.NegativeMarkingEnabled).HasColumnName("negative_marking_enabled").HasDefaultValue(false);
             e.Property(t => t.ExamTypeId).HasColumnName("exam_type_id");
             e.Property(t => t.Status).HasColumnName("status").HasConversion<int>().HasDefaultValue(TestStatus.Draft);
+            e.Property(t => t.QuestionMode).HasColumnName("question_mode").HasConversion<int>().HasDefaultValue(QuestionMode.GlobalBank);
             e.Property(t => t.CreatedAt).HasColumnName("created_at");
             e.Property(t => t.UpdatedAt).HasColumnName("updated_at");
             e.Property(t => t.CreatedBy).HasColumnName("created_by");
@@ -362,7 +363,7 @@ public class AppDbContext : DbContext
             e.Property(s => s.NegativeMarksPerQuestion).HasColumnName("negative_marks_per_question").HasColumnType("numeric(5,2)");
             e.Property(s => s.SortOrder).HasColumnName("sort_order").HasDefaultValue(0);
             e.HasOne(s => s.Test).WithMany(t => t.Sections).HasForeignKey(s => s.TestId).OnDelete(DeleteBehavior.Cascade);
-            e.HasOne(s => s.Subject).WithMany().HasForeignKey(s => s.SubjectId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(s => s.Subject).WithMany().HasForeignKey(s => s.SubjectId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(s => s.DifficultyLevel).WithMany().HasForeignKey(s => s.DifficultyLevelId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
             e.HasIndex(s => new { s.TestId, s.SortOrder }).HasDatabaseName("ix_test_sections_test_sort");
         });
@@ -377,10 +378,13 @@ public class AppDbContext : DbContext
             e.Property(q => q.QuestionId).HasColumnName("question_id");
             e.Property(q => q.SortOrder).HasColumnName("sort_order").HasDefaultValue(0);
             e.Property(q => q.AddedAt).HasColumnName("added_at").HasColumnType("timestamptz");
+            e.Property(q => q.SectionId).HasColumnName("section_id");
             e.HasOne(q => q.Test).WithMany().HasForeignKey(q => q.TestId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(q => q.Question).WithMany().HasForeignKey(q => q.QuestionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(q => q.Section).WithMany().HasForeignKey(q => q.SectionId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
             e.HasIndex(q => q.TestId).HasDatabaseName("IX_test_questions_test_id");
             e.HasIndex(q => q.QuestionId).HasDatabaseName("IX_test_questions_question_id");
+            e.HasIndex(q => q.SectionId).HasDatabaseName("IX_test_questions_section_id");
         });
 
         // ── TestAssignment ─────────────────────────────────────────────────────────
