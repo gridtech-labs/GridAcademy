@@ -13,8 +13,9 @@ public class UserService : IUserService
     private readonly AppDbContext _db;
     private readonly ILogger<UserService> _logger;
 
-    // Valid role values — Admin manages everything, Instructor manages content, Student/Provider for marketplace
-    private static readonly HashSet<string> ValidRoles = ["Admin", "Instructor", "User", "Student", "Provider"];
+    // Fallback valid roles used only when system_roles table is empty (e.g. first boot before seeding).
+    // After seeding, validation is done against the DB.
+    private static readonly HashSet<string> FallbackRoles = ["Admin", "Instructor", "User", "Student", "Provider"];
 
     public UserService(AppDbContext db, ILogger<UserService> logger)
     {
@@ -73,10 +74,9 @@ public class UserService : IUserService
     // ── Create ──────────────────────────────────────────────────────────────
     public async Task<UserDto> CreateAsync(CreateUserRequest request)
     {
-        // Validate role
+        // Validate role against DB (fallback to hardcoded list if roles table not seeded yet)
         var role = request.Role.Trim();
-        if (!ValidRoles.Contains(role))
-            throw new ArgumentException($"Invalid role '{role}'. Allowed: {string.Join(", ", ValidRoles)}");
+        await ValidateRoleAsync(role);
 
         // Validate password strength
         var pwError = PasswordHelper.Validate(request.Password);
@@ -116,8 +116,7 @@ public class UserService : IUserService
             ?? throw new KeyNotFoundException($"User {id} not found.");
 
         var role = request.Role.Trim();
-        if (!ValidRoles.Contains(role))
-            throw new ArgumentException($"Invalid role '{role}'. Allowed: {string.Join(", ", ValidRoles)}");
+        await ValidateRoleAsync(role);
 
         user.FirstName = request.FirstName.Trim();
         user.LastName  = request.LastName.Trim();
@@ -143,6 +142,23 @@ public class UserService : IUserService
         _db.Users.Remove(user);
         await _db.SaveChangesAsync();
         _logger.LogInformation("User deleted: {Id}", id);
+    }
+
+    // ── Role validation ──────────────────────────────────────────────────────
+    private async Task ValidateRoleAsync(string role)
+    {
+        // Try DB first; fall back to hardcoded list during first-boot before seeder runs
+        var dbRoles = await _db.SystemRoles
+            .AsNoTracking()
+            .Where(r => r.IsActive)
+            .Select(r => r.Name)
+            .ToListAsync();
+
+        var valid = dbRoles.Count > 0 ? dbRoles.ToHashSet() : FallbackRoles;
+
+        if (!valid.Contains(role))
+            throw new ArgumentException(
+                $"Invalid role '{role}'. Allowed: {string.Join(", ", valid.OrderBy(r => r))}");
     }
 
     // ── Role map sync ────────────────────────────────────────────────────────
