@@ -153,7 +153,9 @@ public class AssessmentService : IAssessmentService
         {
             var section = sections[sectionIndex];
 
-            // Load candidate question IDs — checks direct mappings first, then criteria pool
+            // Load candidate question IDs
+            // Manual sections (SubjectId == null): questions explicitly assigned via section_id, in sort order
+            // GlobalBank sections: direct subject-matched mappings, then criteria pool
             var candidateIds = await GetCandidateIdsAsync(section);
 
             if (candidateIds.Count == 0)
@@ -161,31 +163,58 @@ public class AssessmentService : IAssessmentService
                     $"Section \"{section.Name}\" has no available questions. " +
                     "Please import questions for this subject before taking the test.");
 
-            if (candidateIds.Count < section.QuestionCount)
+            // Manual mode: QuestionCount == 0 means "all explicitly assigned questions"; no shuffle.
+            // GlobalBank mode: shuffle pool and take the configured count.
+            bool isManualSection = !section.SubjectId.HasValue;
+            List<Guid> selected;
+            if (isManualSection)
             {
-                _logger.LogWarning(
-                    "Section '{SectionName}' requested {Needed} questions but pool only has {Pool}.",
-                    section.Name, section.QuestionCount, candidateIds.Count);
+                selected = candidateIds; // already ordered by sort_order
+            }
+            else
+            {
+                if (candidateIds.Count < section.QuestionCount)
+                    _logger.LogWarning(
+                        "Section '{SectionName}' requested {Needed} questions but pool only has {Pool}.",
+                        section.Name, section.QuestionCount, candidateIds.Count);
+
+                selected = candidateIds
+                    .OrderBy(_ => Guid.NewGuid())
+                    .Take(section.QuestionCount)
+                    .ToList();
             }
 
-            // Shuffle in memory and take the required count
-            var selected = candidateIds
-                .OrderBy(_ => Guid.NewGuid())
-                .Take(section.QuestionCount)
-                .ToList();
+            // For Manual sections, marks live on the question itself (section marks are 0).
+            // Pre-load them in one batch query.
+            Dictionary<Guid, (decimal marks, decimal negMarks)> qMarks = [];
+            if (isManualSection && selected.Count > 0)
+            {
+                qMarks = await _db.Questions
+                    .Where(q => selected.Contains(q.Id))
+                    .Include(q => q.Marks)
+                    .Include(q => q.NegativeMarks)
+                    .ToDictionaryAsync(
+                        q => q.Id,
+                        q => (q.Marks?.Value ?? 1m, q.NegativeMarks?.Value ?? 0m));
+            }
 
             for (int posInSection = 0; posInSection < selected.Count; posInSection++)
             {
+                var qId = selected[posInSection];
+                var (marksForCorrect, negMarks) = isManualSection && qMarks.TryGetValue(qId, out var qm)
+                    ? qm
+                    : (section.MarksPerQuestion, section.NegativeMarksPerQuestion);
+
                 _db.AttemptQuestions.Add(new AttemptQuestion
                 {
                     Attempt               = attempt,
-                    QuestionId            = selected[posInSection],
+                    QuestionId            = qId,
                     SectionIndex          = sectionIndex,
                     SectionName           = section.Name,
                     DisplayOrder          = globalDisplayOrder++,
                     DisplayOrderInSection = posInSection + 1,
-                    MarksForCorrect       = section.MarksPerQuestion,
-                    NegativeMarks         = section.NegativeMarksPerQuestion,
+                    MarksForCorrect       = marksForCorrect,
+                    NegativeMarks         = negMarks,
                     IsVisited             = false,
                     IsMarkedForReview     = false
                 });
@@ -861,11 +890,28 @@ public class AssessmentService : IAssessmentService
 
     /// <summary>
     /// Returns candidate question IDs for a section.
-    /// Priority: direct TestQuestion mappings for the test → criteria-based pool.
+    ///
+    /// Manual sections (SubjectId == null):
+    ///   Returns all questions directly assigned to this section via test_questions.section_id,
+    ///   ordered by sort_order so the attempt preserves the teacher-defined order.
+    ///
+    /// GlobalBank sections (SubjectId != null):
+    ///   Priority 1 — test_questions already mapped to this test that match the section's subject.
+    ///   Priority 2 — criteria-based pool: all published questions matching subject + difficulty.
     /// </summary>
     private async Task<List<Guid>> GetCandidateIdsAsync(TestSection section)
     {
-        // ── 1. Direct mappings via TestQuestion junction ──────────────────────
+        // ── Manual mode ───────────────────────────────────────────────────────
+        if (!section.SubjectId.HasValue)
+        {
+            return await _db.TestQuestions
+                .Where(tq => tq.SectionId == section.Id)
+                .OrderBy(tq => tq.SortOrder)
+                .Select(tq => tq.QuestionId)
+                .ToListAsync();
+        }
+
+        // ── GlobalBank: 1. Direct mappings filtered by subject ────────────────
         var directIds = await _db.TestQuestions
             .Where(tq => tq.TestId == section.TestId)
             .Join(_db.Questions.Where(q => q.SubjectId == section.SubjectId),
@@ -877,7 +923,7 @@ public class AssessmentService : IAssessmentService
         if (directIds.Count > 0)
             return directIds;
 
-        // ── 2. Criteria-based pool (subject + optional difficulty) ────────────
+        // ── GlobalBank: 2. Criteria-based pool (subject + optional difficulty) ─
         var query = _db.Questions
             .Where(q => q.SubjectId == section.SubjectId);
 
