@@ -461,7 +461,9 @@ public class AppDbContext : DbContext
             e.Property(a => a.Percentage).HasColumnName("percentage").HasColumnType("numeric(5,2)");
             e.Property(a => a.IsPassed).HasColumnName("is_passed");
             e.Property(a => a.ViolationLog).HasColumnName("violation_log").HasMaxLength(8000);
-            e.Property(a => a.InstructionsAcknowledged).HasColumnName("instructions_acknowledged").HasDefaultValue(false);
+            e.Property(a => a.InstructionsAcknowledged).HasColumnName("instructions_acknowledged")
+                .HasDefaultValue(false)
+                .ValueGeneratedOnAdd();  // let DB fill in default=false on INSERT; app only writes true via ExecuteUpdateAsync
             e.HasOne(a => a.Assignment).WithMany(ta => ta.Attempts).HasForeignKey(a => a.AssignmentId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(a => new { a.StudentId, a.TestId }).HasDatabaseName("ix_test_attempts_student_test");
             e.HasIndex(a => new { a.AssignmentId, a.AttemptNumber }).IsUnique().HasDatabaseName("ix_test_attempts_assignment_num");
