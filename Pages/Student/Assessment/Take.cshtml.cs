@@ -1,8 +1,10 @@
+using GridAcademy.Data;
 using GridAcademy.DTOs.Assessment;
 using GridAcademy.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using GridAcademy.Data.Entities.Assessment;
 
@@ -12,10 +14,12 @@ namespace GridAcademy.Pages.Student;
 public class TakeModel : PageModel
 {
     private readonly IAssessmentService _svc;
+    private readonly AppDbContext       _db;
 
-    public TakeModel(IAssessmentService svc)
+    public TakeModel(IAssessmentService svc, AppDbContext db)
     {
         _svc = svc;
+        _db  = db;
     }
 
     [BindProperty(SupportsGet = true)]
@@ -32,6 +36,29 @@ public class TakeModel : PageModel
         {
             TempData["Error"] = "Invalid attempt.";
             return RedirectToPage("/Student/Dashboard");
+        }
+
+        // ── Instructions gate ────────────────────────────────────────────────
+        // Before loading the full exam, check if the student has acknowledged
+        // the instructions. This ensures the Instructions page is always shown
+        // regardless of how the attempt was created (Razor Pages or API).
+        var attemptMeta = await _db.TestAttempts
+            .Where(a => a.Id == AttemptId)
+            .Select(a => new { a.AssignmentId, a.InstructionsAcknowledged, a.Status })
+            .FirstOrDefaultAsync();
+
+        if (attemptMeta is null)
+        {
+            TempData["Error"] = "Attempt not found.";
+            return RedirectToPage("/Student/Dashboard");
+        }
+
+        if (!attemptMeta.InstructionsAcknowledged && attemptMeta.Status == AttemptStatus.InProgress)
+        {
+            // Student hasn't read instructions — send them there first.
+            // The Instructions page will resume this attempt after acknowledgement.
+            return RedirectToPage("/Student/Assessment/Instructions",
+                new { assignmentId = attemptMeta.AssignmentId });
         }
 
         try

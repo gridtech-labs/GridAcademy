@@ -461,5 +461,12 @@ public static class DbSeeder
                 WHERE  m.user_id = u.id
             );
             """);
+
+        // ── 9. instructions_acknowledged column on test_attempts ─────────────
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE test_attempts
+                ADD COLUMN IF NOT EXISTS instructions_acknowledged boolean NOT NULL DEFAULT false;
+            """);
     }
 }

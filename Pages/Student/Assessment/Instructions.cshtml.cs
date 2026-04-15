@@ -102,7 +102,7 @@ public class InstructionsModel : PageModel
 
             if (inProgressAttemptId.HasValue && inProgressAttemptId.Value != Guid.Empty)
             {
-                // Already have a fresh in-progress attempt — just resume it instead of creating a new one
+                // Already have a fresh in-progress attempt — resume it instead of creating a duplicate
                 attemptId = inProgressAttemptId.Value;
             }
             else
@@ -110,6 +110,13 @@ public class InstructionsModel : PageModel
                 var attempt = await _assessment.StartAttemptAsync(assignmentId, studentId);
                 attemptId = attempt.AttemptId;
             }
+
+            // ── Mark instructions as acknowledged ─────────────────────────────
+            // This flag lets the Take page know the student has read and agreed to
+            // the instructions, regardless of how the attempt was originally created.
+            await _db.TestAttempts
+                .Where(a => a.Id == attemptId)
+                .ExecuteUpdateAsync(s => s.SetProperty(a => a.InstructionsAcknowledged, true));
 
             return RedirectToPage("/Student/Assessment/Take", new { attemptId });
         }

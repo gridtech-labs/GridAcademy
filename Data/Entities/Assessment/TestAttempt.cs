@@ -34,6 +34,14 @@ public class TestAttempt
     /// <summary>JSON array of proctoring / tab-switch violation events. Max 4000 chars.</summary>
     public string? ViolationLog { get; set; }
 
+    /// <summary>
+    /// True once the student has clicked "Start Test" / "Resume Test" on the Instructions page.
+    /// The Take page will redirect to Instructions if this is false, ensuring every student
+    /// reads and acknowledges the instructions before entering the exam, regardless of
+    /// how the attempt was created (Razor Pages form or API).
+    /// </summary>
+    public bool InstructionsAcknowledged { get; set; } = false;
+
     // ── Navigations ────────────────────────────────────────────────────────
     public TestAssignment Assignment { get; set; } = null!;
 
