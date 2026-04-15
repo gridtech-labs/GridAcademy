@@ -30,3 +30,9 @@ sample/
 
 ## Claude Code local settings (machine-specific, never commit)
 .claude/
+
+## Debug / temp files from local testing sessions
+cookies*.txt
+login*.txt
+run_log*.txt
+instructions_*.txt
