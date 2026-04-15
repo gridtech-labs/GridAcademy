@@ -3,6 +3,14 @@
 @{
     ViewData["Title"] = "Test Instructions";
     var t = Model.Test!;
+
+    // Helper: get question count for a section (manual mode uses actual assigned count)
+    int SectionQCount(GridAcademy.DTOs.Assessment.TestSectionDto sec)
+        => Model.IsManualMode
+            ? (Model.ManualSectionCounts.TryGetValue(sec.Id, out var c) ? c : 0)
+            : sec.QuestionCount;
+
+    int totalQuestions = t.Sections.Sum(SectionQCount);
 }
 
 <div class="student-container">
@@ -18,7 +26,7 @@
                 <h3 class="fw-bold mb-1">@t.Title</h3>
                 <div class="d-flex flex-wrap gap-3 text-muted small mt-2">
                     <span><i class="bi bi-clock me-1"></i><strong>@t.DurationMinutes</strong> minutes</span>
-                    <span><i class="bi bi-question-circle me-1"></i><strong>@t.Sections.Sum(s => s.QuestionCount)</strong> questions</span>
+                    <span><i class="bi bi-question-circle me-1"></i><strong>@totalQuestions</strong> questions</span>
                     <span><i class="bi bi-layers me-1"></i><strong>@t.Sections.Count</strong> section(s)</span>
                     <span><i class="bi bi-award me-1"></i>Passing: <strong>@t.PassingPercent%</strong></span>
                     @if (t.NegativeMarkingEnabled)
@@ -59,27 +67,28 @@
                     <tbody>
                         @foreach (var (sec, i) in t.Sections.Select((s, i) => (s, i + 1)))
                         {
+                            var qCount = SectionQCount(sec);
                             <tr>
                                 <td class="text-muted">@i</td>
                                 <td class="fw-semibold">@sec.Name</td>
-                                <td>@sec.SubjectName</td>
-                                <td>@sec.QuestionCount</td>
+                                <td>@(sec.SubjectName.Length > 0 ? sec.SubjectName : "—")</td>
+                                <td>@qCount</td>
                                 <td class="text-success">+@sec.MarksPerQuestion</td>
                                 @if (t.NegativeMarkingEnabled)
                                 {
                                     <td class="text-danger">-@sec.NegativeMarksPerQuestion</td>
                                 }
-                                <td><strong>@(sec.QuestionCount * sec.MarksPerQuestion)</strong></td>
+                                <td><strong>@(qCount * sec.MarksPerQuestion)</strong></td>
                             </tr>
                         }
                     </tbody>
                     <tfoot class="table-light">
                         <tr>
-                            <td colspan="@(t.NegativeMarkingEnabled ? 3 : 3)" class="fw-semibold">Total</td>
-                            <td class="fw-semibold">@t.Sections.Sum(s => s.QuestionCount)</td>
+                            <td colspan="3" class="fw-semibold">Total</td>
+                            <td class="fw-semibold">@totalQuestions</td>
                             <td></td>
                             @if (t.NegativeMarkingEnabled) { <td></td> }
-                            <td><strong>@t.Sections.Sum(s => s.QuestionCount * s.MarksPerQuestion)</strong></td>
+                            <td><strong>@t.Sections.Sum(s => SectionQCount(s) * s.MarksPerQuestion)</strong></td>
                         </tr>
                     </tfoot>
                 </table>
