@@ -18,6 +18,18 @@ public interface IAssessmentService
     Task<AttemptStartDto> StartAttemptAsync(Guid assignmentId, Guid studentId);
 
     /// <summary>
+    /// Returns lightweight test info (title, duration, sections, instructions) for the
+    /// instructions page. Does NOT load question data. Validates student ownership.
+    /// </summary>
+    Task<AttemptInfoDto> GetAttemptInfoAsync(Guid attemptId, Guid studentId);
+
+    /// <summary>
+    /// Marks the attempt's InstructionsAcknowledged flag as true.
+    /// Called when the student clicks "Start Test" on the instructions page.
+    /// </summary>
+    Task AcknowledgeInstructionsAsync(Guid attemptId, Guid studentId);
+
+    /// <summary>
     /// Returns the full attempt state (questions + saved answers) for a resume scenario.
     /// Validates that the attempt belongs to the requesting student.
     /// </summary>

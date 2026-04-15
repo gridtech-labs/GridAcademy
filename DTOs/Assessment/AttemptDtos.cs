@@ -30,6 +30,35 @@ public class AttemptQuestionDto
     // NOTE: IsCorrect is intentionally NOT included — correct answers hidden during exam
 }
 
+// ── Instructions page info (lightweight — no question data) ──────────────
+
+/// <summary>
+/// Lightweight summary of a test, returned before the student enters the exam.
+/// Used by the instructions page to show test details without loading all questions.
+/// </summary>
+public class AttemptInfoDto
+{
+    public Guid   AttemptId                { get; set; }
+    public Guid   AssignmentId             { get; set; }
+    public string TestTitle                { get; set; } = "";
+    public string? Instructions            { get; set; }
+    public int    DurationMinutes          { get; set; }
+    public int    TotalQuestions           { get; set; }
+    public decimal PassingPercent          { get; set; }
+    public bool   NegativeMarkingEnabled   { get; set; }
+    public bool   InstructionsAcknowledged { get; set; }
+    public List<AttemptSectionInfoDto> Sections { get; set; } = [];
+}
+
+public class AttemptSectionInfoDto
+{
+    public string  Name                     { get; set; } = "";
+    public string  SubjectName              { get; set; } = "";
+    public int     QuestionCount            { get; set; }
+    public decimal MarksPerQuestion         { get; set; }
+    public decimal NegativeMarksPerQuestion { get; set; }
+}
+
 // ── Attempt lifecycle DTOs ────────────────────────────────────────────────
 
 public class AttemptStartDto

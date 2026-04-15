@@ -75,6 +75,37 @@ public class AssessmentController(IAssessmentService assessmentSvc, AppDbContext
 
     // ── ATTEMPT LIFECYCLE ─────────────────────────────────────────────────
 
+    /// <summary>
+    /// Returns lightweight test info (title, duration, sections) for the instructions page.
+    /// Does NOT load question data — fast response for displaying before the exam starts.
+    /// </summary>
+    [HttpGet("attempts/{attemptId:guid}/info")]
+    public async Task<IActionResult> Info(Guid attemptId)
+    {
+        try
+        {
+            var result = await assessmentSvc.GetAttemptInfoAsync(attemptId, UserId);
+            return Ok(ApiResponse<object>.Ok(result));
+        }
+        catch (KeyNotFoundException ex) { return NotFound(ApiResponse.Fail(ex.Message)); }
+        catch (Exception ex) { return BadRequest(ApiResponse.Fail(ex.Message)); }
+    }
+
+    /// <summary>
+    /// Marks the attempt's InstructionsAcknowledged = true.
+    /// Called when the student clicks "Start Test" on the instructions page.
+    /// </summary>
+    [HttpPost("attempts/{attemptId:guid}/acknowledge")]
+    public async Task<IActionResult> Acknowledge(Guid attemptId)
+    {
+        try
+        {
+            await assessmentSvc.AcknowledgeInstructionsAsync(attemptId, UserId);
+            return Ok(ApiResponse<object>.Ok(null));
+        }
+        catch (Exception ex) { return BadRequest(ApiResponse.Fail(ex.Message)); }
+    }
+
     [HttpPost("attempts/{assignmentId:guid}/start")]
     public async Task<IActionResult> Start(Guid assignmentId)
     {

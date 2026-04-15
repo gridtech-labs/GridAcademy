@@ -95,6 +95,90 @@ public class AssessmentService : IAssessmentService
         return result;
     }
 
+    public async Task<AttemptInfoDto> GetAttemptInfoAsync(Guid attemptId, Guid studentId)
+    {
+        var attempt = await _db.TestAttempts
+            .Where(a => a.Id == attemptId && a.StudentId == studentId)
+            .Select(a => new { a.Id, a.AssignmentId, a.TestId, a.InstructionsAcknowledged, a.Status })
+            .FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Attempt not found.");
+
+        var test = await _db.Tests
+            .Include(t => t.Sections).ThenInclude(s => s.Subject)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == attempt.TestId)
+            ?? throw new KeyNotFoundException("Test not found.");
+
+        var isManual = test.QuestionMode == QuestionMode.Manual;
+        List<AttemptSectionInfoDto> sectionInfos;
+
+        if (isManual)
+        {
+            // For Manual mode: derive section info from the snapshotted AttemptQuestions
+            // (already created at start time with SectionName, counts, and per-question marks)
+            var groups = await _db.AttemptQuestions
+                .Where(aq => aq.AttemptId == attemptId)
+                .GroupBy(aq => new { aq.SectionIndex, aq.SectionName })
+                .Select(g => new
+                {
+                    g.Key.SectionIndex,
+                    g.Key.SectionName,
+                    Count           = g.Count(),
+                    MarksForCorrect = g.Min(q => q.MarksForCorrect),
+                    NegativeMarks   = g.Min(q => q.NegativeMarks),
+                })
+                .OrderBy(g => g.SectionIndex)
+                .ToListAsync();
+
+            sectionInfos = groups.Select(g => new AttemptSectionInfoDto
+            {
+                Name                     = g.SectionName,
+                SubjectName              = "",
+                QuestionCount            = g.Count,
+                MarksPerQuestion         = g.MarksForCorrect,
+                NegativeMarksPerQuestion = g.NegativeMarks,
+            }).ToList();
+        }
+        else
+        {
+            sectionInfos = test.Sections
+                .OrderBy(s => s.SortOrder).ThenBy(s => s.Id)
+                .Select(s => new AttemptSectionInfoDto
+                {
+                    Name                     = s.Name,
+                    SubjectName              = s.Subject?.Name ?? "",
+                    QuestionCount            = s.QuestionCount,
+                    MarksPerQuestion         = s.MarksPerQuestion,
+                    NegativeMarksPerQuestion = s.NegativeMarksPerQuestion,
+                }).ToList();
+        }
+
+        return new AttemptInfoDto
+        {
+            AttemptId                = attempt.Id,
+            AssignmentId             = attempt.AssignmentId,
+            TestTitle                = test.Title,
+            Instructions             = test.Instructions,
+            DurationMinutes          = test.DurationMinutes,
+            TotalQuestions           = sectionInfos.Sum(s => s.QuestionCount),
+            PassingPercent           = test.PassingPercent,
+            NegativeMarkingEnabled   = test.NegativeMarkingEnabled,
+            InstructionsAcknowledged = attempt.InstructionsAcknowledged,
+            Sections                 = sectionInfos,
+        };
+    }
+
+    public async Task AcknowledgeInstructionsAsync(Guid attemptId, Guid studentId)
+    {
+        var rows = await _db.TestAttempts
+            .Where(a => a.Id == attemptId && a.StudentId == studentId
+                     && a.Status == AttemptStatus.InProgress)
+            .ExecuteUpdateAsync(s => s.SetProperty(a => a.InstructionsAcknowledged, true));
+
+        if (rows == 0)
+            throw new InvalidOperationException("Attempt not found or already completed.");
+    }
+
     public async Task<AttemptStartDto> StartAttemptAsync(Guid assignmentId, Guid studentId)
     {
         var assignment = await _db.TestAssignments
