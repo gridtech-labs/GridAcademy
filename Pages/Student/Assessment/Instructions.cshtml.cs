@@ -39,6 +39,14 @@ public class InstructionsModel : PageModel
     /// </summary>
     public Dictionary<int, int> ManualSectionCounts { get; set; } = [];
 
+    /// <summary>
+    /// If the student has an in-progress attempt that has already had answers saved,
+    /// we redirect directly to Take. If the attempt is fresh (no answers yet), we
+    /// show Instructions and let the student acknowledge before entering the exam.
+    /// This property holds the in-progress attempt ID for the "resume" case.
+    /// </summary>
+    public Guid? InProgressAttemptId { get; set; }
+
     public async Task<IActionResult> OnGetAsync(Guid assignmentId)
     {
         var studentId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -48,9 +56,21 @@ public class InstructionsModel : PageModel
         var card  = cards.FirstOrDefault(c => c.AssignmentId == assignmentId);
         if (card == null) return NotFound();
 
-        // If there's an in-progress attempt, redirect straight to Take
+        // Check for in-progress attempt
         if (card.HasInProgressAttempt && card.InProgressAttemptId.HasValue)
-            return RedirectToPage("/Student/Assessment/Take", new { attemptId = card.InProgressAttemptId });
+        {
+            var attemptId = card.InProgressAttemptId.Value;
+
+            // If the student already has saved answers, they are mid-test — go directly to Take
+            var hasAnswers = await _db.AttemptAnswers
+                .AnyAsync(a => a.AttemptId == attemptId && !a.IsClear
+                    && (a.SelectedOptionIds != null || a.NumericalValue != null));
+            if (hasAnswers)
+                return RedirectToPage("/Student/Assessment/Take", new { attemptId });
+
+            // Fresh attempt (0 saved answers) — show Instructions so student can acknowledge
+            InProgressAttemptId = attemptId;
+        }
 
         Test         = await _tests.GetTestByIdAsync(card.TestId);
         AssignmentId = assignmentId;
@@ -72,14 +92,26 @@ public class InstructionsModel : PageModel
         return Page();
     }
 
-    public async Task<IActionResult> OnPostAsync(Guid assignmentId)
+    public async Task<IActionResult> OnPostAsync(Guid assignmentId, Guid? inProgressAttemptId)
     {
         var studentId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         try
         {
-            var attempt = await _assessment.StartAttemptAsync(assignmentId, studentId);
-            return RedirectToPage("/Student/Assessment/Take", new { attemptId = attempt.AttemptId });
+            Guid attemptId;
+
+            if (inProgressAttemptId.HasValue && inProgressAttemptId.Value != Guid.Empty)
+            {
+                // Already have a fresh in-progress attempt — just resume it instead of creating a new one
+                attemptId = inProgressAttemptId.Value;
+            }
+            else
+            {
+                var attempt = await _assessment.StartAttemptAsync(assignmentId, studentId);
+                attemptId = attempt.AttemptId;
+            }
+
+            return RedirectToPage("/Student/Assessment/Take", new { attemptId });
         }
         catch (InvalidOperationException ex)
         {

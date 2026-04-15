@@ -316,7 +316,15 @@ builder.Services.AddScoped<GridAcademy.Services.VideoLearning.IContentFileServic
 // 5. CONTROLLERS, RAZOR PAGES & API
 // ═══════════════════════════════════════════════════════════════════════════
 builder.Services.AddControllers();
-builder.Services.AddRazorPages();       // Admin panel server-rendered pages
+builder.Services.AddRazorPages()        // Admin panel + student portal server-rendered pages
+    .AddRazorPagesOptions(o =>
+    {
+        // Clean URL aliases for student-facing pages
+        // /attempt/{AttemptId} → /Student/Assessment/Take
+        o.Conventions.AddPageRoute("/Student/Assessment/Take", "attempt/{AttemptId:guid}");
+        // /instructions/{assignmentId} → /Student/Assessment/Instructions
+        o.Conventions.AddPageRoute("/Student/Assessment/Instructions", "instructions/{assignmentId:guid}");
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddAntiforgery();      // CSRF protection for admin forms
 

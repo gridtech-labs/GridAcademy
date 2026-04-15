@@ -154,8 +154,19 @@
             <form method="post">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="assignmentId" value="@Model.AssignmentId" />
+                @if (Model.InProgressAttemptId.HasValue)
+                {
+                    <input type="hidden" name="inProgressAttemptId" value="@Model.InProgressAttemptId" />
+                }
                 <button type="submit" id="btnStartTest" class="btn btn-primary btn-lg px-5" disabled>
-                    <i class="bi bi-pencil-fill me-2"></i>Start Test
+                    @if (Model.InProgressAttemptId.HasValue)
+                    {
+                        <i class="bi bi-play-fill me-2"></i><text>Resume Test</text>
+                    }
+                    else
+                    {
+                        <i class="bi bi-pencil-fill me-2"></i><text>Start Test</text>
+                    }
                 </button>
             </form>
         </div>
