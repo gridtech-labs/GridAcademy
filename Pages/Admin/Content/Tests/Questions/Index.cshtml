@@ -380,8 +380,10 @@
 
                             <!-- ── Section assignment ──────────────────── -->
                             <td>
-                                @if (sections.Count > 0 && !isPublished)
+                                @if (sections.Count > 0 && (!isPublished || isManual))
                                 {
+                                    @* Manual mode: allow reassignment even when published (no pool logic involved).
+                                       GlobalBank draft: also allow. GlobalBank published: read-only below. *@
                                     <form method="post" asp-page-handler="AssignSection" class="d-flex gap-1 align-items-center">
                                         <input type="hidden" name="questionId" value="@q.Id" />
                                         <select name="sectionId" class="form-select form-select-sm sec-select"
@@ -402,8 +404,8 @@
                                 }
                                 else if (sections.Count > 0 && isPublished)
                                 {
-                                    @* Show read-only section badge *@
-                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle small" id="secbadge-@q.Id">—</span>
+                                    @* GlobalBank published — show read-only badge; JS fills in the name *@
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle small sec-badge" id="secbadge-@q.Id" data-qid="@q.Id">—</span>
                                 }
                                 else
                                 {
@@ -512,9 +514,16 @@
 @section Scripts {
 <script>
 (function () {
-    // ── Pre-select the correct section in each dropdown using AJAX ────────
+    // ── Pre-select section dropdowns AND update read-only badges via AJAX ─
     const testId = '@Model.TestId';
     if (!testId) return;
+
+    // Build a sectionId → name lookup from the rendered sections
+    const sectionNames = {};
+    @foreach (var sec in sections)
+    {
+        <text>sectionNames[@sec.Id] = '@Html.Raw(sec.Name.Replace("'", "\\'"))';</text>
+    }
 
     fetch('?handler=TestQuestions&testId=' + testId, {
         headers: { 'Accept': 'application/json' }
@@ -523,9 +532,20 @@
     .then(function(mappings) {
         mappings.forEach(function(m) {
             if (!m.sectionId) return;
-            // Use the data-qid attribute to find the correct select per question
+
+            // ── Editable dropdown (draft / Manual-published) ──────────────
             const sel = document.querySelector('.sec-select[data-qid="' + m.questionId + '"]');
             if (sel) sel.value = String(m.sectionId);
+
+            // ── Read-only badge (GlobalBank published) ────────────────────
+            const badge = document.querySelector('.sec-badge[id="secbadge-' + m.questionId + '"]')
+                       || document.getElementById('secbadge-' + m.questionId);
+            if (badge) {
+                const name = sectionNames[m.sectionId] || ('Section ' + m.sectionId);
+                badge.textContent = name;
+                badge.classList.remove('bg-secondary-subtle', 'text-secondary');
+                badge.classList.add('bg-primary-subtle', 'text-primary');
+            }
         });
     })
     .catch(function() { /* silently ignore */ });
