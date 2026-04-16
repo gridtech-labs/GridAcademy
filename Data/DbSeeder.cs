@@ -468,5 +468,89 @@ public static class DbSeeder
             ALTER TABLE test_attempts
                 ADD COLUMN IF NOT EXISTS instructions_acknowledged boolean NOT NULL DEFAULT false;
             """);
+
+        // ── 10. Exam Payment tables ───────────────────────────────────────────
+        //        AddExamPaymentModule migration may not have applied on Railway.
+        //        Use CREATE TABLE IF NOT EXISTS so these run safely every time.
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "ExamOffers" (
+                "Id"                serial       PRIMARY KEY,
+                "Code"              varchar(50)  NOT NULL,
+                "Title"             varchar(120) NOT NULL,
+                "Description"       varchar(500),
+                "OfferType"         integer      NOT NULL DEFAULT 0,
+                "Value"             numeric      NOT NULL DEFAULT 0,
+                "MinOrderAmount"    numeric      NOT NULL DEFAULT 0,
+                "MaxDiscountAmount" numeric,
+                "ExamPageId"        uuid,
+                "MaxUses"           integer,
+                "UsedCount"         integer      NOT NULL DEFAULT 0,
+                "IsActive"          boolean      NOT NULL DEFAULT true,
+                "ValidFrom"         timestamptz,
+                "ValidTo"           timestamptz,
+                "CreatedAt"         timestamptz  NOT NULL DEFAULT now(),
+                "UpdatedAt"         timestamptz  NOT NULL DEFAULT now()
+            );
+            """);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "ExamOrders" (
+                "Id"                uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+                "StudentId"         uuid         NOT NULL REFERENCES users(id)        ON DELETE CASCADE,
+                "ExamPageId"        uuid         NOT NULL REFERENCES exam_pages("Id") ON DELETE CASCADE,
+                "OriginalAmount"    numeric      NOT NULL DEFAULT 0,
+                "DiscountAmount"    numeric      NOT NULL DEFAULT 0,
+                "FinalAmount"       numeric      NOT NULL DEFAULT 0,
+                "GstAmount"         numeric      NOT NULL DEFAULT 0,
+                "GrandTotal"        numeric      NOT NULL DEFAULT 0,
+                "OfferId"           integer      REFERENCES "ExamOffers"("Id"),
+                "OfferCode"         varchar(50),
+                "RazorpayOrderId"   varchar(100),
+                "RazorpayPaymentId" varchar(100),
+                "RazorpaySignature" varchar(256),
+                "Status"            integer      NOT NULL DEFAULT 0,
+                "BookingRef"        varchar(30)  NOT NULL DEFAULT '',
+                "FailureReason"     varchar(500),
+                "Notes"             varchar(500),
+                "CreatedAt"         timestamptz  NOT NULL DEFAULT now(),
+                "UpdatedAt"         timestamptz  NOT NULL DEFAULT now(),
+                "PaidAt"            timestamptz
+            );
+            """);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "ExamAccesses" (
+                "Id"         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+                "StudentId"  uuid        NOT NULL REFERENCES users(id)           ON DELETE CASCADE,
+                "ExamPageId" uuid        NOT NULL REFERENCES exam_pages("Id")    ON DELETE CASCADE,
+                "OrderId"    uuid        NOT NULL REFERENCES "ExamOrders"("Id")  ON DELETE CASCADE,
+                "GrantedAt"  timestamptz NOT NULL DEFAULT now(),
+                "ExpiresAt"  timestamptz,
+                "IsActive"   boolean     NOT NULL DEFAULT true
+            );
+            """);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "ExamOrderTransactions" (
+                "Id"                uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+                "ExamOrderId"       uuid        NOT NULL REFERENCES "ExamOrders"("Id") ON DELETE CASCADE,
+                "Event"             varchar(80) NOT NULL DEFAULT '',
+                "RazorpayPaymentId" varchar(100),
+                "RazorpayOrderId"   varchar(100),
+                "Amount"            numeric,
+                "RawPayload"        text,
+                "CreatedAt"         timestamptz NOT NULL DEFAULT now()
+            );
+
+            CREATE INDEX IF NOT EXISTS "IX_ExamOrders_StudentId"            ON "ExamOrders"("StudentId");
+            CREATE INDEX IF NOT EXISTS "IX_ExamOrders_ExamPageId"           ON "ExamOrders"("ExamPageId");
+            CREATE INDEX IF NOT EXISTS "IX_ExamAccesses_StudentId"          ON "ExamAccesses"("StudentId");
+            CREATE INDEX IF NOT EXISTS "IX_ExamAccesses_ExamPageId"         ON "ExamAccesses"("ExamPageId");
+            CREATE INDEX IF NOT EXISTS "IX_ExamOrderTransactions_ExamOrderId" ON "ExamOrderTransactions"("ExamOrderId");
+            """);
     }
 }

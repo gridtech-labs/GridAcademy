@@ -42,7 +42,6 @@ public class ExamPaymentController : ControllerBase
         catch (KeyNotFoundException ex)        { return NotFound(ApiResponse.Fail(ex.Message)); }
         catch (InvalidOperationException ex)   { return BadRequest(ApiResponse.Fail(ex.Message)); }
         catch (UnauthorizedAccessException ex) { return Unauthorized(ApiResponse.Fail(ex.Message)); }
-        catch (Exception ex)                   { return StatusCode(500, ApiResponse.Fail($"[DEBUG] {ex.GetType().Name}: {ex.Message}")); }
     }
 
     // ── Verify Payment ────────────────────────────────────────────────────────
