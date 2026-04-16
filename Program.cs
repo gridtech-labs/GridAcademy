@@ -190,6 +190,28 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime         = true,
         ClockSkew                = TimeSpan.Zero
     };
+
+    // Always return JSON for 401/403 — empty body causes "unexpected end of JSON" in API clients
+    options.Events = new JwtBearerEvents
+    {
+        OnChallenge = async ctx =>
+        {
+            ctx.HandleResponse(); // suppress default empty-body 401
+            ctx.Response.StatusCode  = 401;
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync(
+                System.Text.Json.JsonSerializer.Serialize(
+                    new { success = false, message = "Session expired. Please log in again." }));
+        },
+        OnForbidden = async ctx =>
+        {
+            ctx.Response.StatusCode  = 403;
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync(
+                System.Text.Json.JsonSerializer.Serialize(
+                    new { success = false, message = "Access denied." }));
+        }
+    };
 });
 
 builder.Services.AddAuthorization();

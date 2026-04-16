@@ -22,7 +22,11 @@ public class ExamPaymentController : ControllerBase
         _offers  = offers;
     }
 
-    private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    // Read "sub" first (what JwtHelper writes), fall back to NameIdentifier
+    private Guid CurrentUserId => Guid.Parse(
+        User.FindFirstValue("sub") ??
+        User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+        throw new UnauthorizedAccessException("User identity not found."));
 
     // ── Create Order ──────────────────────────────────────────────────────────
     [HttpPost("create-order")]
@@ -30,8 +34,14 @@ public class ExamPaymentController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<CreateExamOrderResponse>), 201)]
     public async Task<IActionResult> CreateOrder([FromBody] CreateExamOrderRequest req, CancellationToken ct)
     {
-        var result = await _payment.CreateOrderAsync(CurrentUserId, req, ct);
-        return StatusCode(201, ApiResponse<CreateExamOrderResponse>.Ok(result, "Order created."));
+        try
+        {
+            var result = await _payment.CreateOrderAsync(CurrentUserId, req, ct);
+            return StatusCode(201, ApiResponse<CreateExamOrderResponse>.Ok(result, "Order created."));
+        }
+        catch (KeyNotFoundException ex)        { return NotFound(ApiResponse.Fail(ex.Message)); }
+        catch (InvalidOperationException ex)   { return BadRequest(ApiResponse.Fail(ex.Message)); }
+        catch (UnauthorizedAccessException ex) { return Unauthorized(ApiResponse.Fail(ex.Message)); }
     }
 
     // ── Verify Payment ────────────────────────────────────────────────────────
@@ -40,10 +50,16 @@ public class ExamPaymentController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse), 200)]
     public async Task<IActionResult> VerifyPayment([FromBody] VerifyExamPaymentRequest req, CancellationToken ct)
     {
-        var success = await _payment.VerifyPaymentAsync(CurrentUserId, req, ct);
-        if (!success)
-            return BadRequest(ApiResponse.Fail("Payment verification failed. Please contact support."));
-        return Ok(ApiResponse.Ok("Payment verified. Access granted."));
+        try
+        {
+            var success = await _payment.VerifyPaymentAsync(CurrentUserId, req, ct);
+            if (!success)
+                return BadRequest(ApiResponse.Fail("Payment verification failed. Please contact support."));
+            return Ok(ApiResponse.Ok("Payment verified. Access granted."));
+        }
+        catch (KeyNotFoundException ex)        { return NotFound(ApiResponse.Fail(ex.Message)); }
+        catch (InvalidOperationException ex)   { return BadRequest(ApiResponse.Fail(ex.Message)); }
+        catch (UnauthorizedAccessException ex) { return Unauthorized(ApiResponse.Fail(ex.Message)); }
     }
 
     // ── Check Access ──────────────────────────────────────────────────────────
@@ -52,8 +68,12 @@ public class ExamPaymentController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<ExamAccessResponse>), 200)]
     public async Task<IActionResult> CheckAccess(Guid examPageId, CancellationToken ct)
     {
-        var result = await _payment.CheckAccessAsync(CurrentUserId, examPageId, ct);
-        return Ok(ApiResponse<ExamAccessResponse>.Ok(result));
+        try
+        {
+            var result = await _payment.CheckAccessAsync(CurrentUserId, examPageId, ct);
+            return Ok(ApiResponse<ExamAccessResponse>.Ok(result));
+        }
+        catch (Exception ex) { return BadRequest(ApiResponse.Fail(ex.Message)); }
     }
 
     // ── Active Offers for an Exam (public) ───────────────────────────────────
@@ -61,8 +81,12 @@ public class ExamPaymentController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<List<ExamOfferDto>>), 200)]
     public async Task<IActionResult> GetOffers(Guid examPageId, CancellationToken ct)
     {
-        var result = await _offers.GetActiveOffersForExamAsync(examPageId, ct);
-        return Ok(ApiResponse<List<ExamOfferDto>>.Ok(result));
+        try
+        {
+            var result = await _offers.GetActiveOffersForExamAsync(examPageId, ct);
+            return Ok(ApiResponse<List<ExamOfferDto>>.Ok(result));
+        }
+        catch (Exception ex) { return BadRequest(ApiResponse.Fail(ex.Message)); }
     }
 
     // ── Validate Offer ────────────────────────────────────────────────────────
@@ -70,8 +94,12 @@ public class ExamPaymentController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<ValidateOfferResponse>), 200)]
     public async Task<IActionResult> ValidateOffer([FromBody] ValidateOfferRequest req, CancellationToken ct)
     {
-        var result = await _offers.ValidateAsync(req, ct);
-        return Ok(ApiResponse<ValidateOfferResponse>.Ok(result));
+        try
+        {
+            var result = await _offers.ValidateAsync(req, ct);
+            return Ok(ApiResponse<ValidateOfferResponse>.Ok(result));
+        }
+        catch (Exception ex) { return BadRequest(ApiResponse.Fail(ex.Message)); }
     }
 
     // ── Webhook (no auth — verified by signature) ─────────────────────────────
