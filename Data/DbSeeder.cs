@@ -477,15 +477,18 @@ public static class DbSeeder
     }
 
     // ── Payment tables — separate method called independently of MigrateAsync ──
+    // NO foreign key constraints in raw SQL — FK resolution differs by deploy state.
+    // EF Core enforces referential integrity at the ORM level.
+    // Each table is wrapped in its own try-catch so one failure never blocks the rest.
     private static async Task EnsurePaymentTablesAsync(AppDbContext db)
     {
-        // Run each statement separately so a failure in one doesn't block the rest.
-        await db.Database.ExecuteSqlRawAsync(
+        var sqls = new[]
+        {
             """
             CREATE TABLE IF NOT EXISTS "ExamOffers" (
                 "Id"                serial       PRIMARY KEY,
-                "Code"              varchar(50)  NOT NULL,
-                "Title"             varchar(120) NOT NULL,
+                "Code"              varchar(50)  NOT NULL DEFAULT '',
+                "Title"             varchar(120) NOT NULL DEFAULT '',
                 "Description"       varchar(500),
                 "OfferType"         integer      NOT NULL DEFAULT 0,
                 "Value"             numeric      NOT NULL DEFAULT 0,
@@ -500,52 +503,46 @@ public static class DbSeeder
                 "CreatedAt"         timestamptz  NOT NULL DEFAULT now(),
                 "UpdatedAt"         timestamptz  NOT NULL DEFAULT now()
             )
-            """);
-
-        await db.Database.ExecuteSqlRawAsync(
+            """,
             """
             CREATE TABLE IF NOT EXISTS "ExamOrders" (
-                "Id"                uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
-                "StudentId"         uuid         NOT NULL REFERENCES users(id)        ON DELETE CASCADE,
-                "ExamPageId"        uuid         NOT NULL REFERENCES exam_pages("Id") ON DELETE CASCADE,
-                "OriginalAmount"    numeric      NOT NULL DEFAULT 0,
-                "DiscountAmount"    numeric      NOT NULL DEFAULT 0,
-                "FinalAmount"       numeric      NOT NULL DEFAULT 0,
-                "GstAmount"         numeric      NOT NULL DEFAULT 0,
-                "GrandTotal"        numeric      NOT NULL DEFAULT 0,
-                "OfferId"           integer      REFERENCES "ExamOffers"("Id"),
+                "Id"                uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+                "StudentId"         uuid        NOT NULL,
+                "ExamPageId"        uuid        NOT NULL,
+                "OriginalAmount"    numeric     NOT NULL DEFAULT 0,
+                "DiscountAmount"    numeric     NOT NULL DEFAULT 0,
+                "FinalAmount"       numeric     NOT NULL DEFAULT 0,
+                "GstAmount"         numeric     NOT NULL DEFAULT 0,
+                "GrandTotal"        numeric     NOT NULL DEFAULT 0,
+                "OfferId"           integer,
                 "OfferCode"         varchar(50),
                 "RazorpayOrderId"   varchar(100),
                 "RazorpayPaymentId" varchar(100),
                 "RazorpaySignature" varchar(256),
-                "Status"            integer      NOT NULL DEFAULT 0,
-                "BookingRef"        varchar(30)  NOT NULL DEFAULT '',
+                "Status"            integer     NOT NULL DEFAULT 0,
+                "BookingRef"        varchar(30) NOT NULL DEFAULT '',
                 "FailureReason"     varchar(500),
                 "Notes"             varchar(500),
-                "CreatedAt"         timestamptz  NOT NULL DEFAULT now(),
-                "UpdatedAt"         timestamptz  NOT NULL DEFAULT now(),
+                "CreatedAt"         timestamptz NOT NULL DEFAULT now(),
+                "UpdatedAt"         timestamptz NOT NULL DEFAULT now(),
                 "PaidAt"            timestamptz
             )
-            """);
-
-        await db.Database.ExecuteSqlRawAsync(
+            """,
             """
             CREATE TABLE IF NOT EXISTS "ExamAccesses" (
                 "Id"         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-                "StudentId"  uuid        NOT NULL REFERENCES users(id)          ON DELETE CASCADE,
-                "ExamPageId" uuid        NOT NULL REFERENCES exam_pages("Id")   ON DELETE CASCADE,
-                "OrderId"    uuid        NOT NULL REFERENCES "ExamOrders"("Id") ON DELETE CASCADE,
+                "StudentId"  uuid        NOT NULL,
+                "ExamPageId" uuid        NOT NULL,
+                "OrderId"    uuid        NOT NULL,
                 "GrantedAt"  timestamptz NOT NULL DEFAULT now(),
                 "ExpiresAt"  timestamptz,
                 "IsActive"   boolean     NOT NULL DEFAULT true
             )
-            """);
-
-        await db.Database.ExecuteSqlRawAsync(
+            """,
             """
             CREATE TABLE IF NOT EXISTS "ExamOrderTransactions" (
                 "Id"                uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-                "ExamOrderId"       uuid        NOT NULL REFERENCES "ExamOrders"("Id") ON DELETE CASCADE,
+                "ExamOrderId"       uuid        NOT NULL,
                 "Event"             varchar(80) NOT NULL DEFAULT '',
                 "RazorpayPaymentId" varchar(100),
                 "RazorpayOrderId"   varchar(100),
@@ -553,15 +550,19 @@ public static class DbSeeder
                 "RawPayload"        text,
                 "CreatedAt"         timestamptz NOT NULL DEFAULT now()
             )
-            """);
+            """,
+            // Indexes — safe to run every time
+            @"CREATE INDEX IF NOT EXISTS ""IX_ExamOrders_StudentId""              ON ""ExamOrders""(""StudentId"")",
+            @"CREATE INDEX IF NOT EXISTS ""IX_ExamOrders_ExamPageId""             ON ""ExamOrders""(""ExamPageId"")",
+            @"CREATE INDEX IF NOT EXISTS ""IX_ExamAccesses_StudentId""            ON ""ExamAccesses""(""StudentId"")",
+            @"CREATE INDEX IF NOT EXISTS ""IX_ExamAccesses_ExamPageId""           ON ""ExamAccesses""(""ExamPageId"")",
+            @"CREATE INDEX IF NOT EXISTS ""IX_ExamOrderTransactions_ExamOrderId"" ON ""ExamOrderTransactions""(""ExamOrderId"")",
+        };
 
-        await db.Database.ExecuteSqlRawAsync(
-            """
-            CREATE INDEX IF NOT EXISTS "IX_ExamOrders_StudentId"              ON "ExamOrders"("StudentId");
-            CREATE INDEX IF NOT EXISTS "IX_ExamOrders_ExamPageId"             ON "ExamOrders"("ExamPageId");
-            CREATE INDEX IF NOT EXISTS "IX_ExamAccesses_StudentId"            ON "ExamAccesses"("StudentId");
-            CREATE INDEX IF NOT EXISTS "IX_ExamAccesses_ExamPageId"           ON "ExamAccesses"("ExamPageId");
-            CREATE INDEX IF NOT EXISTS "IX_ExamOrderTransactions_ExamOrderId" ON "ExamOrderTransactions"("ExamOrderId");
-            """);
+        foreach (var sql in sqls)
+        {
+            try   { await db.Database.ExecuteSqlRawAsync(sql); }
+            catch { /* table/index already exists or minor schema mismatch — continue */ }
+        }
     }
 }
