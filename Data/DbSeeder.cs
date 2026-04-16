@@ -43,6 +43,11 @@ public static class DbSeeder
             }
         }
 
+        // ── Payment tables — run independently so they are applied even when
+        //    MigrateAsync fails (e.g. migration conflicts on Railway).
+        try { await EnsurePaymentTablesAsync(db); }
+        catch (Exception ex) { logger.LogError(ex, "EnsurePaymentTablesAsync failed"); }
+
         // ── Users ─────────────────────────────────────────────────────────
         const string adminEmail      = "admin@gridacademy.com";
         const string instructorEmail = "instructor@gridacademy.com";
@@ -469,9 +474,12 @@ public static class DbSeeder
                 ADD COLUMN IF NOT EXISTS instructions_acknowledged boolean NOT NULL DEFAULT false;
             """);
 
-        // ── 10. Exam Payment tables ───────────────────────────────────────────
-        //        AddExamPaymentModule migration may not have applied on Railway.
-        //        Use CREATE TABLE IF NOT EXISTS so these run safely every time.
+    }
+
+    // ── Payment tables — separate method called independently of MigrateAsync ──
+    private static async Task EnsurePaymentTablesAsync(AppDbContext db)
+    {
+        // Run each statement separately so a failure in one doesn't block the rest.
         await db.Database.ExecuteSqlRawAsync(
             """
             CREATE TABLE IF NOT EXISTS "ExamOffers" (
@@ -491,7 +499,7 @@ public static class DbSeeder
                 "ValidTo"           timestamptz,
                 "CreatedAt"         timestamptz  NOT NULL DEFAULT now(),
                 "UpdatedAt"         timestamptz  NOT NULL DEFAULT now()
-            );
+            )
             """);
 
         await db.Database.ExecuteSqlRawAsync(
@@ -517,20 +525,20 @@ public static class DbSeeder
                 "CreatedAt"         timestamptz  NOT NULL DEFAULT now(),
                 "UpdatedAt"         timestamptz  NOT NULL DEFAULT now(),
                 "PaidAt"            timestamptz
-            );
+            )
             """);
 
         await db.Database.ExecuteSqlRawAsync(
             """
             CREATE TABLE IF NOT EXISTS "ExamAccesses" (
                 "Id"         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-                "StudentId"  uuid        NOT NULL REFERENCES users(id)           ON DELETE CASCADE,
-                "ExamPageId" uuid        NOT NULL REFERENCES exam_pages("Id")    ON DELETE CASCADE,
-                "OrderId"    uuid        NOT NULL REFERENCES "ExamOrders"("Id")  ON DELETE CASCADE,
+                "StudentId"  uuid        NOT NULL REFERENCES users(id)          ON DELETE CASCADE,
+                "ExamPageId" uuid        NOT NULL REFERENCES exam_pages("Id")   ON DELETE CASCADE,
+                "OrderId"    uuid        NOT NULL REFERENCES "ExamOrders"("Id") ON DELETE CASCADE,
                 "GrantedAt"  timestamptz NOT NULL DEFAULT now(),
                 "ExpiresAt"  timestamptz,
                 "IsActive"   boolean     NOT NULL DEFAULT true
-            );
+            )
             """);
 
         await db.Database.ExecuteSqlRawAsync(
@@ -544,12 +552,15 @@ public static class DbSeeder
                 "Amount"            numeric,
                 "RawPayload"        text,
                 "CreatedAt"         timestamptz NOT NULL DEFAULT now()
-            );
+            )
+            """);
 
-            CREATE INDEX IF NOT EXISTS "IX_ExamOrders_StudentId"            ON "ExamOrders"("StudentId");
-            CREATE INDEX IF NOT EXISTS "IX_ExamOrders_ExamPageId"           ON "ExamOrders"("ExamPageId");
-            CREATE INDEX IF NOT EXISTS "IX_ExamAccesses_StudentId"          ON "ExamAccesses"("StudentId");
-            CREATE INDEX IF NOT EXISTS "IX_ExamAccesses_ExamPageId"         ON "ExamAccesses"("ExamPageId");
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_ExamOrders_StudentId"              ON "ExamOrders"("StudentId");
+            CREATE INDEX IF NOT EXISTS "IX_ExamOrders_ExamPageId"             ON "ExamOrders"("ExamPageId");
+            CREATE INDEX IF NOT EXISTS "IX_ExamAccesses_StudentId"            ON "ExamAccesses"("StudentId");
+            CREATE INDEX IF NOT EXISTS "IX_ExamAccesses_ExamPageId"           ON "ExamAccesses"("ExamPageId");
             CREATE INDEX IF NOT EXISTS "IX_ExamOrderTransactions_ExamOrderId" ON "ExamOrderTransactions"("ExamOrderId");
             """);
     }
