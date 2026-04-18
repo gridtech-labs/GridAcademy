@@ -28,26 +28,22 @@ var builder = WebApplication.CreateBuilder(args);
 var config  = builder.Configuration;
 
 // ── Port binding ─────────────────────────────────────────────────────────────
-// Railway injects PORT at runtime — override Kestrel only when PORT is set.
-// In local dev PORT is NOT set, so launchSettings.json (http://localhost:5000)
-// is used automatically without any override.
+// Railway sets ASPNETCORE_URLS=http://*:8080 automatically — we do NOT override
+// it via ConfigureKestrel (that caused a Kestrel warning and potential 502s).
+// For local dev, launchSettings.json handles the URL (http://localhost:5000).
 var portEnv = Environment.GetEnvironmentVariable("PORT");
-var railwayPort = int.TryParse(portEnv, out var p) ? p : (int?)null;
-
-if (railwayPort.HasValue)
-    Console.WriteLine($"[Startup] Binding to port {railwayPort} (from PORT env var)");
-else
-    Console.WriteLine("[Startup] No PORT env var — using launchSettings / default (localhost:5000)");
+Console.WriteLine(string.IsNullOrEmpty(portEnv)
+    ? "[Startup] No PORT env var — using launchSettings / default (localhost:5000)"
+    : $"[Startup] PORT={portEnv} — Railway will set ASPNETCORE_URLS automatically");
 
 // Increase request size limit for video uploads (2 GB)
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options => {
     options.MultipartBodyLengthLimit = 2L * 1024 * 1024 * 1024;
 });
 builder.WebHost.ConfigureKestrel(serverOptions => {
+    // Only set request size limits — do NOT call ListenAnyIP/ListenLocalhost here.
+    // Railway's ASPNETCORE_URLS env var handles port binding correctly.
     serverOptions.Limits.MaxRequestBodySize = 2L * 1024 * 1024 * 1024;
-    // Only override port on Railway; locally let launchSettings.json handle it
-    if (railwayPort.HasValue)
-        serverOptions.ListenAnyIP(railwayPort.Value);
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
