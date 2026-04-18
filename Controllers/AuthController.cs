@@ -133,6 +133,70 @@ public class AuthController : ControllerBase
         return StatusCode(201, ApiResponse<LoginResponse>.Ok(loginResp, "Provider account created. Pending admin verification."));
     }
 
+    // ── Quick Access (frictionless student entry) ─────────────────────────────
+
+    /// <summary>
+    /// Frictionless student entry — no password needed.
+    /// If the email already exists: silently login and return a JWT.
+    /// If the email is new: auto-register as Student with a random password, then return a JWT.
+    /// Mobile number is stored for future OTP login.
+    /// </summary>
+    [HttpPost("quick-access")]
+    [ProducesResponseType(typeof(ApiResponse<LoginResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> QuickAccess([FromBody] QuickAccessRequest req, CancellationToken ct)
+    {
+        var email  = req.Email.Trim().ToLower();
+        var mobile = req.Mobile.Trim();
+
+        // Find existing user by email
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
+
+        if (user is null)
+        {
+            // Auto-register — derive a friendly name from the email prefix
+            var namePart  = email.Split('@')[0];
+            var firstName = char.ToUpper(namePart[0]) + (namePart.Length > 1 ? namePart[1..].Split('.', '_', '-')[0] : "");
+
+            user = new Data.Entities.User
+            {
+                FirstName    = firstName,
+                LastName     = "Student",
+                Email        = email,
+                Phone        = mobile,
+                PasswordHash = PasswordHelper.Hash(Guid.NewGuid().ToString()), // random — not used
+                Role         = "Student",
+                IsActive     = true
+            };
+            _db.Users.Add(user);
+        }
+        else
+        {
+            // Update phone if not set yet
+            if (string.IsNullOrEmpty(user.Phone))
+                user.Phone = mobile;
+
+            if (!user.IsActive)
+                return BadRequest(ApiResponse.Fail("Your account has been deactivated. Please contact support."));
+        }
+
+        user.LastLoginAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        var (token, expiresAt) = _jwt.GenerateToken(user);
+        var resp = new LoginResponse
+        {
+            UserId      = user.Id,
+            Email       = user.Email,
+            AccessToken = token,
+            ExpiresAt   = expiresAt,
+            FullName    = user.FullName,
+            Role        = user.Role
+        };
+
+        return Ok(ApiResponse<LoginResponse>.Ok(resp, "Welcome! You're all set."));
+    }
+
     // ── OTP ───────────────────────────────────────────────────────────────────
 
     /// <summary>Send a 6-digit OTP to a mobile number or email for passwordless login.</summary>
