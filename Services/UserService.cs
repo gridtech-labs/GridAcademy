@@ -35,7 +35,8 @@ public class UserService : IUserService
             query = query.Where(u =>
                 u.FirstName.ToLower().Contains(term) ||
                 u.LastName.ToLower().Contains(term)  ||
-                u.Email.ToLower().Contains(term));
+                u.Email.ToLower().Contains(term)     ||
+                (u.Phone != null && u.Phone.Contains(term)));
         }
 
         if (!string.IsNullOrWhiteSpace(request.Role))
@@ -204,6 +205,7 @@ public class UserService : IUserService
         LastName    = u.LastName,
         FullName    = u.FullName,
         Email       = u.Email,
+        Phone       = u.Phone,
         Role        = u.Role,
         IsActive    = u.IsActive,
         CreatedAt   = u.CreatedAt,

@@ -24,7 +24,7 @@
                 <div class="input-group input-group-sm">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
                     <input type="text" name="search" value="@Model.Search"
-                           class="form-control" placeholder="Name or email…" />
+                           class="form-control" placeholder="Name, email or mobile…" />
                 </div>
             </div>
             <div class="col-6 col-md-2">
@@ -71,6 +71,7 @@
                         <tr>
                             <th>Name</th>
                             <th>Email</th>
+                            <th>Mobile</th>
                             <th>Role</th>
                             <th>Status</th>
                             <th>Last Login</th>
@@ -84,6 +85,16 @@
                             <tr>
                                 <td class="fw-semibold">@user.FullName</td>
                                 <td class="text-muted small">@user.Email</td>
+                                <td class="text-muted small">
+                                    @if (!string.IsNullOrEmpty(user.Phone))
+                                    {
+                                        <span class="font-monospace">@user.Phone</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted fst-italic">—</span>
+                                    }
+                                </td>
                                 <td>
                                     @{
                                         var roleClass = user.Role switch
