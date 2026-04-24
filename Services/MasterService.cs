@@ -195,11 +195,27 @@ public class MasterService : IMasterService
         return new NegativeMarksDto(e.Id, e.Name, e.IsActive, e.SortOrder, e.Value);
     }
 
+    public async Task<DifficultyLevelDto> UpdateDifficultyLevelAsync(int id, CreateMasterRequest r)
+    {
+        var e = await _db.DifficultyLevels.FindAsync(id) ?? throw new KeyNotFoundException($"DifficultyLevel {id} not found.");
+        e.Name = r.Name.Trim(); e.IsActive = r.IsActive; e.SortOrder = r.SortOrder;
+        await _db.SaveChangesAsync();
+        return new DifficultyLevelDto(e.Id, e.Name, e.IsActive, e.SortOrder);
+    }
+
     public async Task DeleteDifficultyLevelAsync(int id)
     {
         var e = await _db.DifficultyLevels.FindAsync(id) ?? throw new KeyNotFoundException($"DifficultyLevel {id} not found.");
         _db.DifficultyLevels.Remove(e);
         await _db.SaveChangesAsync();
+    }
+
+    public async Task<ComplexityLevelDto> UpdateComplexityLevelAsync(int id, CreateMasterRequest r)
+    {
+        var e = await _db.ComplexityLevels.FindAsync(id) ?? throw new KeyNotFoundException($"ComplexityLevel {id} not found.");
+        e.Name = r.Name.Trim(); e.IsActive = r.IsActive; e.SortOrder = r.SortOrder;
+        await _db.SaveChangesAsync();
+        return new ComplexityLevelDto(e.Id, e.Name, e.IsActive, e.SortOrder);
     }
 
     public async Task DeleteComplexityLevelAsync(int id)
@@ -209,11 +225,27 @@ public class MasterService : IMasterService
         await _db.SaveChangesAsync();
     }
 
+    public async Task<ExamTypeDto> UpdateExamTypeAsync(int id, CreateMasterRequest r)
+    {
+        var e = await _db.ExamTypes.FindAsync(id) ?? throw new KeyNotFoundException($"ExamType {id} not found.");
+        e.Name = r.Name.Trim(); e.IsActive = r.IsActive; e.SortOrder = r.SortOrder;
+        await _db.SaveChangesAsync();
+        return new ExamTypeDto(e.Id, e.Name, e.IsActive, e.SortOrder);
+    }
+
     public async Task DeleteExamTypeAsync(int id)
     {
         var e = await _db.ExamTypes.FindAsync(id) ?? throw new KeyNotFoundException($"ExamType {id} not found.");
         _db.ExamTypes.Remove(e);
         await _db.SaveChangesAsync();
+    }
+
+    public async Task<TagDto> UpdateTagAsync(int id, CreateMasterRequest r)
+    {
+        var e = await _db.Tags.FindAsync(id) ?? throw new KeyNotFoundException($"Tag {id} not found.");
+        e.Name = r.Name.Trim(); e.IsActive = r.IsActive; e.SortOrder = r.SortOrder;
+        await _db.SaveChangesAsync();
+        return new TagDto(e.Id, e.Name, e.IsActive, e.SortOrder);
     }
 
     public async Task DeleteTagAsync(int id)
@@ -223,11 +255,27 @@ public class MasterService : IMasterService
         await _db.SaveChangesAsync();
     }
 
+    public async Task<MarksDto> UpdateMarksAsync(int id, CreateMarksRequest r)
+    {
+        var e = await _db.MarksMaster.FindAsync(id) ?? throw new KeyNotFoundException($"Marks {id} not found.");
+        e.Name = r.Name.Trim(); e.Value = r.Value; e.IsActive = r.IsActive; e.SortOrder = r.SortOrder;
+        await _db.SaveChangesAsync();
+        return new MarksDto(e.Id, e.Name, e.IsActive, e.SortOrder, e.Value);
+    }
+
     public async Task DeleteMarksAsync(int id)
     {
         var e = await _db.MarksMaster.FindAsync(id) ?? throw new KeyNotFoundException($"Marks {id} not found.");
         _db.MarksMaster.Remove(e);
         await _db.SaveChangesAsync();
+    }
+
+    public async Task<NegativeMarksDto> UpdateNegativeMarksAsync(int id, CreateMarksRequest r)
+    {
+        var e = await _db.NegativeMarksMaster.FindAsync(id) ?? throw new KeyNotFoundException($"NegativeMarks {id} not found.");
+        e.Name = r.Name.Trim(); e.Value = r.Value; e.IsActive = r.IsActive; e.SortOrder = r.SortOrder;
+        await _db.SaveChangesAsync();
+        return new NegativeMarksDto(e.Id, e.Name, e.IsActive, e.SortOrder, e.Value);
     }
 
     public async Task DeleteNegativeMarksAsync(int id)

@@ -3,6 +3,8 @@
 @{
     ViewData["Title"] = "Masters";
     var tab = Model.ActiveTab ?? "subjects";
+    bool isAdmin = User.IsInRole("Admin");
+    bool canEdit = isAdmin || User.IsInRole("Instructor");
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -12,19 +14,22 @@
     </div>
 </div>
 
+@if (TempData["Error"]   != null) { <div class="alert alert-danger alert-dismissible fade show"><i class="bi bi-exclamation-triangle me-2"></i>@TempData["Error"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Success"] != null) { <div class="alert alert-success alert-dismissible fade show"><i class="bi bi-check-circle me-2"></i>@TempData["Success"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
+
 <!-- ── Tab nav ──────────────────────────────────────────────────────────── -->
 <ul class="nav nav-tabs mb-3" id="masterTabs">
     @{
         var navItems = new[] {
-            ("subjects",   "Subjects",       "bi-journal-text",  Model.Subjects.Count),
-            ("topics",     "Topics",         "bi-list-nested",   Model.Topics.Count),
-            ("difficulty", "Difficulty",     "bi-speedometer",   Model.DifficultyLevels.Count),
-            ("complexity", "Complexity",     "bi-layers",        Model.ComplexityLevels.Count),
-            ("examtypes",  "Exam Types",     "bi-mortarboard",   Model.ExamTypes.Count),
-            ("marks",      "Marks",          "bi-plus-circle",   Model.Marks.Count),
-            ("negmarks",   "Neg. Marks",     "bi-dash-circle",   Model.NegativeMarks.Count),
-            ("tags",       "Tags",           "bi-tags",          Model.Tags.Count),
-            ("qtypes",     "Q. Types",       "bi-ui-checks",     Model.QuestionTypes.Count),
+            ("subjects",   "Subjects",   "bi-journal-text", Model.Subjects.Count),
+            ("topics",     "Topics",     "bi-list-nested",  Model.Topics.Count),
+            ("difficulty", "Difficulty", "bi-speedometer",  Model.DifficultyLevels.Count),
+            ("complexity", "Complexity", "bi-layers",       Model.ComplexityLevels.Count),
+            ("examtypes",  "Exam Types", "bi-mortarboard",  Model.ExamTypes.Count),
+            ("marks",      "Marks",      "bi-plus-circle",  Model.Marks.Count),
+            ("negmarks",   "Neg. Marks", "bi-dash-circle",  Model.NegativeMarks.Count),
+            ("tags",       "Tags",       "bi-tags",         Model.Tags.Count),
+            ("qtypes",     "Q. Types",   "bi-ui-checks",    Model.QuestionTypes.Count),
         };
     }
     @foreach (var (id, label, icon, count) in navItems)
@@ -46,7 +51,7 @@
         <div class="card shadow-sm">
             <div class="card-header bg-white fw-semibold py-3">Subjects</div>
             <div class="card-body p-0">
-                <table class="table table-hover align-middle mb-0">
+                <table class="table table-hover align-middle mb-0 paginated-table" data-page-size="25">
                     <thead class="table-light">
                         <tr><th>#</th><th>Name</th><th>Status</th><th>Sort</th><th class="text-end">Actions</th></tr>
                     </thead>
@@ -62,10 +67,21 @@
                             </td>
                             <td class="text-muted">@s.SortOrder</td>
                             <td class="text-end">
-                                @if (User.IsInRole("Admin"))
+                                @if (canEdit)
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary me-1" title="Edit"
+                                            data-bs-toggle="modal" data-bs-target="#editSimpleModal"
+                                            data-handler="UpdateSubject"
+                                            data-id="@s.Id" data-name="@s.Name"
+                                            data-sort="@s.SortOrder" data-active="@s.IsActive.ToString().ToLower()"
+                                            data-label="Subject">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                }
+                                @if (isAdmin)
                                 {
                                     <form method="post" asp-page-handler="DeleteSubject" class="d-inline"
-                                          onsubmit="return confirm('Delete subject \'@s.Name\'? Topics linked to it may also be affected.')">
+                                          onsubmit="return confirm('Delete subject \'@s.Name\'?')">
                                         <input type="hidden" name="id" value="@s.Id" />
                                         <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
                                     </form>
@@ -78,7 +94,7 @@
                     </tbody>
                 </table>
             </div>
-            @if (User.IsInRole("Admin") || User.IsInRole("Instructor"))
+            @if (canEdit)
             {
                 <div class="card-footer bg-white">
                     <form method="post" asp-page-handler="AddSubject" class="row g-2 align-items-end">
@@ -87,7 +103,7 @@
                             <input asp-for="NewSubject.Name" class="form-control form-control-sm" placeholder="e.g. Mathematics" required />
                         </div>
                         <div class="col-auto">
-                            <label class="form-label small mb-1 text-muted">Sort Order</label>
+                            <label class="form-label small mb-1 text-muted">Sort</label>
                             <input asp-for="NewSubject.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" />
                         </div>
                         <div class="col-auto align-self-end">
@@ -104,7 +120,7 @@
         <div class="card shadow-sm">
             <div class="card-header bg-white fw-semibold py-3">Topics</div>
             <div class="card-body p-0">
-                <table class="table table-hover align-middle mb-0">
+                <table class="table table-hover align-middle mb-0 paginated-table" data-page-size="25">
                     <thead class="table-light">
                         <tr><th>#</th><th>Name</th><th>Subject</th><th>Status</th><th>Sort</th><th class="text-end">Actions</th></tr>
                     </thead>
@@ -121,7 +137,17 @@
                             </td>
                             <td class="text-muted">@t.SortOrder</td>
                             <td class="text-end">
-                                @if (User.IsInRole("Admin"))
+                                @if (canEdit)
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary me-1" title="Edit"
+                                            data-bs-toggle="modal" data-bs-target="#editTopicModal"
+                                            data-id="@t.Id" data-name="@t.Name"
+                                            data-subjectid="@t.SubjectId"
+                                            data-sort="@t.SortOrder" data-active="@t.IsActive.ToString().ToLower()">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                }
+                                @if (isAdmin)
                                 {
                                     <form method="post" asp-page-handler="DeleteTopic" class="d-inline"
                                           onsubmit="return confirm('Delete topic \'@t.Name\'?')">
@@ -137,7 +163,7 @@
                     </tbody>
                 </table>
             </div>
-            @if (User.IsInRole("Admin") || User.IsInRole("Instructor"))
+            @if (canEdit)
             {
                 <div class="card-footer bg-white">
                     <form method="post" asp-page-handler="AddTopic" class="row g-2 align-items-end">
@@ -166,15 +192,13 @@
         </div>
     </div>
 
-    <!-- ══ DIFFICULTY LEVELS ════════════════════════════════════════════════ -->
+    <!-- ══ DIFFICULTY ════════════════════════════════════════════════════════ -->
     <div class="tab-pane fade @(tab=="difficulty" ? "show active" : "")" id="tab-difficulty">
         <div class="card shadow-sm">
             <div class="card-header bg-white fw-semibold py-3">Difficulty Levels</div>
             <div class="card-body p-0">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr><th>#</th><th>Name</th><th>Sort</th><th class="text-end">Actions</th></tr>
-                    </thead>
+                <table class="table table-hover align-middle mb-0 paginated-table" data-page-size="25">
+                    <thead class="table-light"><tr><th>#</th><th>Name</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
                     @foreach (var d in Model.DifficultyLevels)
                     {
@@ -183,7 +207,18 @@
                             <td class="fw-semibold">@d.Name</td>
                             <td class="text-muted">@d.SortOrder</td>
                             <td class="text-end">
-                                @if (User.IsInRole("Admin"))
+                                @if (canEdit)
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary me-1" title="Edit"
+                                            data-bs-toggle="modal" data-bs-target="#editSimpleModal"
+                                            data-handler="UpdateDifficulty"
+                                            data-id="@d.Id" data-name="@d.Name"
+                                            data-sort="@d.SortOrder" data-active="@d.IsActive.ToString().ToLower()"
+                                            data-label="Difficulty Level">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                }
+                                @if (isAdmin)
                                 {
                                     <form method="post" asp-page-handler="DeleteDifficulty" class="d-inline"
                                           onsubmit="return confirm('Delete \'@d.Name\'?')">
@@ -199,34 +234,26 @@
                     </tbody>
                 </table>
             </div>
-            @if (User.IsInRole("Admin") || User.IsInRole("Instructor"))
+            @if (canEdit)
             {
                 <div class="card-footer bg-white">
                     <form method="post" asp-page-handler="AddDifficulty" class="row g-2 align-items-end">
-                        <div class="col-12 col-md">
-                            <input asp-for="NewDifficulty.Name" class="form-control form-control-sm" placeholder="e.g. Easy" required />
-                        </div>
-                        <div class="col-auto">
-                            <input asp-for="NewDifficulty.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" />
-                        </div>
-                        <div class="col-auto">
-                            <button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add</button>
-                        </div>
+                        <div class="col-12 col-md"><input asp-for="NewDifficulty.Name" class="form-control form-control-sm" placeholder="e.g. Easy" required /></div>
+                        <div class="col-auto"><input asp-for="NewDifficulty.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" /></div>
+                        <div class="col-auto"><button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add</button></div>
                     </form>
                 </div>
             }
         </div>
     </div>
 
-    <!-- ══ COMPLEXITY LEVELS ════════════════════════════════════════════════ -->
+    <!-- ══ COMPLEXITY ════════════════════════════════════════════════════════ -->
     <div class="tab-pane fade @(tab=="complexity" ? "show active" : "")" id="tab-complexity">
         <div class="card shadow-sm">
             <div class="card-header bg-white fw-semibold py-3">Complexity Levels</div>
             <div class="card-body p-0">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr><th>#</th><th>Name</th><th>Sort</th><th class="text-end">Actions</th></tr>
-                    </thead>
+                <table class="table table-hover align-middle mb-0 paginated-table" data-page-size="25">
+                    <thead class="table-light"><tr><th>#</th><th>Name</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
                     @foreach (var c in Model.ComplexityLevels)
                     {
@@ -235,7 +262,18 @@
                             <td class="fw-semibold">@c.Name</td>
                             <td class="text-muted">@c.SortOrder</td>
                             <td class="text-end">
-                                @if (User.IsInRole("Admin"))
+                                @if (canEdit)
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary me-1" title="Edit"
+                                            data-bs-toggle="modal" data-bs-target="#editSimpleModal"
+                                            data-handler="UpdateComplexity"
+                                            data-id="@c.Id" data-name="@c.Name"
+                                            data-sort="@c.SortOrder" data-active="@c.IsActive.ToString().ToLower()"
+                                            data-label="Complexity Level">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                }
+                                @if (isAdmin)
                                 {
                                     <form method="post" asp-page-handler="DeleteComplexity" class="d-inline"
                                           onsubmit="return confirm('Delete \'@c.Name\'?')">
@@ -251,19 +289,13 @@
                     </tbody>
                 </table>
             </div>
-            @if (User.IsInRole("Admin") || User.IsInRole("Instructor"))
+            @if (canEdit)
             {
                 <div class="card-footer bg-white">
                     <form method="post" asp-page-handler="AddComplexity" class="row g-2 align-items-end">
-                        <div class="col-12 col-md">
-                            <input asp-for="NewComplexity.Name" class="form-control form-control-sm" placeholder="e.g. Basic" required />
-                        </div>
-                        <div class="col-auto">
-                            <input asp-for="NewComplexity.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" />
-                        </div>
-                        <div class="col-auto">
-                            <button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add</button>
-                        </div>
+                        <div class="col-12 col-md"><input asp-for="NewComplexity.Name" class="form-control form-control-sm" placeholder="e.g. Basic" required /></div>
+                        <div class="col-auto"><input asp-for="NewComplexity.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" /></div>
+                        <div class="col-auto"><button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add</button></div>
                     </form>
                 </div>
             }
@@ -275,10 +307,8 @@
         <div class="card shadow-sm">
             <div class="card-header bg-white fw-semibold py-3">Exam Types</div>
             <div class="card-body p-0">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr><th>#</th><th>Name</th><th>Sort</th><th class="text-end">Actions</th></tr>
-                    </thead>
+                <table class="table table-hover align-middle mb-0 paginated-table" data-page-size="25">
+                    <thead class="table-light"><tr><th>#</th><th>Name</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
                     @foreach (var e in Model.ExamTypes)
                     {
@@ -287,7 +317,18 @@
                             <td class="fw-semibold">@e.Name</td>
                             <td class="text-muted">@e.SortOrder</td>
                             <td class="text-end">
-                                @if (User.IsInRole("Admin"))
+                                @if (canEdit)
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary me-1" title="Edit"
+                                            data-bs-toggle="modal" data-bs-target="#editSimpleModal"
+                                            data-handler="UpdateExamType"
+                                            data-id="@e.Id" data-name="@e.Name"
+                                            data-sort="@e.SortOrder" data-active="@e.IsActive.ToString().ToLower()"
+                                            data-label="Exam Type">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                }
+                                @if (isAdmin)
                                 {
                                     <form method="post" asp-page-handler="DeleteExamType" class="d-inline"
                                           onsubmit="return confirm('Delete \'@e.Name\'?')">
@@ -303,19 +344,13 @@
                     </tbody>
                 </table>
             </div>
-            @if (User.IsInRole("Admin") || User.IsInRole("Instructor"))
+            @if (canEdit)
             {
                 <div class="card-footer bg-white">
                     <form method="post" asp-page-handler="AddExamType" class="row g-2 align-items-end">
-                        <div class="col-12 col-md">
-                            <input asp-for="NewExamType.Name" class="form-control form-control-sm" placeholder="e.g. JEE Main" required />
-                        </div>
-                        <div class="col-auto">
-                            <input asp-for="NewExamType.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" />
-                        </div>
-                        <div class="col-auto">
-                            <button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add</button>
-                        </div>
+                        <div class="col-12 col-md"><input asp-for="NewExamType.Name" class="form-control form-control-sm" placeholder="e.g. JEE Main" required /></div>
+                        <div class="col-auto"><input asp-for="NewExamType.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" /></div>
+                        <div class="col-auto"><button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add</button></div>
                     </form>
                 </div>
             }
@@ -327,10 +362,8 @@
         <div class="card shadow-sm">
             <div class="card-header bg-white fw-semibold py-3">Marks</div>
             <div class="card-body p-0">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr><th>#</th><th>Label</th><th>Value</th><th>Sort</th><th class="text-end">Actions</th></tr>
-                    </thead>
+                <table class="table table-hover align-middle mb-0 paginated-table" data-page-size="25">
+                    <thead class="table-light"><tr><th>#</th><th>Label</th><th>Value</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
                     @foreach (var m in Model.Marks)
                     {
@@ -340,7 +373,19 @@
                             <td><span class="badge bg-success text-white">+@m.Value</span></td>
                             <td class="text-muted">@m.SortOrder</td>
                             <td class="text-end">
-                                @if (User.IsInRole("Admin"))
+                                @if (canEdit)
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary me-1" title="Edit"
+                                            data-bs-toggle="modal" data-bs-target="#editMarksModal"
+                                            data-handler="UpdateMarks"
+                                            data-id="@m.Id" data-name="@m.Name"
+                                            data-value="@m.Value" data-sort="@m.SortOrder"
+                                            data-active="@m.IsActive.ToString().ToLower()"
+                                            data-label="Marks">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                }
+                                @if (isAdmin)
                                 {
                                     <form method="post" asp-page-handler="DeleteMarks" class="d-inline"
                                           onsubmit="return confirm('Delete marks \'@m.Name\'?')">
@@ -356,25 +401,14 @@
                     </tbody>
                 </table>
             </div>
-            @if (User.IsInRole("Admin") || User.IsInRole("Instructor"))
+            @if (canEdit)
             {
                 <div class="card-footer bg-white">
                     <form method="post" asp-page-handler="AddMarks" class="row g-2 align-items-end">
-                        <div class="col-auto">
-                            <label class="form-label small mb-1 text-muted">Label</label>
-                            <input asp-for="NewMarks.Name" class="form-control form-control-sm" placeholder="e.g. 2 Marks" required />
-                        </div>
-                        <div class="col-auto">
-                            <label class="form-label small mb-1 text-muted">Value</label>
-                            <input asp-for="NewMarks.Value" type="number" step="0.25" class="form-control form-control-sm" style="width:90px" required />
-                        </div>
-                        <div class="col-auto">
-                            <label class="form-label small mb-1 text-muted">Sort</label>
-                            <input asp-for="NewMarks.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" />
-                        </div>
-                        <div class="col-auto align-self-end">
-                            <button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add</button>
-                        </div>
+                        <div class="col-auto"><label class="form-label small mb-1 text-muted">Label</label><input asp-for="NewMarks.Name" class="form-control form-control-sm" placeholder="e.g. 2 Marks" required /></div>
+                        <div class="col-auto"><label class="form-label small mb-1 text-muted">Value</label><input asp-for="NewMarks.Value" type="number" step="0.25" class="form-control form-control-sm" style="width:90px" required /></div>
+                        <div class="col-auto"><label class="form-label small mb-1 text-muted">Sort</label><input asp-for="NewMarks.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" /></div>
+                        <div class="col-auto align-self-end"><button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add</button></div>
                     </form>
                 </div>
             }
@@ -386,10 +420,8 @@
         <div class="card shadow-sm">
             <div class="card-header bg-white fw-semibold py-3">Negative Marks</div>
             <div class="card-body p-0">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr><th>#</th><th>Label</th><th>Value</th><th>Sort</th><th class="text-end">Actions</th></tr>
-                    </thead>
+                <table class="table table-hover align-middle mb-0 paginated-table" data-page-size="25">
+                    <thead class="table-light"><tr><th>#</th><th>Label</th><th>Value</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
                     @foreach (var n in Model.NegativeMarks)
                     {
@@ -399,7 +431,19 @@
                             <td><span class="badge bg-danger text-white">@n.Value</span></td>
                             <td class="text-muted">@n.SortOrder</td>
                             <td class="text-end">
-                                @if (User.IsInRole("Admin"))
+                                @if (canEdit)
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary me-1" title="Edit"
+                                            data-bs-toggle="modal" data-bs-target="#editMarksModal"
+                                            data-handler="UpdateNegativeMarks"
+                                            data-id="@n.Id" data-name="@n.Name"
+                                            data-value="@n.Value" data-sort="@n.SortOrder"
+                                            data-active="@n.IsActive.ToString().ToLower()"
+                                            data-label="Negative Marks">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                }
+                                @if (isAdmin)
                                 {
                                     <form method="post" asp-page-handler="DeleteNegativeMarks" class="d-inline"
                                           onsubmit="return confirm('Delete \'@n.Name\'?')">
@@ -415,25 +459,14 @@
                     </tbody>
                 </table>
             </div>
-            @if (User.IsInRole("Admin") || User.IsInRole("Instructor"))
+            @if (canEdit)
             {
                 <div class="card-footer bg-white">
                     <form method="post" asp-page-handler="AddNegativeMarks" class="row g-2 align-items-end">
-                        <div class="col-auto">
-                            <label class="form-label small mb-1 text-muted">Label</label>
-                            <input asp-for="NewNegativeMarks.Name" class="form-control form-control-sm" placeholder="e.g. -0.25" required />
-                        </div>
-                        <div class="col-auto">
-                            <label class="form-label small mb-1 text-muted">Value</label>
-                            <input asp-for="NewNegativeMarks.Value" type="number" step="0.25" class="form-control form-control-sm" style="width:90px" required />
-                        </div>
-                        <div class="col-auto">
-                            <label class="form-label small mb-1 text-muted">Sort</label>
-                            <input asp-for="NewNegativeMarks.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" />
-                        </div>
-                        <div class="col-auto align-self-end">
-                            <button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add</button>
-                        </div>
+                        <div class="col-auto"><label class="form-label small mb-1 text-muted">Label</label><input asp-for="NewNegativeMarks.Name" class="form-control form-control-sm" placeholder="e.g. -0.25" required /></div>
+                        <div class="col-auto"><label class="form-label small mb-1 text-muted">Value</label><input asp-for="NewNegativeMarks.Value" type="number" step="0.25" class="form-control form-control-sm" style="width:90px" required /></div>
+                        <div class="col-auto"><label class="form-label small mb-1 text-muted">Sort</label><input asp-for="NewNegativeMarks.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" /></div>
+                        <div class="col-auto align-self-end"><button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add</button></div>
                     </form>
                 </div>
             }
@@ -444,37 +477,50 @@
     <div class="tab-pane fade @(tab=="tags" ? "show active" : "")" id="tab-tags">
         <div class="card shadow-sm">
             <div class="card-header bg-white fw-semibold py-3">Tags</div>
-            <div class="card-body">
-                @if (Model.Tags.Any())
-                {
+            <div class="card-body p-0">
+                <table class="table table-hover align-middle mb-0 paginated-table" data-page-size="25">
+                    <thead class="table-light"><tr><th>#</th><th>Name</th><th class="text-end">Actions</th></tr></thead>
+                    <tbody>
                     @foreach (var t in Model.Tags)
                     {
-                        <span class="badge fs-6 px-3 py-2 me-2 mb-2"
-                              style="background:var(--bs-info-bg-subtle);color:var(--bs-info-text-emphasis);border:1px solid var(--bs-info-border-subtle)">
-                            @t.Name
-                            @if (User.IsInRole("Admin"))
-                            {
-                                <form method="post" asp-page-handler="DeleteTag" class="d-inline ms-1"
-                                      onsubmit="return confirm('Delete tag \'@t.Name\'?')">
-                                    <input type="hidden" name="id" value="@t.Id" />
-                                    <button type="submit" class="btn-close" style="font-size:0.55rem" aria-label="Delete"></button>
-                                </form>
-                            }
-                        </span>
+                        <tr>
+                            <td class="text-muted small">@t.Id</td>
+                            <td class="fw-semibold">@t.Name</td>
+                            <td class="text-end">
+                                @if (canEdit)
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary me-1" title="Edit"
+                                            data-bs-toggle="modal" data-bs-target="#editSimpleModal"
+                                            data-handler="UpdateTag"
+                                            data-id="@t.Id" data-name="@t.Name"
+                                            data-sort="@t.SortOrder" data-active="@t.IsActive.ToString().ToLower()"
+                                            data-label="Tag">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                }
+                                @if (isAdmin)
+                                {
+                                    <form method="post" asp-page-handler="DeleteTag" class="d-inline"
+                                          onsubmit="return confirm('Delete tag \'@t.Name\'?')">
+                                        <input type="hidden" name="id" value="@t.Id" />
+                                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
                     }
-                }
-                else
-                {
-                    <p class="text-muted small mb-0">No tags yet. Add your first tag below.</p>
-                }
+                    @if (!Model.Tags.Any())
+                    { <tr><td colspan="3" class="text-center text-muted py-3">No tags yet.</td></tr> }
+                    </tbody>
+                </table>
             </div>
-            @if (User.IsInRole("Admin") || User.IsInRole("Instructor"))
+            @if (canEdit)
             {
                 <div class="card-footer bg-white">
                     <form method="post" asp-page-handler="AddTag" class="row g-2 align-items-end">
                         <div class="col-12 col-md">
                             <label class="form-label small mb-1 text-muted">Tag Name</label>
-                            <input asp-for="NewTag.Name" class="form-control form-control-sm" placeholder="e.g. Algebra, Calculus, Thermodynamics…" required />
+                            <input asp-for="NewTag.Name" class="form-control form-control-sm" placeholder="e.g. Algebra, Calculus…" required />
                         </div>
                         <div class="col-auto align-self-end">
                             <button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Tag</button>
@@ -490,10 +536,10 @@
         <div class="card shadow-sm">
             <div class="card-header bg-white fw-semibold py-3 d-flex justify-content-between align-items-center">
                 <span>Question Types</span>
-                <span class="text-muted small fw-normal">Fixed set — rename or toggle active only. Cannot add or delete.</span>
+                <span class="text-muted small fw-normal">Fixed set — rename or toggle active only.</span>
             </div>
             <div class="card-body p-0">
-                <table class="table table-hover align-middle mb-0">
+                <table class="table table-hover align-middle mb-0 paginated-table" data-page-size="25">
                     <thead class="table-light">
                         <tr>
                             <th style="width:50px">#</th>
@@ -501,7 +547,7 @@
                             <th>Name</th>
                             <th>Description</th>
                             <th style="width:90px">Status</th>
-                            @if (User.IsInRole("Admin")) { <th class="text-end" style="width:80px">Actions</th> }
+                            @if (isAdmin) { <th class="text-end" style="width:80px">Actions</th> }
                         </tr>
                     </thead>
                     <tbody>
@@ -509,26 +555,21 @@
                     {
                         <tr>
                             <td class="text-muted small">@qt.Id</td>
-                            <td>
-                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">@qt.Code</span>
-                            </td>
+                            <td><span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">@qt.Code</span></td>
                             <td class="fw-semibold">@qt.Name</td>
                             <td class="text-muted small">@qt.Description</td>
                             <td>
                                 @if (qt.IsActive) { <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span> }
                                 else              { <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Inactive</span> }
                             </td>
-                            @if (User.IsInRole("Admin"))
+                            @if (isAdmin)
                             {
                                 <td class="text-end">
                                     <button class="btn btn-sm btn-outline-secondary"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#editQTypeModal"
-                                            data-id="@qt.Id"
-                                            data-name="@qt.Name"
+                                            data-bs-toggle="modal" data-bs-target="#editQTypeModal"
+                                            data-id="@qt.Id" data-name="@qt.Name"
                                             data-desc="@(qt.Description ?? "")"
-                                            data-active="@qt.IsActive.ToString().ToLower()"
-                                            title="Edit">
+                                            data-active="@qt.IsActive.ToString().ToLower()" title="Edit">
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                 </td>
@@ -545,16 +586,132 @@
 
 </div>
 
-<!-- ── Edit Question Type Modal (Admin only) ───────────────────────────────── -->
-@if (User.IsInRole("Admin"))
+<!-- ══ MODALS ════════════════════════════════════════════════════════════════ -->
+
+@if (canEdit)
 {
-    <div class="modal fade" id="editQTypeModal" tabindex="-1" aria-labelledby="editQTypeModalLabel" aria-hidden="true">
+    <!-- Generic simple-master edit modal (Subject, Difficulty, Complexity, ExamType, Tag) -->
+    <div class="modal fade" id="editSimpleModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" id="editSimpleForm">
+                    <input type="hidden" name="id" id="editSimpleId" />
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Edit <span id="editSimpleLabel"></span></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Name <span class="text-danger">*</span></label>
+                            <input name="EditSubject.Name" id="editSimpleName" class="form-control" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Sort Order</label>
+                            <input name="EditSubject.SortOrder" id="editSimpleSort" type="number" class="form-control" style="width:120px" />
+                        </div>
+                        <div class="form-check form-switch">
+                            <input name="EditSubject.IsActive" id="editSimpleActive" class="form-check-input" type="checkbox" />
+                            <label class="form-check-label">Active</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Topic edit modal -->
+    <div class="modal fade" id="editTopicModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" asp-page-handler="UpdateTopic" id="editTopicForm">
+                    <input type="hidden" name="id" id="editTopicId" />
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Edit Topic</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Subject <span class="text-danger">*</span></label>
+                            <select asp-for="EditTopic.SubjectId" id="editTopicSubject" class="form-select" required>
+                                <option value="">— select —</option>
+                                @foreach (var s in Model.Subjects.Where(x => x.IsActive))
+                                { <option value="@s.Id">@s.Name</option> }
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Topic Name <span class="text-danger">*</span></label>
+                            <input asp-for="EditTopic.Name" id="editTopicName" class="form-control" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Sort Order</label>
+                            <input asp-for="EditTopic.SortOrder" id="editTopicSort" type="number" class="form-control" style="width:120px" />
+                        </div>
+                        <div class="form-check form-switch">
+                            <input asp-for="EditTopic.IsActive" id="editTopicActive" class="form-check-input" type="checkbox" />
+                            <label class="form-check-label">Active</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Marks / Negative Marks edit modal -->
+    <div class="modal fade" id="editMarksModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" id="editMarksForm">
+                    <input type="hidden" name="id" id="editMarksId" />
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Edit <span id="editMarksLabel"></span></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Label <span class="text-danger">*</span></label>
+                            <input name="EditMarks.Name" id="editMarksName" class="form-control" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Value <span class="text-danger">*</span></label>
+                            <input name="EditMarks.Value" id="editMarksValue" type="number" step="0.25" class="form-control" style="width:130px" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Sort Order</label>
+                            <input name="EditMarks.SortOrder" id="editMarksSort" type="number" class="form-control" style="width:120px" />
+                        </div>
+                        <div class="form-check form-switch">
+                            <input name="EditMarks.IsActive" id="editMarksActive" class="form-check-input" type="checkbox" />
+                            <label class="form-check-label">Active</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@if (isAdmin)
+{
+    <!-- Question Type edit modal -->
+    <div class="modal fade" id="editQTypeModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <form method="post" asp-page-handler="UpdateQuestionType" id="editQTypeForm">
                     <input type="hidden" name="id" id="editQTypeId" />
                     <div class="modal-header">
-                        <h5 class="modal-title" id="editQTypeModalLabel"><i class="bi bi-pencil me-2"></i>Edit Question Type</h5>
+                        <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Edit Question Type</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
@@ -583,33 +740,161 @@
 
 @section Scripts {
 <script>
-    // Restore active tab from TempData (server) or localStorage (client)
-    (function () {
-        const serverTab = '@tab';
-        const target    = '#tab-' + serverTab;
-        const el = document.querySelector(`[data-bs-target="${target}"]`);
-        if (el) { bootstrap.Tab.getOrCreateInstance(el).show(); }
+// ── Restore active tab ────────────────────────────────────────────────────
+(function () {
+    const serverTab = '@tab';
+    const el = document.querySelector(`[data-bs-target="#tab-${serverTab}"]`);
+    if (el) bootstrap.Tab.getOrCreateInstance(el).show();
+    document.querySelectorAll('#masterTabs [data-bs-toggle="tab"]').forEach(btn => {
+        btn.addEventListener('shown.bs.tab', e => {
+            const id = e.target.getAttribute('data-bs-target').replace('#tab-', '');
+            localStorage.setItem('masterTab', id);
+        });
+    });
+})();
 
-        // Persist clicks in localStorage
-        document.querySelectorAll('#masterTabs [data-bs-toggle="tab"]').forEach(btn => {
-            btn.addEventListener('shown.bs.tab', e => {
-                const id = e.target.getAttribute('data-bs-target').replace('#tab-', '');
-                localStorage.setItem('masterTab', id);
+// ── Pagination ────────────────────────────────────────────────────────────
+(function () {
+    document.querySelectorAll('table.paginated-table').forEach(table => {
+        const pageSize = parseInt(table.dataset.pageSize) || 25;
+        const tbody    = table.querySelector('tbody');
+        if (!tbody) return;
+
+        let rows   = Array.from(tbody.querySelectorAll('tr'));
+        let page   = 1;
+
+        // Build pagination bar
+        const bar = document.createElement('div');
+        bar.className = 'd-flex align-items-center justify-content-between px-3 py-2 border-top bg-light';
+        table.parentElement.after(bar);
+
+        function render() {
+            rows = Array.from(tbody.querySelectorAll('tr'));
+            const total = rows.length;
+            const pages = Math.max(1, Math.ceil(total / pageSize));
+            page = Math.min(page, pages);
+
+            rows.forEach((tr, i) => {
+                tr.style.display = (i >= (page - 1) * pageSize && i < page * pageSize) ? '' : 'none';
             });
-        });
-    })();
 
-    // Populate Edit Question Type modal from data-* attributes
-    (function () {
-        const modal = document.getElementById('editQTypeModal');
-        if (!modal) return;
-        modal.addEventListener('show.bs.modal', function (e) {
-            const btn    = e.relatedTarget;
-            document.getElementById('editQTypeId').value       = btn.getAttribute('data-id');
-            document.getElementById('editQTypeName').value     = btn.getAttribute('data-name');
-            document.getElementById('editQTypeDesc').value     = btn.getAttribute('data-desc');
-            document.getElementById('editQTypeActive').checked = btn.getAttribute('data-active') === 'true';
-        });
-    })();
+            const from = Math.min((page - 1) * pageSize + 1, total);
+            const to   = Math.min(page * pageSize, total);
+
+            bar.innerHTML = `
+                <span class="text-muted small">Showing ${from}–${to} of ${total}</span>
+                <div class="d-flex align-items-center gap-1">
+                    <button class="btn btn-sm btn-outline-secondary px-2 py-1" id="pgPrev" ${page <= 1 ? 'disabled' : ''}>
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    <span class="small mx-1">Page ${page} / ${pages}</span>
+                    <button class="btn btn-sm btn-outline-secondary px-2 py-1" id="pgNext" ${page >= pages ? 'disabled' : ''}>
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>`;
+
+            bar.querySelector('#pgPrev')?.addEventListener('click', () => { page--; render(); });
+            bar.querySelector('#pgNext')?.addEventListener('click', () => { page++; render(); });
+        }
+
+        render();
+    });
+})();
+
+// ── Generic simple-master modal ───────────────────────────────────────────
+(function () {
+    const modal = document.getElementById('editSimpleModal');
+    if (!modal) return;
+
+    // Handler → form field name prefix mapping
+    const handlerFields = {
+        UpdateSubject:   { name: 'EditSubject.Name',    sort: 'EditSubject.SortOrder',    active: 'EditSubject.IsActive'    },
+        UpdateDifficulty:{ name: 'EditDifficulty.Name', sort: 'EditDifficulty.SortOrder', active: 'EditDifficulty.IsActive' },
+        UpdateComplexity:{ name: 'EditComplexity.Name', sort: 'EditComplexity.SortOrder', active: 'EditComplexity.IsActive' },
+        UpdateExamType:  { name: 'EditExamType.Name',   sort: 'EditExamType.SortOrder',   active: 'EditExamType.IsActive'   },
+        UpdateTag:       { name: 'EditTag.Name',        sort: 'EditTag.SortOrder',        active: 'EditTag.IsActive'        },
+    };
+
+    modal.addEventListener('show.bs.modal', function (e) {
+        const btn     = e.relatedTarget;
+        const handler = btn.getAttribute('data-handler');
+        const fields  = handlerFields[handler];
+        if (!fields) return;
+
+        const form = modal.querySelector('form');
+        form.setAttribute('action', `?handler=${handler}`);
+
+        // Update input names to match the bound property
+        modal.querySelector('#editSimpleName').name   = fields.name;
+        modal.querySelector('#editSimpleSort').name   = fields.sort;
+        modal.querySelector('#editSimpleActive').name = fields.active;
+
+        modal.querySelector('#editSimpleLabel').textContent = btn.getAttribute('data-label');
+        modal.querySelector('#editSimpleId').value          = btn.getAttribute('data-id');
+        modal.querySelector('#editSimpleName').value        = btn.getAttribute('data-name');
+        modal.querySelector('#editSimpleSort').value        = btn.getAttribute('data-sort');
+        modal.querySelector('#editSimpleActive').checked    = btn.getAttribute('data-active') === 'true';
+    });
+})();
+
+// ── Topic modal ───────────────────────────────────────────────────────────
+(function () {
+    const modal = document.getElementById('editTopicModal');
+    if (!modal) return;
+    modal.addEventListener('show.bs.modal', function (e) {
+        const btn = e.relatedTarget;
+        modal.querySelector('#editTopicId').value             = btn.getAttribute('data-id');
+        modal.querySelector('#editTopicName').value           = btn.getAttribute('data-name');
+        modal.querySelector('#editTopicSubject').value        = btn.getAttribute('data-subjectid');
+        modal.querySelector('#editTopicSort').value           = btn.getAttribute('data-sort');
+        modal.querySelector('#editTopicActive').checked       = btn.getAttribute('data-active') === 'true';
+    });
+})();
+
+// ── Marks modal ───────────────────────────────────────────────────────────
+(function () {
+    const modal = document.getElementById('editMarksModal');
+    if (!modal) return;
+
+    const handlerFields = {
+        UpdateMarks:        { name: 'EditMarks.Name',         value: 'EditMarks.Value',         sort: 'EditMarks.SortOrder',         active: 'EditMarks.IsActive'         },
+        UpdateNegativeMarks:{ name: 'EditNegativeMarks.Name', value: 'EditNegativeMarks.Value', sort: 'EditNegativeMarks.SortOrder', active: 'EditNegativeMarks.IsActive' },
+    };
+
+    modal.addEventListener('show.bs.modal', function (e) {
+        const btn     = e.relatedTarget;
+        const handler = btn.getAttribute('data-handler');
+        const fields  = handlerFields[handler];
+        if (!fields) return;
+
+        const form = modal.querySelector('form');
+        form.setAttribute('action', `?handler=${handler}`);
+
+        modal.querySelector('#editMarksName').name   = fields.name;
+        modal.querySelector('#editMarksValue').name  = fields.value;
+        modal.querySelector('#editMarksSort').name   = fields.sort;
+        modal.querySelector('#editMarksActive').name = fields.active;
+
+        modal.querySelector('#editMarksLabel').textContent = btn.getAttribute('data-label');
+        modal.querySelector('#editMarksId').value          = btn.getAttribute('data-id');
+        modal.querySelector('#editMarksName').value        = btn.getAttribute('data-name');
+        modal.querySelector('#editMarksValue').value       = btn.getAttribute('data-value');
+        modal.querySelector('#editMarksSort').value        = btn.getAttribute('data-sort');
+        modal.querySelector('#editMarksActive').checked    = btn.getAttribute('data-active') === 'true';
+    });
+})();
+
+// ── Question Type modal ───────────────────────────────────────────────────
+(function () {
+    const modal = document.getElementById('editQTypeModal');
+    if (!modal) return;
+    modal.addEventListener('show.bs.modal', function (e) {
+        const btn = e.relatedTarget;
+        modal.querySelector('#editQTypeId').value       = btn.getAttribute('data-id');
+        modal.querySelector('#editQTypeName').value     = btn.getAttribute('data-name');
+        modal.querySelector('#editQTypeDesc').value     = btn.getAttribute('data-desc');
+        modal.querySelector('#editQTypeActive').checked = btn.getAttribute('data-active') === 'true';
+    });
+})();
 </script>
 }

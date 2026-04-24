@@ -25,21 +25,31 @@ public class IndexModel : PageModel
 
     [TempData] public string? ActiveTab { get; set; }
 
-    // ── Bound form models (classes so model-binding works) ────────────────────
-    public class AddForm            { public string Name { get; set; } = ""; public bool IsActive { get; set; } = true; public int SortOrder { get; set; } = 0; }
-    public class AddTopicForm       { public string Name { get; set; } = ""; public int SubjectId { get; set; } = 0;    public bool IsActive { get; set; } = true; public int SortOrder { get; set; } = 0; }
-    public class AddMarksForm       { public string Name { get; set; } = ""; public decimal Value { get; set; } = 0;    public bool IsActive { get; set; } = true; public int SortOrder { get; set; } = 0; }
-    public class EditQTypeForm      { public string Name { get; set; } = ""; public string? Description { get; set; } = ""; public bool IsActive { get; set; } = true; }
+    // ── Bound form models ─────────────────────────────────────────────────────
+    public class AddForm       { public string Name { get; set; } = ""; public bool IsActive { get; set; } = true; public int SortOrder { get; set; } = 0; }
+    public class AddTopicForm  { public string Name { get; set; } = ""; public int SubjectId { get; set; } = 0; public bool IsActive { get; set; } = true; public int SortOrder { get; set; } = 0; }
+    public class AddMarksForm  { public string Name { get; set; } = ""; public decimal Value { get; set; } = 0; public bool IsActive { get; set; } = true; public int SortOrder { get; set; } = 0; }
+    public class EditQTypeForm { public string Name { get; set; } = ""; public string? Description { get; set; } = ""; public bool IsActive { get; set; } = true; }
+    // Edit forms (same shape as Add — reuse AddForm/AddTopicForm/AddMarksForm)
 
-    [BindProperty] public AddForm      NewSubject      { get; set; } = new();
-    [BindProperty] public AddTopicForm NewTopic        { get; set; } = new();
-    [BindProperty] public AddForm      NewDifficulty   { get; set; } = new();
-    [BindProperty] public AddForm      NewComplexity   { get; set; } = new();
-    [BindProperty] public AddForm      NewExamType     { get; set; } = new();
-    [BindProperty] public AddForm      NewTag          { get; set; } = new();
-    [BindProperty] public AddMarksForm NewMarks        { get; set; } = new();
-    [BindProperty] public AddMarksForm NewNegativeMarks{ get; set; } = new();
-    [BindProperty] public EditQTypeForm EditQType      { get; set; } = new();
+    [BindProperty] public AddForm      NewSubject       { get; set; } = new();
+    [BindProperty] public AddTopicForm NewTopic         { get; set; } = new();
+    [BindProperty] public AddForm      NewDifficulty    { get; set; } = new();
+    [BindProperty] public AddForm      NewComplexity    { get; set; } = new();
+    [BindProperty] public AddForm      NewExamType      { get; set; } = new();
+    [BindProperty] public AddForm      NewTag           { get; set; } = new();
+    [BindProperty] public AddMarksForm NewMarks         { get; set; } = new();
+    [BindProperty] public AddMarksForm NewNegativeMarks { get; set; } = new();
+    [BindProperty] public EditQTypeForm EditQType       { get; set; } = new();
+
+    [BindProperty] public AddForm      EditSubject      { get; set; } = new();
+    [BindProperty] public AddTopicForm EditTopic        { get; set; } = new();
+    [BindProperty] public AddForm      EditDifficulty   { get; set; } = new();
+    [BindProperty] public AddForm      EditComplexity   { get; set; } = new();
+    [BindProperty] public AddForm      EditExamType     { get; set; } = new();
+    [BindProperty] public AddForm      EditTag          { get; set; } = new();
+    [BindProperty] public AddMarksForm EditMarks        { get; set; } = new();
+    [BindProperty] public AddMarksForm EditNegativeMarks{ get; set; } = new();
 
     // ── GET ───────────────────────────────────────────────────────────────────
     public async Task OnGetAsync() => await LoadAllAsync();
@@ -51,6 +61,12 @@ public class IndexModel : PageModel
             return Redirect("subjects", "Subject name is required.");
         await _svc.CreateSubjectAsync(new(NewSubject.Name, NewSubject.IsActive, NewSubject.SortOrder));
         return Redirect("subjects", null, $"Subject '{NewSubject.Name}' added.");
+    }
+    public async Task<IActionResult> OnPostUpdateSubjectAsync(int id)
+    {
+        if (string.IsNullOrWhiteSpace(EditSubject.Name)) return Redirect("subjects", "Subject name is required.");
+        await _svc.UpdateSubjectAsync(id, new(EditSubject.Name, EditSubject.IsActive, EditSubject.SortOrder));
+        return Redirect("subjects", null, $"Subject updated.");
     }
     public async Task<IActionResult> OnPostDeleteSubjectAsync(int id)
     {
@@ -68,6 +84,13 @@ public class IndexModel : PageModel
         await _svc.CreateTopicAsync(new(NewTopic.Name, NewTopic.SubjectId, NewTopic.IsActive, NewTopic.SortOrder));
         return Redirect("topics", null, $"Topic '{NewTopic.Name}' added.");
     }
+    public async Task<IActionResult> OnPostUpdateTopicAsync(int id)
+    {
+        if (string.IsNullOrWhiteSpace(EditTopic.Name)) return Redirect("topics", "Topic name is required.");
+        if (EditTopic.SubjectId == 0) return Redirect("topics", "Please select a subject.");
+        await _svc.UpdateTopicAsync(id, new(EditTopic.Name, EditTopic.SubjectId, EditTopic.IsActive, EditTopic.SortOrder));
+        return Redirect("topics", null, "Topic updated.");
+    }
     public async Task<IActionResult> OnPostDeleteTopicAsync(int id)
     {
         await _svc.DeleteTopicAsync(id);
@@ -81,6 +104,12 @@ public class IndexModel : PageModel
             return Redirect("difficulty", "Name is required.");
         await _svc.CreateDifficultyLevelAsync(new(NewDifficulty.Name, NewDifficulty.IsActive, NewDifficulty.SortOrder));
         return Redirect("difficulty", null, $"Difficulty '{NewDifficulty.Name}' added.");
+    }
+    public async Task<IActionResult> OnPostUpdateDifficultyAsync(int id)
+    {
+        if (string.IsNullOrWhiteSpace(EditDifficulty.Name)) return Redirect("difficulty", "Name is required.");
+        await _svc.UpdateDifficultyLevelAsync(id, new(EditDifficulty.Name, EditDifficulty.IsActive, EditDifficulty.SortOrder));
+        return Redirect("difficulty", null, "Difficulty level updated.");
     }
     public async Task<IActionResult> OnPostDeleteDifficultyAsync(int id)
     {
@@ -96,6 +125,12 @@ public class IndexModel : PageModel
         await _svc.CreateComplexityLevelAsync(new(NewComplexity.Name, NewComplexity.IsActive, NewComplexity.SortOrder));
         return Redirect("complexity", null, $"Complexity '{NewComplexity.Name}' added.");
     }
+    public async Task<IActionResult> OnPostUpdateComplexityAsync(int id)
+    {
+        if (string.IsNullOrWhiteSpace(EditComplexity.Name)) return Redirect("complexity", "Name is required.");
+        await _svc.UpdateComplexityLevelAsync(id, new(EditComplexity.Name, EditComplexity.IsActive, EditComplexity.SortOrder));
+        return Redirect("complexity", null, "Complexity level updated.");
+    }
     public async Task<IActionResult> OnPostDeleteComplexityAsync(int id)
     {
         await _svc.DeleteComplexityLevelAsync(id);
@@ -109,6 +144,12 @@ public class IndexModel : PageModel
             return Redirect("examtypes", "Name is required.");
         await _svc.CreateExamTypeAsync(new(NewExamType.Name, NewExamType.IsActive, NewExamType.SortOrder));
         return Redirect("examtypes", null, $"Exam Type '{NewExamType.Name}' added.");
+    }
+    public async Task<IActionResult> OnPostUpdateExamTypeAsync(int id)
+    {
+        if (string.IsNullOrWhiteSpace(EditExamType.Name)) return Redirect("examtypes", "Name is required.");
+        await _svc.UpdateExamTypeAsync(id, new(EditExamType.Name, EditExamType.IsActive, EditExamType.SortOrder));
+        return Redirect("examtypes", null, "Exam type updated.");
     }
     public async Task<IActionResult> OnPostDeleteExamTypeAsync(int id)
     {
@@ -124,6 +165,12 @@ public class IndexModel : PageModel
         await _svc.CreateTagAsync(new(NewTag.Name, NewTag.IsActive, NewTag.SortOrder));
         return Redirect("tags", null, $"Tag '{NewTag.Name}' added.");
     }
+    public async Task<IActionResult> OnPostUpdateTagAsync(int id)
+    {
+        if (string.IsNullOrWhiteSpace(EditTag.Name)) return Redirect("tags", "Tag name is required.");
+        await _svc.UpdateTagAsync(id, new(EditTag.Name, EditTag.IsActive, EditTag.SortOrder));
+        return Redirect("tags", null, "Tag updated.");
+    }
     public async Task<IActionResult> OnPostDeleteTagAsync(int id)
     {
         await _svc.DeleteTagAsync(id);
@@ -138,6 +185,12 @@ public class IndexModel : PageModel
         await _svc.CreateMarksAsync(new(NewMarks.Name, NewMarks.Value, NewMarks.IsActive, NewMarks.SortOrder));
         return Redirect("marks", null, $"Marks '{NewMarks.Name}' added.");
     }
+    public async Task<IActionResult> OnPostUpdateMarksAsync(int id)
+    {
+        if (string.IsNullOrWhiteSpace(EditMarks.Name)) return Redirect("marks", "Name is required.");
+        await _svc.UpdateMarksAsync(id, new(EditMarks.Name, EditMarks.Value, EditMarks.IsActive, EditMarks.SortOrder));
+        return Redirect("marks", null, "Marks updated.");
+    }
     public async Task<IActionResult> OnPostDeleteMarksAsync(int id)
     {
         await _svc.DeleteMarksAsync(id);
@@ -151,6 +204,12 @@ public class IndexModel : PageModel
             return Redirect("negmarks", "Name is required.");
         await _svc.CreateNegativeMarksAsync(new(NewNegativeMarks.Name, NewNegativeMarks.Value, NewNegativeMarks.IsActive, NewNegativeMarks.SortOrder));
         return Redirect("negmarks", null, $"Negative Marks '{NewNegativeMarks.Name}' added.");
+    }
+    public async Task<IActionResult> OnPostUpdateNegativeMarksAsync(int id)
+    {
+        if (string.IsNullOrWhiteSpace(EditNegativeMarks.Name)) return Redirect("negmarks", "Name is required.");
+        await _svc.UpdateNegativeMarksAsync(id, new(EditNegativeMarks.Name, EditNegativeMarks.Value, EditNegativeMarks.IsActive, EditNegativeMarks.SortOrder));
+        return Redirect("negmarks", null, "Negative marks updated.");
     }
     public async Task<IActionResult> OnPostDeleteNegativeMarksAsync(int id)
     {

@@ -25,25 +25,31 @@ public interface IMasterService
     // Simple lookup lists (for dropdowns)
     Task<List<DifficultyLevelDto>> GetDifficultyLevelsAsync();
     Task<DifficultyLevelDto>       CreateDifficultyLevelAsync(CreateMasterRequest request);
+    Task<DifficultyLevelDto>       UpdateDifficultyLevelAsync(int id, CreateMasterRequest request);
     Task                           DeleteDifficultyLevelAsync(int id);
 
     Task<List<ComplexityLevelDto>> GetComplexityLevelsAsync();
     Task<ComplexityLevelDto>       CreateComplexityLevelAsync(CreateMasterRequest request);
+    Task<ComplexityLevelDto>       UpdateComplexityLevelAsync(int id, CreateMasterRequest request);
     Task                           DeleteComplexityLevelAsync(int id);
 
     Task<List<ExamTypeDto>>        GetExamTypesAsync();
     Task<ExamTypeDto>              CreateExamTypeAsync(CreateMasterRequest request);
+    Task<ExamTypeDto>              UpdateExamTypeAsync(int id, CreateMasterRequest request);
     Task                           DeleteExamTypeAsync(int id);
 
     Task<List<TagDto>>             GetTagsAsync();
     Task<TagDto>                   CreateTagAsync(CreateMasterRequest request);
+    Task<TagDto>                   UpdateTagAsync(int id, CreateMasterRequest request);
     Task                           DeleteTagAsync(int id);
 
     Task<List<MarksDto>>           GetMarksAsync();
     Task<MarksDto>                 CreateMarksAsync(CreateMarksRequest request);
+    Task<MarksDto>                 UpdateMarksAsync(int id, CreateMarksRequest request);
     Task                           DeleteMarksAsync(int id);
 
     Task<List<NegativeMarksDto>>   GetNegativeMarksAsync();
     Task<NegativeMarksDto>         CreateNegativeMarksAsync(CreateMarksRequest request);
+    Task<NegativeMarksDto>         UpdateNegativeMarksAsync(int id, CreateMarksRequest request);
     Task                           DeleteNegativeMarksAsync(int id);
 }
