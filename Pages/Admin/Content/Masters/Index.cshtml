@@ -49,9 +49,12 @@
     <!-- ══ SUBJECTS ══════════════════════════════════════════════════════════ -->
     <div class="tab-pane fade @(tab=="subjects" ? "show active" : "")" id="tab-subjects">
         <div class="card shadow-sm">
-            <div class="card-header bg-white fw-semibold py-3">Subjects</div>
+            <div class="card-header bg-white fw-semibold py-2 small">Subjects</div>
             <div class="card-body p-0">
-                <table class="table table-hover align-middle mb-0 paginated-table" data-page-size="25">
+                <div class="px-3 py-2 border-bottom bg-white">
+                    <input type="search" class="form-control form-control-sm master-search" placeholder="&#128269; Search..." autocomplete="off" />
+                </div>
+                <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
                     <thead class="table-light">
                         <tr><th>#</th><th>Name</th><th>Status</th><th>Sort</th><th class="text-end">Actions</th></tr>
                     </thead>
@@ -118,9 +121,12 @@
     <!-- ══ TOPICS ════════════════════════════════════════════════════════════ -->
     <div class="tab-pane fade @(tab=="topics" ? "show active" : "")" id="tab-topics">
         <div class="card shadow-sm">
-            <div class="card-header bg-white fw-semibold py-3">Topics</div>
+            <div class="card-header bg-white fw-semibold py-2 small">Topics</div>
             <div class="card-body p-0">
-                <table class="table table-hover align-middle mb-0 paginated-table" data-page-size="25">
+                <div class="px-3 py-2 border-bottom bg-white">
+                    <input type="search" class="form-control form-control-sm master-search" placeholder="&#128269; Search..." autocomplete="off" />
+                </div>
+                <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
                     <thead class="table-light">
                         <tr><th>#</th><th>Name</th><th>Subject</th><th>Status</th><th>Sort</th><th class="text-end">Actions</th></tr>
                     </thead>
@@ -195,9 +201,12 @@
     <!-- ══ DIFFICULTY ════════════════════════════════════════════════════════ -->
     <div class="tab-pane fade @(tab=="difficulty" ? "show active" : "")" id="tab-difficulty">
         <div class="card shadow-sm">
-            <div class="card-header bg-white fw-semibold py-3">Difficulty Levels</div>
+            <div class="card-header bg-white fw-semibold py-2 small">Difficulty Levels</div>
             <div class="card-body p-0">
-                <table class="table table-hover align-middle mb-0 paginated-table" data-page-size="25">
+                <div class="px-3 py-2 border-bottom bg-white">
+                    <input type="search" class="form-control form-control-sm master-search" placeholder="&#128269; Search..." autocomplete="off" />
+                </div>
+                <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
                     <thead class="table-light"><tr><th>#</th><th>Name</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
                     @foreach (var d in Model.DifficultyLevels)
@@ -250,9 +259,12 @@
     <!-- ══ COMPLEXITY ════════════════════════════════════════════════════════ -->
     <div class="tab-pane fade @(tab=="complexity" ? "show active" : "")" id="tab-complexity">
         <div class="card shadow-sm">
-            <div class="card-header bg-white fw-semibold py-3">Complexity Levels</div>
+            <div class="card-header bg-white fw-semibold py-2 small">Complexity Levels</div>
             <div class="card-body p-0">
-                <table class="table table-hover align-middle mb-0 paginated-table" data-page-size="25">
+                <div class="px-3 py-2 border-bottom bg-white">
+                    <input type="search" class="form-control form-control-sm master-search" placeholder="&#128269; Search..." autocomplete="off" />
+                </div>
+                <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
                     <thead class="table-light"><tr><th>#</th><th>Name</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
                     @foreach (var c in Model.ComplexityLevels)
@@ -305,9 +317,12 @@
     <!-- ══ EXAM TYPES ════════════════════════════════════════════════════════ -->
     <div class="tab-pane fade @(tab=="examtypes" ? "show active" : "")" id="tab-examtypes">
         <div class="card shadow-sm">
-            <div class="card-header bg-white fw-semibold py-3">Exam Types</div>
+            <div class="card-header bg-white fw-semibold py-2 small">Exam Types</div>
             <div class="card-body p-0">
-                <table class="table table-hover align-middle mb-0 paginated-table" data-page-size="25">
+                <div class="px-3 py-2 border-bottom bg-white">
+                    <input type="search" class="form-control form-control-sm master-search" placeholder="&#128269; Search..." autocomplete="off" />
+                </div>
+                <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
                     <thead class="table-light"><tr><th>#</th><th>Name</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
                     @foreach (var e in Model.ExamTypes)
@@ -360,9 +375,12 @@
     <!-- ══ MARKS ═════════════════════════════════════════════════════════════ -->
     <div class="tab-pane fade @(tab=="marks" ? "show active" : "")" id="tab-marks">
         <div class="card shadow-sm">
-            <div class="card-header bg-white fw-semibold py-3">Marks</div>
+            <div class="card-header bg-white fw-semibold py-2 small">Marks</div>
             <div class="card-body p-0">
-                <table class="table table-hover align-middle mb-0 paginated-table" data-page-size="25">
+                <div class="px-3 py-2 border-bottom bg-white">
+                    <input type="search" class="form-control form-control-sm master-search" placeholder="&#128269; Search..." autocomplete="off" />
+                </div>
+                <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
                     <thead class="table-light"><tr><th>#</th><th>Label</th><th>Value</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
                     @foreach (var m in Model.Marks)
@@ -418,9 +436,12 @@
     <!-- ══ NEGATIVE MARKS ════════════════════════════════════════════════════ -->
     <div class="tab-pane fade @(tab=="negmarks" ? "show active" : "")" id="tab-negmarks">
         <div class="card shadow-sm">
-            <div class="card-header bg-white fw-semibold py-3">Negative Marks</div>
+            <div class="card-header bg-white fw-semibold py-2 small">Negative Marks</div>
             <div class="card-body p-0">
-                <table class="table table-hover align-middle mb-0 paginated-table" data-page-size="25">
+                <div class="px-3 py-2 border-bottom bg-white">
+                    <input type="search" class="form-control form-control-sm master-search" placeholder="&#128269; Search..." autocomplete="off" />
+                </div>
+                <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
                     <thead class="table-light"><tr><th>#</th><th>Label</th><th>Value</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
                     @foreach (var n in Model.NegativeMarks)
@@ -476,9 +497,12 @@
     <!-- ══ TAGS ═══════════════════════════════════════════════════════════════ -->
     <div class="tab-pane fade @(tab=="tags" ? "show active" : "")" id="tab-tags">
         <div class="card shadow-sm">
-            <div class="card-header bg-white fw-semibold py-3">Tags</div>
+            <div class="card-header bg-white fw-semibold py-2 small">Tags</div>
             <div class="card-body p-0">
-                <table class="table table-hover align-middle mb-0 paginated-table" data-page-size="25">
+                <div class="px-3 py-2 border-bottom bg-white">
+                    <input type="search" class="form-control form-control-sm master-search" placeholder="&#128269; Search..." autocomplete="off" />
+                </div>
+                <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
                     <thead class="table-light"><tr><th>#</th><th>Name</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
                     @foreach (var t in Model.Tags)
@@ -534,12 +558,15 @@
     <!-- ══ QUESTION TYPES ════════════════════════════════════════════════════ -->
     <div class="tab-pane fade @(tab=="qtypes" ? "show active" : "")" id="tab-qtypes">
         <div class="card shadow-sm">
-            <div class="card-header bg-white fw-semibold py-3 d-flex justify-content-between align-items-center">
+            <div class="card-header bg-white fw-semibold py-2 small d-flex justify-content-between align-items-center">
                 <span>Question Types</span>
                 <span class="text-muted small fw-normal">Fixed set — rename or toggle active only.</span>
             </div>
             <div class="card-body p-0">
-                <table class="table table-hover align-middle mb-0 paginated-table" data-page-size="25">
+                <div class="px-3 py-2 border-bottom bg-white">
+                    <input type="search" class="form-control form-control-sm master-search" placeholder="&#128269; Search..." autocomplete="off" />
+                </div>
+                <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
                     <thead class="table-light">
                         <tr>
                             <th style="width:50px">#</th>
@@ -753,48 +780,64 @@
     });
 })();
 
-// ── Pagination ────────────────────────────────────────────────────────────
+// ── Pagination + Search ───────────────────────────────────────────────────
 (function () {
     document.querySelectorAll('table.paginated-table').forEach(table => {
-        const pageSize = parseInt(table.dataset.pageSize) || 25;
-        const tbody    = table.querySelector('tbody');
+        const pageSize    = parseInt(table.dataset.pageSize) || 10;
+        const tbody       = table.querySelector('tbody');
         if (!tbody) return;
 
-        let rows   = Array.from(tbody.querySelectorAll('tr'));
-        let page   = 1;
+        const searchInput = table.closest('.card-body')?.querySelector('.master-search');
+        let page          = 1;
+        let searchText    = '';
 
-        // Build pagination bar
         const bar = document.createElement('div');
         bar.className = 'd-flex align-items-center justify-content-between px-3 py-2 border-top bg-light';
-        table.parentElement.after(bar);
+        table.after(bar);
+
+        function getFiltered() {
+            const allRows = Array.from(tbody.querySelectorAll('tr'));
+            if (!searchText) return allRows;
+            const q = searchText.toLowerCase();
+            return allRows.filter(tr => tr.textContent.toLowerCase().includes(q));
+        }
 
         function render() {
-            rows = Array.from(tbody.querySelectorAll('tr'));
-            const total = rows.length;
-            const pages = Math.max(1, Math.ceil(total / pageSize));
-            page = Math.min(page, pages);
+            const allRows  = Array.from(tbody.querySelectorAll('tr'));
+            const filtered = getFiltered();
+            const total    = filtered.length;
+            const pages    = Math.max(1, Math.ceil(total / pageSize));
+            page = Math.min(Math.max(1, page), pages);
 
-            rows.forEach((tr, i) => {
-                tr.style.display = (i >= (page - 1) * pageSize && i < page * pageSize) ? '' : 'none';
-            });
+            allRows.forEach(tr => tr.style.display = 'none');
+            filtered.slice((page - 1) * pageSize, page * pageSize)
+                    .forEach(tr => tr.style.display = '');
 
-            const from = Math.min((page - 1) * pageSize + 1, total);
+            const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
             const to   = Math.min(page * pageSize, total);
 
             bar.innerHTML = `
-                <span class="text-muted small">Showing ${from}–${to} of ${total}</span>
+                <span class="text-muted" style="font-size:0.75rem">Showing ${from}–${to} of ${total}</span>
                 <div class="d-flex align-items-center gap-1">
-                    <button class="btn btn-sm btn-outline-secondary px-2 py-1" id="pgPrev" ${page <= 1 ? 'disabled' : ''}>
+                    <button class="btn btn-sm btn-outline-secondary px-2 py-0 pgPrev" ${page <= 1 ? 'disabled' : ''}>
                         <i class="bi bi-chevron-left"></i>
                     </button>
-                    <span class="small mx-1">Page ${page} / ${pages}</span>
-                    <button class="btn btn-sm btn-outline-secondary px-2 py-1" id="pgNext" ${page >= pages ? 'disabled' : ''}>
+                    <span style="font-size:0.75rem" class="mx-1">Page ${page}/${pages}</span>
+                    <button class="btn btn-sm btn-outline-secondary px-2 py-0 pgNext" ${page >= pages ? 'disabled' : ''}>
                         <i class="bi bi-chevron-right"></i>
                     </button>
                 </div>`;
 
-            bar.querySelector('#pgPrev')?.addEventListener('click', () => { page--; render(); });
-            bar.querySelector('#pgNext')?.addEventListener('click', () => { page++; render(); });
+            bar.querySelector('.pgPrev')?.addEventListener('click', () => { page--; render(); });
+            bar.querySelector('.pgNext')?.addEventListener('click', () => { page++; render(); });
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                searchText = searchInput.value.trim();
+                page = 1;
+                render();
+            });
         }
 
         render();
