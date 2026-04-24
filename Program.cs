@@ -252,6 +252,7 @@ builder.Services.AddHangfireServer(options =>
 // ═══════════════════════════════════════════════════════════════════════════
 // 4. APPLICATION SERVICES
 // ═══════════════════════════════════════════════════════════════════════════
+builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IRoleService, RoleService>();
