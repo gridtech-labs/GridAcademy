@@ -56,13 +56,12 @@
                 </div>
                 <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
                     <thead class="table-light">
-                        <tr><th>#</th><th>Name</th><th>Status</th><th>Sort</th><th class="text-end">Actions</th></tr>
+                        <tr><th>Name</th><th>Status</th><th>Sort</th><th class="text-end">Actions</th></tr>
                     </thead>
                     <tbody>
                     @foreach (var s in Model.Subjects)
                     {
                         <tr>
-                            <td class="text-muted small">@s.Id</td>
                             <td class="fw-semibold">@s.Name</td>
                             <td>
                                 @if (s.IsActive) { <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span> }
@@ -128,13 +127,12 @@
                 </div>
                 <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
                     <thead class="table-light">
-                        <tr><th>#</th><th>Name</th><th>Subject</th><th>Status</th><th>Sort</th><th class="text-end">Actions</th></tr>
+                        <tr><th>Name</th><th>Subject</th><th>Status</th><th>Sort</th><th class="text-end">Actions</th></tr>
                     </thead>
                     <tbody>
                     @foreach (var t in Model.Topics)
                     {
                         <tr>
-                            <td class="text-muted small">@t.Id</td>
                             <td class="fw-semibold">@t.Name</td>
                             <td><span class="badge bg-primary-subtle text-primary border border-primary-subtle">@t.SubjectName</span></td>
                             <td>
@@ -207,12 +205,11 @@
                     <input type="search" class="form-control form-control-sm master-search" placeholder="&#128269; Search..." autocomplete="off" />
                 </div>
                 <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
-                    <thead class="table-light"><tr><th>#</th><th>Name</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
+                    <thead class="table-light"><tr><th>Name</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
                     @foreach (var d in Model.DifficultyLevels)
                     {
                         <tr>
-                            <td class="text-muted small">@d.Id</td>
                             <td class="fw-semibold">@d.Name</td>
                             <td class="text-muted">@d.SortOrder</td>
                             <td class="text-end">
@@ -265,12 +262,11 @@
                     <input type="search" class="form-control form-control-sm master-search" placeholder="&#128269; Search..." autocomplete="off" />
                 </div>
                 <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
-                    <thead class="table-light"><tr><th>#</th><th>Name</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
+                    <thead class="table-light"><tr><th>Name</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
                     @foreach (var c in Model.ComplexityLevels)
                     {
                         <tr>
-                            <td class="text-muted small">@c.Id</td>
                             <td class="fw-semibold">@c.Name</td>
                             <td class="text-muted">@c.SortOrder</td>
                             <td class="text-end">
@@ -323,12 +319,11 @@
                     <input type="search" class="form-control form-control-sm master-search" placeholder="&#128269; Search..." autocomplete="off" />
                 </div>
                 <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
-                    <thead class="table-light"><tr><th>#</th><th>Name</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
+                    <thead class="table-light"><tr><th>Name</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
                     @foreach (var e in Model.ExamTypes)
                     {
                         <tr>
-                            <td class="text-muted small">@e.Id</td>
                             <td class="fw-semibold">@e.Name</td>
                             <td class="text-muted">@e.SortOrder</td>
                             <td class="text-end">
@@ -381,12 +376,11 @@
                     <input type="search" class="form-control form-control-sm master-search" placeholder="&#128269; Search..." autocomplete="off" />
                 </div>
                 <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
-                    <thead class="table-light"><tr><th>#</th><th>Label</th><th>Value</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
+                    <thead class="table-light"><tr><th>Label</th><th>Value</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
                     @foreach (var m in Model.Marks)
                     {
                         <tr>
-                            <td class="text-muted small">@m.Id</td>
                             <td class="fw-semibold">@m.Name</td>
                             <td><span class="badge bg-success text-white">+@m.Value</span></td>
                             <td class="text-muted">@m.SortOrder</td>
@@ -442,12 +436,11 @@
                     <input type="search" class="form-control form-control-sm master-search" placeholder="&#128269; Search..." autocomplete="off" />
                 </div>
                 <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
-                    <thead class="table-light"><tr><th>#</th><th>Label</th><th>Value</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
+                    <thead class="table-light"><tr><th>Label</th><th>Value</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
                     @foreach (var n in Model.NegativeMarks)
                     {
                         <tr>
-                            <td class="text-muted small">@n.Id</td>
                             <td class="fw-semibold">@n.Name</td>
                             <td><span class="badge bg-danger text-white">@n.Value</span></td>
                             <td class="text-muted">@n.SortOrder</td>
@@ -503,12 +496,11 @@
                     <input type="search" class="form-control form-control-sm master-search" placeholder="&#128269; Search..." autocomplete="off" />
                 </div>
                 <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
-                    <thead class="table-light"><tr><th>#</th><th>Name</th><th class="text-end">Actions</th></tr></thead>
+                    <thead class="table-light"><tr><th>Name</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
                     @foreach (var t in Model.Tags)
                     {
                         <tr>
-                            <td class="text-muted small">@t.Id</td>
                             <td class="fw-semibold">@t.Name</td>
                             <td class="text-end">
                                 @if (canEdit)
@@ -569,7 +561,6 @@
                 <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
                     <thead class="table-light">
                         <tr>
-                            <th style="width:50px">#</th>
                             <th style="width:70px">Code</th>
                             <th>Name</th>
                             <th>Description</th>
@@ -581,7 +572,6 @@
                     @foreach (var qt in Model.QuestionTypes)
                     {
                         <tr>
-                            <td class="text-muted small">@qt.Id</td>
                             <td><span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">@qt.Code</span></td>
                             <td class="fw-semibold">@qt.Name</td>
                             <td class="text-muted small">@qt.Description</td>
@@ -782,24 +772,30 @@
 
 // ── Pagination + Search ───────────────────────────────────────────────────
 (function () {
-    document.querySelectorAll('table.paginated-table').forEach(table => {
+    const inited = new WeakSet();
+
+    function initTable(table) {
+        if (inited.has(table)) return;
+        inited.add(table);
+
         const pageSize    = parseInt(table.dataset.pageSize) || 10;
         const tbody       = table.querySelector('tbody');
         if (!tbody) return;
 
-        const searchInput = table.closest('.card-body')?.querySelector('.master-search');
+        const cardBody    = table.closest('.card-body');
+        const searchInput = cardBody?.querySelector('.master-search');
         let page          = 1;
         let searchText    = '';
 
         const bar = document.createElement('div');
-        bar.className = 'd-flex align-items-center justify-content-between px-3 py-2 border-top bg-light';
+        bar.className = 'pg-bar d-flex align-items-center justify-content-between px-3 py-2 border-top bg-light';
         table.after(bar);
 
         function getFiltered() {
-            const allRows = Array.from(tbody.querySelectorAll('tr'));
-            if (!searchText) return allRows;
+            const all = Array.from(tbody.querySelectorAll('tr'));
+            if (!searchText) return all;
             const q = searchText.toLowerCase();
-            return allRows.filter(tr => tr.textContent.toLowerCase().includes(q));
+            return all.filter(tr => tr.textContent.toLowerCase().includes(q));
         }
 
         function render() {
@@ -810,8 +806,8 @@
             page = Math.min(Math.max(1, page), pages);
 
             allRows.forEach(tr => tr.style.display = 'none');
-            filtered.slice((page - 1) * pageSize, page * pageSize)
-                    .forEach(tr => tr.style.display = '');
+            const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
+            visible.forEach(tr => tr.style.display = '');
 
             const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
             const to   = Math.min(page * pageSize, total);
@@ -819,20 +815,21 @@
             bar.innerHTML = `
                 <span class="text-muted" style="font-size:0.75rem">Showing ${from}–${to} of ${total}</span>
                 <div class="d-flex align-items-center gap-1">
-                    <button class="btn btn-sm btn-outline-secondary px-2 py-0 pgPrev" ${page <= 1 ? 'disabled' : ''}>
+                    <button class="btn btn-sm btn-outline-secondary px-2 py-0 pg-prev" ${page <= 1 ? 'disabled' : ''}>
                         <i class="bi bi-chevron-left"></i>
                     </button>
                     <span style="font-size:0.75rem" class="mx-1">Page ${page}/${pages}</span>
-                    <button class="btn btn-sm btn-outline-secondary px-2 py-0 pgNext" ${page >= pages ? 'disabled' : ''}>
+                    <button class="btn btn-sm btn-outline-secondary px-2 py-0 pg-next" ${page >= pages ? 'disabled' : ''}>
                         <i class="bi bi-chevron-right"></i>
                     </button>
                 </div>`;
 
-            bar.querySelector('.pgPrev')?.addEventListener('click', () => { page--; render(); });
-            bar.querySelector('.pgNext')?.addEventListener('click', () => { page++; render(); });
+            bar.querySelector('.pg-prev')?.addEventListener('click', () => { page--; render(); });
+            bar.querySelector('.pg-next')?.addEventListener('click', () => { page++; render(); });
         }
 
-        if (searchInput) {
+        if (searchInput && !searchInput._pgInited) {
+            searchInput._pgInited = true;
             searchInput.addEventListener('input', () => {
                 searchText = searchInput.value.trim();
                 page = 1;
@@ -841,6 +838,17 @@
         }
 
         render();
+    }
+
+    // Init all tables now (active tab renders immediately)
+    document.querySelectorAll('table.paginated-table').forEach(initTable);
+
+    // Also init when a tab is shown (catches tabs that were hidden on load)
+    document.querySelectorAll('#masterTabs [data-bs-toggle="tab"]').forEach(btn => {
+        btn.addEventListener('shown.bs.tab', e => {
+            const pane = document.querySelector(e.target.getAttribute('data-bs-target'));
+            pane?.querySelectorAll('table.paginated-table').forEach(initTable);
+        });
     });
 })();
 
