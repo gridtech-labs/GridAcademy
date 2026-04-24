@@ -4,21 +4,24 @@
     ViewData["Title"] = "Tests";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <h4 class="fw-bold mb-0"><i class="bi bi-journal-check me-2 text-primary"></i>Tests</h4>
-        <p class="text-muted small mb-0">Create, publish, and assign tests to students</p>
+        <h4 class="fw-bold mb-0"><i class="bi bi-journal-check me-2 text-primary"></i>Tests / Assessments</h4>
+        <p class="text-muted small mb-0">Create, publish and assign tests to students</p>
     </div>
     <a asp-page="Create" class="btn btn-primary btn-sm">
         <i class="bi bi-plus-lg me-1"></i>New Test
     </a>
 </div>
 
+@if (TempData["Error"]   != null) { <div class="alert alert-danger   alert-dismissible fade show small"><i class="bi bi-exclamation-triangle me-2"></i>@TempData["Error"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Success"] != null) { <div class="alert alert-success  alert-dismissible fade show small"><i class="bi bi-check-circle me-2"></i>@TempData["Success"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
+
 <!-- Filters -->
-<form method="get" class="row g-2 mb-4">
+<form method="get" class="row g-2 mb-3 align-items-center">
     <div class="col-md-4">
         <input name="search" type="text" class="form-control form-control-sm"
-               placeholder="Search tests…" value="@Model.Search" />
+               placeholder="&#128269; Search tests…" value="@Model.Search" />
     </div>
     <div class="col-auto">
         <select name="status" class="form-select form-select-sm">
@@ -28,81 +31,98 @@
             <option value="3" selected="@(Model.StatusFilter == 3)">Archived</option>
         </select>
     </div>
-    <div class="col-auto">
-        <button type="submit" class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-funnel me-1"></i>Filter
-        </button>
-        <a asp-page="Index" class="btn btn-sm btn-outline-secondary ms-1">Clear</a>
+    <div class="col-auto d-flex gap-1">
+        <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-funnel me-1"></i>Filter</button>
+        <a asp-page="Index" class="btn btn-sm btn-outline-secondary">Clear</a>
     </div>
+    @if (Model.Tests.Any())
+    {
+        <div class="col-auto ms-auto text-muted small pt-1">@Model.Tests.Count result(s)</div>
+    }
 </form>
 
 @if (!Model.Tests.Any())
 {
     <div class="text-center py-5 text-muted">
-        <i class="bi bi-journal-x fs-1 d-block mb-2"></i>
-        <p>No tests found. <a asp-page="Create">Create your first test</a>.</p>
+        <i class="bi bi-journal-x fs-2 d-block mb-2 opacity-25"></i>
+        <p class="mb-1 fw-semibold">No tests found.</p>
+        <p class="small"><a asp-page="Create">Create your first test</a> to get started.</p>
     </div>
 }
 else
 {
     <div class="card shadow-sm">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Title</th>
-                        <th>Exam Type</th>
-                        <th>Sections</th>
-                        <th>Questions</th>
-                        <th>Duration</th>
-                        <th>Pass %</th>
-                        <th>Status</th>
-                        <th>Created</th>
-                        <th class="text-end">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var t in Model.Tests)
-                    {
+        <div class="card-body p-0">
+            <div class="px-3 py-2 border-bottom bg-white">
+                <input type="search" id="testSearch" class="form-control form-control-sm"
+                       placeholder="&#128269; Filter results…" autocomplete="off" />
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0" style="font-size:0.8rem" id="testsTable">
+                    <thead class="table-light">
                         <tr>
-                            <td class="fw-semibold">@t.Title</td>
-                            <td><span class="badge bg-secondary-subtle text-secondary border">@t.ExamTypeName</span></td>
-                            <td>@t.SectionCount</td>
-                            <td>@t.TotalQuestions</td>
-                            <td>@t.DurationMinutes min</td>
-                            <td>@t.PassingPercent%</td>
-                            <td>
-                                @switch (t.Status)
-                                {
-                                    case GridAcademy.Data.Entities.Assessment.TestStatus.Draft:
-                                        <span class="badge bg-warning text-dark">Draft</span>
-                                        break;
-                                    case GridAcademy.Data.Entities.Assessment.TestStatus.Published:
-                                        <span class="badge bg-success">Published</span>
-                                        break;
-                                    case GridAcademy.Data.Entities.Assessment.TestStatus.Archived:
-                                        <span class="badge bg-secondary">Archived</span>
-                                        break;
-                                }
-                            </td>
-                            <td class="text-muted small">@t.CreatedAt.ToString("dd MMM yyyy")</td>
-                            <td class="text-end">
-                                <a asp-page="Edit"         asp-route-id="@t.Id" class="btn btn-xs btn-outline-primary me-1" title="Edit Test"><i class="bi bi-pencil"></i></a>
-                                <a asp-page="Questions/Index" asp-route-testId="@t.Id" class="btn btn-xs btn-outline-secondary me-1" title="Manage Questions"><i class="bi bi-patch-question"></i> <span class="d-none d-lg-inline">Questions</span></a>
-                                <a asp-page="Assign"       asp-route-id="@t.Id" class="btn btn-xs btn-outline-success me-1" title="Assign"><i class="bi bi-person-plus"></i></a>
-                                <a asp-page="Results"      asp-route-id="@t.Id" class="btn btn-xs btn-outline-info me-1" title="Results"><i class="bi bi-bar-chart"></i></a>
-                                @if (t.Status == GridAcademy.Data.Entities.Assessment.TestStatus.Draft)
-                                {
-                                    <button type="button" class="btn btn-xs btn-outline-danger" title="Delete"
-                                            onclick="confirmDelete('@t.Id','@t.Title')">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                }
-                            </td>
+                            <th>Title</th>
+                            <th>Exam Type</th>
+                            <th class="text-center">Mode</th>
+                            <th class="text-center">Sections</th>
+                            <th class="text-center">Questions</th>
+                            <th class="text-center">Duration</th>
+                            <th class="text-center">Pass %</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th class="text-end">Actions</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (var t in Model.Tests)
+                        {
+                            <tr>
+                                <td class="fw-semibold">@t.Title</td>
+                                <td><span class="badge bg-secondary-subtle text-secondary border" style="font-size:0.72rem">@t.ExamTypeName</span></td>
+                                <td class="text-center">
+                                    @if (t.QuestionMode == GridAcademy.Data.Entities.Assessment.QuestionMode.GlobalBank)
+                                    { <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size:0.7rem">Bank</span> }
+                                    else
+                                    { <span class="badge bg-purple-subtle text-purple border" style="font-size:0.7rem;background:#f3e8ff;color:#7c3aed;border-color:#d8b4fe!important">Manual</span> }
+                                </td>
+                                <td class="text-center text-muted">@t.SectionCount</td>
+                                <td class="text-center text-muted">@t.TotalQuestions</td>
+                                <td class="text-center text-muted">@t.DurationMinutes min</td>
+                                <td class="text-center text-muted">@t.PassingPercent%</td>
+                                <td>
+                                    @switch (t.Status)
+                                    {
+                                        case GridAcademy.Data.Entities.Assessment.TestStatus.Draft:
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Draft</span>
+                                            break;
+                                        case GridAcademy.Data.Entities.Assessment.TestStatus.Published:
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">Published</span>
+                                            break;
+                                        case GridAcademy.Data.Entities.Assessment.TestStatus.Archived:
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Archived</span>
+                                            break;
+                                    }
+                                </td>
+                                <td class="text-muted">@t.CreatedAt.ToString("dd MMM yy")</td>
+                                <td class="text-end text-nowrap">
+                                    <a asp-page="Edit"            asp-route-id="@t.Id" class="btn btn-sm btn-outline-primary me-1 py-0 px-2"  title="Edit"><i class="bi bi-pencil"></i></a>
+                                    <a asp-page="Questions/Index" asp-route-testId="@t.Id" class="btn btn-sm btn-outline-secondary me-1 py-0 px-2" title="Questions"><i class="bi bi-patch-question"></i></a>
+                                    <a asp-page="Assign"          asp-route-id="@t.Id" class="btn btn-sm btn-outline-success me-1 py-0 px-2"   title="Assign"><i class="bi bi-person-plus"></i></a>
+                                    <a asp-page="Results"         asp-route-id="@t.Id" class="btn btn-sm btn-outline-info me-1 py-0 px-2"      title="Results"><i class="bi bi-bar-chart"></i></a>
+                                    @if (t.Status == GridAcademy.Data.Entities.Assessment.TestStatus.Draft)
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" title="Delete"
+                                                onclick="confirmDelete('@t.Id','@t.Title')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <!-- Pagination bar injected by JS -->
         </div>
     </div>
 }
@@ -111,16 +131,16 @@ else
 <div class="modal fade" id="deleteModal" tabindex="-1">
     <div class="modal-dialog modal-sm">
         <div class="modal-content">
-            <div class="modal-header">
-                <h6 class="modal-title">Delete Test</h6>
+            <div class="modal-header py-2">
+                <h6 class="modal-title mb-0">Delete Test</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body small">
                 Delete <strong id="deleteName"></strong>? This cannot be undone.
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer py-2">
                 <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form method="post" asp-page-handler="Delete" id="deleteForm">
+                <form method="post" asp-page-handler="Delete" id="deleteForm" class="d-inline">
                     @Html.AntiForgeryToken()
                     <input type="hidden" id="deleteId" name="id" />
                     <button type="submit" class="btn btn-sm btn-danger">Delete</button>
@@ -137,5 +157,67 @@ function confirmDelete(id, name) {
     document.getElementById('deleteName').textContent = name;
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
+
+// ── Client-side search + pagination ──────────────────────────────────────
+(function () {
+    const table  = document.getElementById('testsTable');
+    if (!table) return;
+
+    const searchInput = document.getElementById('testSearch');
+    const tbody       = table.querySelector('tbody');
+    const pageSize    = 10;
+    let page          = 1;
+    let searchText    = '';
+
+    const bar = document.createElement('div');
+    bar.className = 'd-flex align-items-center justify-content-between px-3 py-2 border-top bg-light';
+    table.closest('.table-responsive').after(bar);
+
+    function getFiltered() {
+        const all = Array.from(tbody.querySelectorAll('tr'));
+        if (!searchText) return all;
+        const q = searchText.toLowerCase();
+        return all.filter(tr => tr.textContent.toLowerCase().includes(q));
+    }
+
+    function render() {
+        const allRows  = Array.from(tbody.querySelectorAll('tr'));
+        const filtered = getFiltered();
+        const total    = filtered.length;
+        const pages    = Math.max(1, Math.ceil(total / pageSize));
+        page = Math.min(Math.max(1, page), pages);
+
+        allRows.forEach(tr => tr.style.display = 'none');
+        filtered.slice((page - 1) * pageSize, page * pageSize).forEach(tr => tr.style.display = '');
+
+        const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+        const to   = Math.min(page * pageSize, total);
+
+        bar.innerHTML = `
+            <span class="text-muted" style="font-size:0.75rem">Showing ${from}–${to} of ${total}</span>
+            <div class="d-flex align-items-center gap-1">
+                <button class="btn btn-sm btn-outline-secondary px-2 py-0 pg-prev" ${page <= 1 ? 'disabled' : ''}>
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                <span style="font-size:0.75rem" class="mx-1">Page ${page}/${pages}</span>
+                <button class="btn btn-sm btn-outline-secondary px-2 py-0 pg-next" ${page >= pages ? 'disabled' : ''}>
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>`;
+
+        bar.querySelector('.pg-prev')?.addEventListener('click', () => { page--; render(); });
+        bar.querySelector('.pg-next')?.addEventListener('click', () => { page++; render(); });
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            searchText = searchInput.value.trim();
+            page = 1;
+            render();
+        });
+    }
+
+    render();
+})();
 </script>
 }
