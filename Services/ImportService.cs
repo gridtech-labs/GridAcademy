@@ -653,11 +653,10 @@ public class ImportService : IImportService
             @"SECTION\s+\d+\s*\(Maximum\s+marks[^Q]{0,800}",
             "\n", RegexOptions.Singleline | RegexOptions.IgnoreCase);
 
-        // ── 6. Build subject lookup: name → DB id ────────────────────────────
-        var subjectLookup = subjects.ToDictionary(
-            s => s.Name,
-            s => s.Id,
-            StringComparer.OrdinalIgnoreCase);
+        // ── 6. Build subject lookup: name → DB id (first wins if names are duplicated) ─
+        var subjectLookup = subjects
+            .GroupBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
 
         // ── 7. Record all subject heading positions in the cleaned text ───────
         var subjectHeadingRx = new Regex(
@@ -1218,7 +1217,8 @@ public class ImportService : IImportService
 
         return new RrbMasterCache
         {
-            SubjectIds   = subjects.ToDictionary(s => s.Name, s => s.Id, StringComparer.OrdinalIgnoreCase),
+            SubjectIds   = subjects.GroupBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+                               .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase),
             TopicIds     = topics.ToDictionary(t => $"{t.SubjectId}:{t.Name}", t => t.Id, StringComparer.OrdinalIgnoreCase),
             DifficultyIds = difficulties.ToDictionary(d => d.Name, d => d.Id, StringComparer.OrdinalIgnoreCase),
             MarksIds     = marksList.ToDictionary(m => m.Value, m => m.Id),
