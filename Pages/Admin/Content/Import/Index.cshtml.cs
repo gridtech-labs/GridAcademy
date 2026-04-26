@@ -170,6 +170,46 @@ public class IndexModel : PageModel
             stream => _import.ImportRrbAlpAsync(stream, CurrentUserId),
             maxMb: 25);
 
+    public async Task<IActionResult> OnPostUrlAsync(string? url, bool useOcr = false)
+    {
+        ActiveSource   = "url";
+        AvailableTests = await _import.GetTestsForDropdownAsync();
+        if (TestId.HasValue)
+            ContextTestTitle = AvailableTests.FirstOrDefault(t => t.Id == TestId.Value).Title;
+
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            TempData["Error"] = "Please enter a URL.";
+            return Page();
+        }
+
+        try
+        {
+            Result = await _import.ImportFromUrlAsync(url.Trim(), CurrentUserId, TestId, useOcr);
+
+            if (Result.Imported > 0)
+            {
+                var msg = Result.MappedTestName is not null
+                    ? $"{Result.Imported} question(s) imported from URL and added to \"{Result.MappedTestName}\"."
+                    : $"{Result.Imported} question(s) imported from URL to the global question bank.";
+                TempData["Success"] = msg;
+
+                if (TestId.HasValue)
+                    return RedirectToPage("/Admin/Content/Tests/Questions/Index", new { testId = TestId.Value });
+            }
+            else
+            {
+                TempData["Error"] = "No questions were imported. Check the errors below.";
+            }
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = $"Import failed: {ex.Message}";
+        }
+
+        return Page();
+    }
+
     private async Task<IActionResult> HandleImport(
         IFormFile? file, string source,
         Func<Stream, Task<ImportResultDto>> importFn,

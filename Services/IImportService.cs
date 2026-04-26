@@ -24,6 +24,14 @@ public interface IImportService
     Task<ImportResultDto> ImportRrbAlpAsync(Stream stream, Guid? importedBy = null);
 
     /// <summary>
+    /// Downloads the content at <paramref name="url"/>, auto-detects PDF vs HTML,
+    /// and imports questions using the appropriate parser.
+    /// Questions are saved to the global bank; if <paramref name="testId"/> is supplied
+    /// they are also mapped to that test (same flow as file-based imports).
+    /// </summary>
+    Task<ImportResultDto> ImportFromUrlAsync(string url, Guid? importedBy = null, Guid? testId = null, bool useOcr = false);
+
+    /// <summary>
     /// Returns a list of all available tests (Id + Title) for the destination selector dropdown.
     /// </summary>
     Task<List<(Guid Id, string Title)>> GetTestsForDropdownAsync();

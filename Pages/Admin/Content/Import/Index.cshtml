@@ -21,7 +21,7 @@
         }
         else
         {
-            <p class="text-muted small mb-0">Bulk-upload questions from CSV, Excel, or PDF files</p>
+            <p class="text-muted small mb-0">Bulk-upload questions from CSV, Excel, PDF files, or directly from a URL</p>
         }
     </div>
     <div class="d-flex gap-2">
@@ -133,6 +133,12 @@ else
             <span class="badge bg-primary ms-1" style="font-size:.65rem">Custom Format</span>
         </button>
     </li>
+    <li class="nav-item">
+        <button class="nav-link @(src == "url" ? "active" : "")"
+                data-bs-toggle="tab" data-bs-target="#tab-url" type="button">
+            <i class="bi bi-link-45deg me-1"></i>From URL
+        </button>
+    </li>
 </ul>
 
 <div class="tab-content">
@@ -240,6 +246,56 @@ else
                             @(!Model.MathpixConfigured ? "disabled" : "")
                             onclick="if(!this.disabled){this.disabled=true;this.innerHTML='<span class=\'spinner-border spinner-border-sm me-2\'></span>Processing…';this.form.submit();}return false;">
                         <i class="bi bi-cpu me-1"></i>Import with OCR
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── From URL tab pane ─────────────────────────────────────────────── -->
+    <div class="tab-pane fade @(src == "url" ? "show active" : "")" id="tab-url">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold py-3">
+                <i class="bi bi-link-45deg text-primary me-2"></i>Import from URL
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info small mb-3 d-flex gap-2 align-items-start">
+                    <i class="bi bi-info-circle flex-shrink-0 mt-1"></i>
+                    <div>
+                        Paste the URL of an online question paper. The system will download the page,
+                        detect whether it is a <strong>PDF</strong> or <strong>HTML</strong>, and
+                        extract questions automatically using the same parser as the PDF/CSV importers.
+                        Questions are saved as <strong>Draft</strong> — review and publish them from the
+                        Questions list. To assign them to a test, use the destination selector above.
+                        <br class="mt-1" />
+                        <strong>Tip:</strong> If the paper uses images/scanned pages, enable
+                        <em>PDF OCR</em> below — this sends the PDF through Mathpix for math-aware
+                        recognition.
+                    </div>
+                </div>
+                <form method="post" asp-page-handler="Url" id="urlImportForm">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="TestId" class="testid-field"
+                           value="@(isTestContext ? Model.TestId.ToString() : "")" />
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Question Paper URL <span class="text-danger">*</span></label>
+                        <input type="url" name="url" class="form-control" required
+                               placeholder="https://example.com/paper.pdf  or  https://example.com/questions"
+                               autocomplete="off" />
+                        <div class="form-text">Supports direct PDF links and HTML pages with Q.1 … Q.N style questions.</div>
+                    </div>
+                    @if (Model.MathpixConfigured)
+                    {
+                        <div class="mb-3 form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="useOcr" value="true" id="urlUseOcr" />
+                            <label class="form-check-label" for="urlUseOcr">
+                                Use PDF OCR (Mathpix) — for scanned / image-based PDFs
+                            </label>
+                        </div>
+                    }
+                    <button type="submit" class="btn btn-primary import-submit-btn" id="urlSubmitBtn"
+                            onclick="this.disabled=true;this.innerHTML='<span class=\'spinner-border spinner-border-sm me-2\'></span>Fetching &amp; importing…';this.form.submit();">
+                        <i class="bi bi-cloud-download me-1"></i>Import from URL
                     </button>
                 </form>
             </div>

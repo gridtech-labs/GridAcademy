@@ -7,6 +7,7 @@ using CsvHelper.Configuration;
 using GridAcademy.Data;
 using GridAcademy.Data.Entities.Content;
 using GridAcademy.DTOs.Content.Import;
+using HtmlAgilityPack;
 using Microsoft.EntityFrameworkCore;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
@@ -15,15 +16,17 @@ namespace GridAcademy.Services;
 
 public class ImportService : IImportService
 {
-    private readonly AppDbContext            _db;
-    private readonly ILogger<ImportService>  _logger;
-    private readonly IMathpixService         _mathpix;
+    private readonly AppDbContext              _db;
+    private readonly ILogger<ImportService>    _logger;
+    private readonly IMathpixService           _mathpix;
+    private readonly IHttpClientFactory        _httpClientFactory;
 
-    public ImportService(AppDbContext db, ILogger<ImportService> logger, IMathpixService mathpix)
+    public ImportService(AppDbContext db, ILogger<ImportService> logger, IMathpixService mathpix, IHttpClientFactory httpClientFactory)
     {
-        _db      = db;
-        _logger  = logger;
-        _mathpix = mathpix;
+        _db                = db;
+        _logger            = logger;
+        _mathpix           = mathpix;
+        _httpClientFactory = httpClientFactory;
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -343,6 +346,161 @@ public class ImportService : IImportService
                     QuestionType      = pq.Type,
                     SubjectId         = pq.SubjectId  ?? defaultSubject.Id,
                     TopicId           = pq.TopicId    ?? defaultTopic.Id,
+                    DifficultyLevelId = defaultDiff.Id,
+                    ComplexityLevelId = defaultComp.Id,
+                    MarksId           = pq.MarksId    ?? defaultMarks.Id,
+                    NegativeMarksId   = pq.NegMarksId ?? defaultNegMark.Id,
+                    ExamTypeId        = pq.ExamTypeId ?? defaultExam.Id,
+                    NumericalAnswer   = pq.NumericalAnswer,
+                    CreatedBy         = importedBy,
+                    UpdatedBy         = importedBy
+                };
+
+                foreach (var opt in pq.Options)
+                    entity.Options.Add(opt);
+
+                _db.Questions.Add(entity);
+                result.Imported++;
+            }
+            catch (Exception ex)
+            {
+                result.Errors.Add(new ImportRowError { Row = rowNum, Field = "Parse", Message = ex.Message });
+                result.Skipped++;
+            }
+            rowNum++;
+        }
+
+        if (result.Imported > 0)
+        {
+            var addedQuestions = _db.ChangeTracker.Entries<Question>()
+                .Where(e => e.State == EntityState.Added)
+                .Select(e => e.Entity)
+                .ToList();
+
+            await _db.SaveChangesAsync();
+
+            if (testId.HasValue && addedQuestions.Count > 0)
+                await MapToTestAsync(addedQuestions.Select(q => q.Id), testId.Value, result);
+        }
+
+        return result;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // URL IMPORT — auto-detects PDF vs HTML, routes to correct parser
+    // ════════════════════════════════════════════════════════════════════════
+
+    public async Task<ImportResultDto> ImportFromUrlAsync(string url, Guid? importedBy = null, Guid? testId = null, bool useOcr = false)
+    {
+        var result = new ImportResultDto { Source = $"URL ({url})" };
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            result.Errors.Add(new ImportRowError { Row = 0, Field = "URL", Message = "Invalid URL. Must start with http:// or https://" });
+            return result;
+        }
+
+        byte[] contentBytes;
+        string contentType;
+
+        try
+        {
+            var http = _httpClientFactory.CreateClient();
+            http.Timeout = TimeSpan.FromSeconds(60);
+            http.DefaultRequestHeaders.UserAgent.ParseAdd(
+                "Mozilla/5.0 (compatible; GridAcademy/1.0; +https://gridacademy.in)");
+
+            using var response = await http.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            contentType  = response.Content.Headers.ContentType?.MediaType ?? "";
+            contentBytes = await response.Content.ReadAsByteArrayAsync();
+        }
+        catch (Exception ex)
+        {
+            result.Errors.Add(new ImportRowError { Row = 0, Field = "Download", Message = $"Could not fetch URL: {ex.Message}" });
+            return result;
+        }
+
+        bool isPdf = contentType.Contains("pdf", StringComparison.OrdinalIgnoreCase)
+                  || url.TrimEnd('/').EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+
+        if (isPdf)
+        {
+            result.Source = useOcr ? $"URL – PDF (OCR)" : $"URL – PDF";
+            using var ms = new MemoryStream(contentBytes);
+            var pdfResult = useOcr
+                ? await ImportPdfOcrAsync(ms, importedBy, testId)
+                : await ImportPdfAsync(ms, importedBy, testId);
+
+            pdfResult.Source = result.Source;
+            return pdfResult;
+        }
+
+        // ── HTML path: extract text, run JEE parser ──────────────────────────
+        result.Source = "URL – HTML";
+        string pageText;
+        try
+        {
+            var html = System.Text.Encoding.UTF8.GetString(contentBytes);
+            var doc  = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            // Remove script/style/nav/footer noise
+            foreach (var node in doc.DocumentNode.SelectNodes("//script|//style|//nav|//footer|//header|//aside") ?? Enumerable.Empty<HtmlNode>())
+                node.Remove();
+
+            pageText = doc.DocumentNode.InnerText;
+            pageText = WebUtility.HtmlDecode(pageText);
+        }
+        catch (Exception ex)
+        {
+            result.Errors.Add(new ImportRowError { Row = 0, Field = "HTML Parse", Message = $"Failed to parse HTML: {ex.Message}" });
+            return result;
+        }
+
+        var masters   = await LoadMastersAsync();
+        var questions = ParseJeePdf(pageText, masters.Subjects);
+        result.TotalRows = questions.Count;
+
+        if (questions.Count == 0)
+        {
+            result.Errors.Add(new ImportRowError
+            {
+                Row = 0, Field = "Parse",
+                Message = "No questions detected. The page may use images or a format the parser does not recognise. Try the PDF or PDF (OCR) import instead."
+            });
+            return result;
+        }
+
+        var defaultSubject = masters.Subjects.FirstOrDefault();
+        var defaultTopic   = masters.Topics.FirstOrDefault();
+        var defaultDiff    = masters.DifficultyLevels.FirstOrDefault();
+        var defaultComp    = masters.ComplexityLevels.FirstOrDefault();
+        var defaultExam    = masters.ExamTypes.FirstOrDefault();
+        var defaultMarks   = masters.Marks.FirstOrDefault();
+        var defaultNegMark = masters.NegativeMarks.FirstOrDefault();
+
+        if (defaultSubject == null || defaultTopic == null || defaultDiff == null ||
+            defaultComp == null || defaultExam == null || defaultMarks == null || defaultNegMark == null)
+        {
+            result.Errors.Add(new ImportRowError { Row = 0, Field = "Masters", Message = "Master data not seeded." });
+            return result;
+        }
+
+        int rowNum = 1;
+        foreach (var pq in questions)
+        {
+            try
+            {
+                var entity = new Question
+                {
+                    Text              = pq.Text,
+                    Status            = QuestionStatus.Draft,
+                    QuestionType      = pq.Type,
+                    SubjectId         = pq.SubjectId ?? defaultSubject.Id,
+                    TopicId           = pq.TopicId   ?? defaultTopic.Id,
                     DifficultyLevelId = defaultDiff.Id,
                     ComplexityLevelId = defaultComp.Id,
                     MarksId           = pq.MarksId    ?? defaultMarks.Id,
