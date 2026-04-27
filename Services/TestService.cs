@@ -162,15 +162,18 @@ public class TestService : ITestService
                     "Cannot publish a Manual test with no questions. " +
                     "Add questions via 'Add Question', 'Add from Bank', or 'Import'.");
 
-            // If sections exist, every question must be assigned to a section.
+            // If sections exist, auto-assign any unassigned questions to the first section
+            // so imported questions don't block publishing.
             if (test.Sections.Any())
             {
-                var unassigned = await _db.TestQuestions
-                    .CountAsync(tq => tq.TestId == id && tq.SectionId == null);
-                if (unassigned > 0)
-                    throw new InvalidOperationException(
-                        $"Cannot publish — {unassigned} question(s) are not assigned to any section. " +
-                        "Please assign all questions to their sections on the Manage Questions page.");
+                var firstSectionId = test.Sections.OrderBy(s => s.SortOrder).First().Id;
+                var unassignedRows = await _db.TestQuestions
+                    .Where(tq => tq.TestId == id && tq.SectionId == null)
+                    .ToListAsync();
+                foreach (var tq in unassignedRows)
+                    tq.SectionId = firstSectionId;
+                if (unassignedRows.Count > 0)
+                    await _db.SaveChangesAsync();
             }
         }
 
