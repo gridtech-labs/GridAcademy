@@ -170,6 +170,33 @@ public class IndexModel : PageModel
             stream => _import.ImportRrbAlpAsync(stream, CurrentUserId),
             maxMb: 25);
 
+    public async Task<IActionResult> OnGetUrlToExcelAsync(string? url, bool useOcr = false)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            TempData["Error"] = "Please enter a URL.";
+            return RedirectToPage();
+        }
+
+        try
+        {
+            var (bytes, fileName, count) = await _import.ExportUrlToExcelAsync(url.Trim(), useOcr);
+            if (count == 0)
+            {
+                TempData["Error"] = "No questions were detected at that URL.";
+                return RedirectToPage(new { activeSource = "url" });
+            }
+            return File(bytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = $"Export failed: {ex.Message}";
+            return RedirectToPage(new { activeSource = "url" });
+        }
+    }
+
     public async Task<IActionResult> OnPostUrlAsync(string? url, bool useOcr = false)
     {
         ActiveSource   = "url";

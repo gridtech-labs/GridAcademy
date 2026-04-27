@@ -32,6 +32,13 @@ public interface IImportService
     Task<ImportResultDto> ImportFromUrlAsync(string url, Guid? importedBy = null, Guid? testId = null, bool useOcr = false);
 
     /// <summary>
+    /// Downloads the content at <paramref name="url"/>, extracts questions,
+    /// and returns an Excel file (byte[]) in the GridAcademy import template format.
+    /// No questions are saved to the database — this is a preview/export only.
+    /// </summary>
+    Task<(byte[] Bytes, string FileName, int QuestionCount)> ExportUrlToExcelAsync(string url, bool useOcr = false);
+
+    /// <summary>
     /// Returns a list of all available tests (Id + Title) for the destination selector dropdown.
     /// </summary>
     Task<List<(Guid Id, string Title)>> GetTestsForDropdownAsync();

@@ -262,40 +262,52 @@ else
                 <div class="alert alert-info small mb-3 d-flex gap-2 align-items-start">
                     <i class="bi bi-info-circle flex-shrink-0 mt-1"></i>
                     <div>
-                        Paste the URL of an online question paper. The system will download the page,
-                        detect whether it is a <strong>PDF</strong> or <strong>HTML</strong>, and
-                        extract questions automatically using the same parser as the PDF/CSV importers.
-                        Questions are saved as <strong>Draft</strong> — review and publish them from the
-                        Questions list. To assign them to a test, use the destination selector above.
-                        <br class="mt-1" />
-                        <strong>Tip:</strong> If the paper uses images/scanned pages, enable
-                        <em>PDF OCR</em> below — this sends the PDF through Mathpix for math-aware
-                        recognition.
+                        Paste the URL of an online question paper (PDF link or HTML page).
+                        <ul class="mb-1 mt-1 ps-3">
+                            <li><strong>Download as Excel</strong> — extracts questions into the GridAcademy template (.xlsx). Review, fill in correct answers &amp; metadata, then import via the <em>Excel</em> tab. <span class="text-success fw-semibold">Recommended for new papers.</span></li>
+                            <li><strong>Import directly</strong> — saves questions straight to the question bank as Draft. Use when the paper already has answers in a parseable format.</li>
+                        </ul>
                     </div>
                 </div>
-                <form method="post" asp-page-handler="Url" id="urlImportForm">
+
+                <!-- Shared URL + OCR controls -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Question Paper URL <span class="text-danger">*</span></label>
+                    <input type="url" id="sharedUrl" class="form-control" required
+                           placeholder="https://example.com/paper.pdf  or  https://example.com/questions"
+                           autocomplete="off" />
+                    <div class="form-text">Supports direct PDF links and HTML pages with Q.1 … Q.N style questions.</div>
+                </div>
+                @if (Model.MathpixConfigured)
+                {
+                    <div class="mb-3 form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="sharedUseOcr" />
+                        <label class="form-check-label" for="sharedUseOcr">
+                            Use PDF OCR (Mathpix) — for scanned / image-based PDFs
+                        </label>
+                    </div>
+                }
+
+                <!-- Download as Excel -->
+                <form method="get" asp-page-handler="UrlToExcel" id="urlExcelForm" target="_blank">
+                    <input type="hidden" name="url" id="excelUrlField" />
+                    <input type="hidden" name="useOcr" id="excelOcrField" value="false" />
+                    <button type="submit" class="btn btn-success me-2" id="urlExcelBtn"
+                            onclick="return prepareUrlForms('excel')">
+                        <i class="bi bi-file-earmark-spreadsheet me-1"></i>Download as Excel
+                    </button>
+                </form>
+
+                <!-- Import directly -->
+                <form method="post" asp-page-handler="Url" id="urlImportForm" class="d-inline">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="TestId" class="testid-field"
                            value="@(isTestContext ? Model.TestId.ToString() : "")" />
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Question Paper URL <span class="text-danger">*</span></label>
-                        <input type="url" name="url" class="form-control" required
-                               placeholder="https://example.com/paper.pdf  or  https://example.com/questions"
-                               autocomplete="off" />
-                        <div class="form-text">Supports direct PDF links and HTML pages with Q.1 … Q.N style questions.</div>
-                    </div>
-                    @if (Model.MathpixConfigured)
-                    {
-                        <div class="mb-3 form-check form-switch">
-                            <input class="form-check-input" type="checkbox" name="useOcr" value="true" id="urlUseOcr" />
-                            <label class="form-check-label" for="urlUseOcr">
-                                Use PDF OCR (Mathpix) — for scanned / image-based PDFs
-                            </label>
-                        </div>
-                    }
-                    <button type="submit" class="btn btn-primary import-submit-btn" id="urlSubmitBtn"
-                            onclick="this.disabled=true;this.innerHTML='<span class=\'spinner-border spinner-border-sm me-2\'></span>Fetching &amp; importing…';this.form.submit();">
-                        <i class="bi bi-cloud-download me-1"></i>Import from URL
+                    <input type="hidden" name="url" id="importUrlField" />
+                    <input type="hidden" name="useOcr" id="importOcrField" value="false" />
+                    <button type="submit" class="btn btn-outline-primary import-submit-btn" id="urlImportBtn"
+                            onclick="return prepareUrlForms('import')">
+                        <i class="bi bi-cloud-upload me-1"></i>Import Directly
                     </button>
                 </form>
             </div>
@@ -515,6 +527,28 @@ else
     const src = '@src';
     const el  = document.querySelector(`[data-bs-target="#tab-${src}"]`);
     if (el) bootstrap.Tab.getOrCreateInstance(el).show();
+
+    // ── URL tab helpers ───────────────────────────────────────────────────
+    window.prepareUrlForms = function (target) {
+        const url    = document.getElementById('sharedUrl')?.value?.trim();
+        const useOcr = document.getElementById('sharedUseOcr')?.checked ?? false;
+        if (!url) { alert('Please enter a URL first.'); return false; }
+        if (target === 'excel') {
+            document.getElementById('excelUrlField').value  = url;
+            document.getElementById('excelOcrField').value  = useOcr ? 'true' : 'false';
+            const btn = document.getElementById('urlExcelBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating Excel…';
+            setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="bi bi-file-earmark-spreadsheet me-1"></i>Download as Excel'; }, 8000);
+        } else {
+            document.getElementById('importUrlField').value = url;
+            document.getElementById('importOcrField').value = useOcr ? 'true' : 'false';
+            const btn = document.getElementById('urlImportBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Fetching &amp; importing…';
+        }
+        return true;
+    };
 
     @if (isTestContext)
     {

@@ -542,6 +542,195 @@ public class ImportService : IImportService
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    // URL → EXCEL EXPORT (preview/download without saving to DB)
+    // ════════════════════════════════════════════════════════════════════════
+
+    public async Task<(byte[] Bytes, string FileName, int QuestionCount)> ExportUrlToExcelAsync(string url, bool useOcr = false)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            throw new ArgumentException("Invalid URL. Must start with http:// or https://");
+
+        // ── Download ─────────────────────────────────────────────────────────
+        byte[] contentBytes;
+        string contentType;
+        try
+        {
+            var http = _httpClientFactory.CreateClient();
+            http.Timeout = TimeSpan.FromSeconds(60);
+            http.DefaultRequestHeaders.UserAgent.ParseAdd(
+                "Mozilla/5.0 (compatible; GridAcademy/1.0; +https://gridacademy.in)");
+
+            using var response = await http.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+            contentType  = response.Content.Headers.ContentType?.MediaType ?? "";
+            contentBytes = await response.Content.ReadAsByteArrayAsync();
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Could not fetch URL: {ex.Message}", ex);
+        }
+
+        // ── Parse into question objects (no DB save) ─────────────────────────
+        bool isPdf = contentType.Contains("pdf", StringComparison.OrdinalIgnoreCase)
+                  || url.TrimEnd('/').EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+
+        var subjects = await _db.Subjects.AsNoTracking().ToListAsync();
+        List<ParsedQuestion> questions;
+
+        if (isPdf)
+        {
+            if (useOcr)
+            {
+                string mmd;
+                using var pdfMs = new MemoryStream(contentBytes);
+                using var copyMs = new MemoryStream();
+                await pdfMs.CopyToAsync(copyMs);
+                mmd = await _mathpix.OcrPdfAsync(copyMs.ToArray());
+                questions = ParseMathpixMmd(mmd, subjects);
+            }
+            else
+            {
+                using var pdfMs = new MemoryStream(contentBytes);
+                using var doc   = PdfDocument.Open(pdfMs);
+                var sb = new System.Text.StringBuilder();
+                foreach (var page in doc.GetPages())
+                    sb.AppendLine(page.Text);
+                questions = ParseJeePdf(sb.ToString(), subjects);
+            }
+        }
+        else
+        {
+            var html = System.Text.Encoding.UTF8.GetString(contentBytes);
+            var htmlDoc = new HtmlDocument();
+            htmlDoc.LoadHtml(html);
+            foreach (var node in htmlDoc.DocumentNode
+                .SelectNodes("//script|//style|//nav|//footer|//header|//aside")
+                ?? Enumerable.Empty<HtmlNode>())
+                node.Remove();
+            var pageText = WebUtility.HtmlDecode(htmlDoc.DocumentNode.InnerText);
+            questions = ParseJeePdf(pageText, subjects);
+        }
+
+        // ── Build subject id → name lookup ───────────────────────────────────
+        var subjectNames = subjects
+            .GroupBy(s => s.Id)
+            .ToDictionary(g => g.Key, g => g.First().Name);
+
+        // ── Generate Excel in GridAcademy import template format ─────────────
+        using var wb = new XLWorkbook();
+        var ws = wb.Worksheets.Add("Questions");
+
+        var headers = new[]
+        {
+            "SubjectName","TopicName","Subtopic","DifficultyLevel","ComplexityLevel",
+            "ExamType","Marks","NegativeMarks","QuestionType","QuestionText",
+            "OptionA","OptionB","OptionC","OptionD","CorrectOptions",
+            "NumericalAnswer","Tags","Solution"
+        };
+
+        for (int c = 0; c < headers.Length; c++)
+        {
+            var cell = ws.Cell(1, c + 1);
+            cell.Value = headers[c];
+            cell.Style.Font.Bold = true;
+            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1a3c5e");
+            cell.Style.Font.FontColor = XLColor.White;
+        }
+
+        // ── Instruction row ───────────────────────────────────────────────────
+        ws.Cell(2, 1).Value = "⬇ Fill in SubjectName, TopicName, DifficultyLevel, Marks etc. and CorrectOptions (A/B/C/D) before importing";
+        ws.Cell(2, 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#fff3cd");
+        ws.Cell(2, 1).Style.Font.Italic = true;
+        ws.Row(2).Style.Fill.BackgroundColor = XLColor.FromHtml("#fff3cd");
+        ws.Range(ws.Cell(2, 1), ws.Cell(2, headers.Length)).Merge();
+
+        int row = 3;
+        foreach (var pq in questions)
+        {
+            var subjName = pq.SubjectId.HasValue && subjectNames.TryGetValue(pq.SubjectId.Value, out var sn) ? sn : "";
+
+            ws.Cell(row, 1).Value  = subjName;           // SubjectName
+            ws.Cell(row, 2).Value  = "";                  // TopicName
+            ws.Cell(row, 3).Value  = "";                  // Subtopic
+            ws.Cell(row, 4).Value  = "Medium";            // DifficultyLevel
+            ws.Cell(row, 5).Value  = "Medium";            // ComplexityLevel
+            ws.Cell(row, 6).Value  = "";                  // ExamType
+            ws.Cell(row, 7).Value  = "4 Marks";          // Marks
+            ws.Cell(row, 8).Value  = "-1 Mark";          // NegativeMarks
+            ws.Cell(row, 9).Value  = pq.Type.ToString(); // QuestionType
+            ws.Cell(row, 10).Value = pq.Text;            // QuestionText
+
+            var optA = pq.Options.FirstOrDefault(o => o.Label == 'A')?.Text ?? "";
+            var optB = pq.Options.FirstOrDefault(o => o.Label == 'B')?.Text ?? "";
+            var optC = pq.Options.FirstOrDefault(o => o.Label == 'C')?.Text ?? "";
+            var optD = pq.Options.FirstOrDefault(o => o.Label == 'D')?.Text ?? "";
+
+            ws.Cell(row, 11).Value = optA;
+            ws.Cell(row, 12).Value = optB;
+            ws.Cell(row, 13).Value = optC;
+            ws.Cell(row, 14).Value = optD;
+            ws.Cell(row, 15).Value = "";   // CorrectOptions — admin fills in
+
+            if (pq.Type == GridAcademy.Data.Entities.Content.QuestionType.NAT && pq.NumericalAnswer.HasValue)
+                ws.Cell(row, 16).Value = pq.NumericalAnswer.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            else
+                ws.Cell(row, 16).Value = "";
+
+            ws.Cell(row, 17).Value = "";   // Tags
+            ws.Cell(row, 18).Value = "";   // Solution
+
+            // Highlight CorrectOptions column in yellow as a reminder
+            ws.Cell(row, 15).Style.Fill.BackgroundColor = XLColor.FromHtml("#fff9c4");
+
+            if (row % 2 == 0)
+            {
+                for (int c = 1; c <= headers.Length; c++)
+                {
+                    if (c != 15)
+                        ws.Cell(row, c).Style.Fill.BackgroundColor = XLColor.FromHtml("#f8f9fa");
+                }
+            }
+
+            row++;
+        }
+
+        // ── Reference sheet ───────────────────────────────────────────────────
+        var refWs = wb.Worksheets.Add("Reference - Valid Values");
+        refWs.Cell("A1").Value = "QuestionType"; refWs.Cell("A1").Style.Font.Bold = true;
+        refWs.Cell("A2").Value = "MCQ";   refWs.Cell("B2").Value = "Single Correct";
+        refWs.Cell("A3").Value = "MSQ";   refWs.Cell("B3").Value = "Multiple Select (comma-separate CorrectOptions e.g. A,C)";
+        refWs.Cell("A4").Value = "NAT";   refWs.Cell("B4").Value = "Numerical Answer — leave options blank, fill NumericalAnswer";
+        refWs.Cell("A6").Value = "DifficultyLevel"; refWs.Cell("A6").Style.Font.Bold = true;
+        refWs.Cell("A7").Value = "Easy"; refWs.Cell("A8").Value = "Medium"; refWs.Cell("A9").Value = "Hard";
+        refWs.Cell("A11").Value = "Marks"; refWs.Cell("A11").Style.Font.Bold = true;
+        refWs.Cell("A12").Value = "1 Mark"; refWs.Cell("A13").Value = "2 Marks";
+        refWs.Cell("A14").Value = "3 Marks"; refWs.Cell("A15").Value = "4 Marks";
+        refWs.Cell("A17").Value = "NegativeMarks"; refWs.Cell("A17").Style.Font.Bold = true;
+        refWs.Cell("A18").Value = "No Negative"; refWs.Cell("A19").Value = "-0.25 Marks";
+        refWs.Cell("A20").Value = "-1 Mark"; refWs.Cell("A21").Value = "-2 Marks";
+        refWs.Columns().AdjustToContents();
+
+        ws.Column(10).Width = 80; // QuestionText — wide
+        ws.Columns(11, 14).Width = 40; // Options
+        ws.Column(1).Width = 20;
+        ws.Columns(2, 9).AdjustToContents();
+        ws.SheetView.FreezeRows(2);
+
+        using var ms = new MemoryStream();
+        wb.SaveAs(ms);
+
+        var safeName = Uri.TryCreate(url, UriKind.Absolute, out var u)
+            ? System.IO.Path.GetFileNameWithoutExtension(u.AbsolutePath.TrimEnd('/'))
+            : "questions";
+        if (string.IsNullOrWhiteSpace(safeName)) safeName = "questions";
+        safeName = Regex.Replace(safeName, @"[^\w\-]", "_");
+        var fileName = $"{safeName}_questions.xlsx";
+
+        return (ms.ToArray(), fileName, questions.Count);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // MATHPIX MMD PARSER
     // Mathpix returns Markdown with LaTeX math in $…$ / $$…$$ notation.
     // We strip the Markdown markup, run the same JEE parser for structure,
