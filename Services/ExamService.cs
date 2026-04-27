@@ -194,11 +194,19 @@ public class ExamService(AppDbContext db) : IExamService
         if (entry != null) { db.ExamPageTests.Remove(entry); await db.SaveChangesAsync(); }
     }
 
+    public async Task ToggleTestFreeAsync(Guid examId, Guid testId)
+    {
+        var entry = await db.ExamPageTests.FindAsync(examId, testId)
+            ?? throw new KeyNotFoundException("Test mapping not found.");
+        entry.IsFree = !entry.IsFree;
+        await db.SaveChangesAsync();
+    }
+
     public async Task<List<ExamTestDto>> GetMappedTestsAsync(Guid examId)
     {
         return await db.ExamPageTests
             .Where(t => t.ExamPageId == examId)
-            .Include(t => t.Test).ThenInclude(t => t.Sections)
+            .Include(t => t.Test)
             .OrderBy(t => t.SortOrder)
             .Select(t => new ExamTestDto(
                 t.TestId,
@@ -207,7 +215,7 @@ public class ExamService(AppDbContext db) : IExamService
                 t.IsFree,
                 t.SortOrder,
                 t.Test.DurationMinutes,
-                t.Test.Sections.Sum(s => s.QuestionCount)))
+                db.TestQuestions.Count(tq => tq.TestId == t.TestId)))
             .ToListAsync();
     }
 

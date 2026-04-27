@@ -22,5 +22,6 @@ public interface IExamService
     // Test mapping
     Task                         MapTestAsync(Guid examId, MapTestRequest request);
     Task                         UnmapTestAsync(Guid examId, Guid testId);
+    Task                         ToggleTestFreeAsync(Guid examId, Guid testId);
     Task<List<ExamTestDto>>      GetMappedTestsAsync(Guid examId);
 }

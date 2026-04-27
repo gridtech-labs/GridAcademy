@@ -1,6 +1,9 @@
 @page "{id:guid}"
 @model GridAcademy.Pages.Admin.Exams.TestsModel
-@{ ViewData["Title"] = Model.Exam != null ? $"Tests — {Model.Exam.Title}" : "Exam Tests"; }
+@{
+    ViewData["Title"] = Model.Exam != null ? $"Tests — {Model.Exam.Title}" : "Exam Tests";
+    bool isPaidExam = (Model.Exam?.PriceInr ?? 0) > 0;
+}
 
 <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
     <a asp-page="Edit" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-secondary">
@@ -27,6 +30,18 @@
     <div class="alert alert-danger alert-dismissible fade show py-2">
         <i class="bi bi-exclamation-triangle me-1"></i>@TempData["Error"]
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (isPaidExam)
+{
+    <div class="alert alert-warning d-flex gap-2 align-items-center py-2 mb-3 small">
+        <i class="bi bi-lock-fill"></i>
+        <div>
+            <strong>Paid Exam — ₹@Model.Exam!.PriceInr</strong>:
+            New tests are added as <strong>Paid</strong> by default (require exam purchase).
+            Click the <strong>Paid ↕</strong> badge on any test to mark it as a free preview.
+        </div>
     </div>
 }
 
@@ -63,10 +78,23 @@
                                 <td class="text-muted">@i</td>
                                 <td><i class="bi bi-journal-check text-primary me-1"></i>@t.Title</td>
                                 <td class="text-center">
-                                    @if (t.IsFree)
-                                    { <span class="badge bg-success">Free</span> }
-                                    else
-                                    { <span class="badge bg-secondary">Paid</span> }
+                                    <form method="post" asp-page-handler="ToggleFree" class="d-inline">
+                                        <input type="hidden" name="testId" value="@t.TestId" />
+                                        @if (t.IsFree)
+                                        {
+                                            <button type="submit" class="badge bg-success border-0 text-white"
+                                                    style="cursor:pointer" title="Click to mark as Paid">
+                                                Free ↕
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button type="submit" class="badge bg-warning text-dark border-0"
+                                                    style="cursor:pointer" title="Click to mark as Free">
+                                                Paid ↕
+                                            </button>
+                                        }
+                                    </form>
                                 </td>
                                 <td class="text-end pe-3">
                                     <form method="post" asp-page-handler="Unmap"
@@ -119,10 +147,19 @@
                                 </span>
                                 <form method="post" asp-page-handler="Map" class="ms-2 d-flex gap-1">
                                     <input type="hidden" name="testId" value="@t.Id" />
-                                    <input type="hidden" name="isFree" value="true" />
-                                    <button type="submit" class="btn btn-xs btn-success" title="Add as Free Test">
-                                        <i class="bi bi-plus-lg"></i> Add Free
-                                    </button>
+                                    <input type="hidden" name="isFree" value="@(!isPaidExam ? "true" : "false")" />
+                                    @if (isPaidExam)
+                                    {
+                                        <button type="submit" class="btn btn-xs btn-warning text-dark" title="Add as Paid (requires exam purchase)">
+                                            <i class="bi bi-plus-lg"></i> Add Paid
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button type="submit" class="btn btn-xs btn-success" title="Add as Free Test">
+                                            <i class="bi bi-plus-lg"></i> Add Free
+                                        </button>
+                                    }
                                 </form>
                             </div>
                         }

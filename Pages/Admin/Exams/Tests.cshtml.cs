@@ -47,4 +47,14 @@ public class TestsModel(IExamService svc, AppDbContext db) : PageModel
         TempData["Success"] = "Test removed.";
         return RedirectToPage(new { id = Id });
     }
+
+    public async Task<IActionResult> OnPostToggleFreeAsync(Guid testId)
+    {
+        try
+        {
+            await svc.ToggleTestFreeAsync(Id, testId);
+        }
+        catch (Exception ex) { TempData["Error"] = ex.Message; }
+        return RedirectToPage(new { id = Id });
+    }
 }
