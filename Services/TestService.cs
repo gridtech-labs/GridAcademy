@@ -51,7 +51,7 @@ public class TestService : ITestService
                 Status                = t.Status,
                 QuestionMode          = t.QuestionMode,
                 SectionCount          = t.Sections.Count,
-                TotalQuestions        = t.Sections.Sum(s => s.QuestionCount),
+                TotalQuestions        = _db.TestQuestions.Count(tq => tq.TestId == t.Id),
                 DurationMinutes       = t.DurationMinutes,
                 PassingPercent        = t.PassingPercent,
                 NegativeMarkingEnabled = t.NegativeMarkingEnabled,
