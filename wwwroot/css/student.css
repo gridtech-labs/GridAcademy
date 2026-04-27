@@ -1347,6 +1347,13 @@ body {
 .instructions-html ol ol,
 .instructions-html ul ul { padding-left: 1.1rem; margin-top: .25rem; }
 
+/* Palette colour-badge rows inside instructions */
+.instructions-html li[style*="display:flex"] {
+    align-items: center !important;
+    flex-wrap: nowrap;
+    line-height: 1.5;
+}
+
 /* Section table — compact on all screens */
 .section-summary .table th,
 .section-summary .table td { white-space: nowrap; font-size: .82rem; padding: .4rem .55rem; }
