@@ -85,6 +85,21 @@
     @Html.AntiForgeryToken()
     <input type="hidden" asp-for="Id" />
 
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger alert-dismissible py-2 mb-3" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <strong>Could not save question:</strong>
+            <ul class="mb-0 mt-1 ps-3">
+                @foreach (var err in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                {
+                    <li>@err.ErrorMessage</li>
+                }
+            </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
     <div class="row g-4">
 
         <!-- ══════════════════════════════════════════════════════════════════ -->
@@ -466,8 +481,8 @@
 
                     <div class="mb-3">
                         <label class="form-label small fw-semibold">Subject <span class="text-danger">*</span></label>
-                        <select asp-for="Form.SubjectId" class="form-select form-select-sm" id="subjectSelect" required>
-                            <option value="">— select subject —</option>
+                        <select asp-for="Form.SubjectId" class="form-select form-select-sm" id="subjectSelect">
+                            <option value="0">— select subject —</option>
                             @foreach (var s in Model.Subjects)
                             { <option value="@s.Id" selected="@(Model.Form.SubjectId == s.Id)">@s.Name</option> }
                         </select>
@@ -475,8 +490,8 @@
 
                     <div class="mb-3">
                         <label class="form-label small fw-semibold">Topic <span class="text-danger">*</span></label>
-                        <select asp-for="Form.TopicId" class="form-select form-select-sm" id="topicSelect" required>
-                            <option value="">— select topic —</option>
+                        <select asp-for="Form.TopicId" class="form-select form-select-sm" id="topicSelect">
+                            <option value="0">— select topic —</option>
                             @foreach (var t in Model.Topics)
                             { <option value="@t.Id" data-subject="@t.SubjectId" selected="@(Model.Form.TopicId == t.Id)">@t.Name</option> }
                         </select>
@@ -484,8 +499,8 @@
 
                     <div class="mb-3">
                         <label class="form-label small fw-semibold">Difficulty <span class="text-danger">*</span></label>
-                        <select asp-for="Form.DifficultyLevelId" class="form-select form-select-sm" required>
-                            <option value="">— select —</option>
+                        <select asp-for="Form.DifficultyLevelId" class="form-select form-select-sm">
+                            <option value="0">— select —</option>
                             @foreach (var d in Model.DifficultyLevels)
                             { <option value="@d.Id" selected="@(Model.Form.DifficultyLevelId == d.Id)">@d.Name</option> }
                         </select>
@@ -493,8 +508,8 @@
 
                     <div class="mb-3">
                         <label class="form-label small fw-semibold">Complexity <span class="text-danger">*</span></label>
-                        <select asp-for="Form.ComplexityLevelId" class="form-select form-select-sm" required>
-                            <option value="">— select —</option>
+                        <select asp-for="Form.ComplexityLevelId" class="form-select form-select-sm">
+                            <option value="0">— select —</option>
                             @foreach (var c in Model.ComplexityLevels)
                             { <option value="@c.Id" selected="@(Model.Form.ComplexityLevelId == c.Id)">@c.Name</option> }
                         </select>
@@ -502,8 +517,8 @@
 
                     <div class="mb-0">
                         <label class="form-label small fw-semibold">Exam Type <span class="text-danger">*</span></label>
-                        <select asp-for="Form.ExamTypeId" class="form-select form-select-sm" required>
-                            <option value="">— select —</option>
+                        <select asp-for="Form.ExamTypeId" class="form-select form-select-sm">
+                            <option value="0">— select —</option>
                             @foreach (var e in Model.ExamTypes)
                             { <option value="@e.Id" selected="@(Model.Form.ExamTypeId == e.Id)">@e.Name</option> }
                         </select>
@@ -518,16 +533,16 @@
                 <div class="card-body">
                     <div class="mb-3">
                         <label class="form-label small fw-semibold">Positive Marks <span class="text-danger">*</span></label>
-                        <select asp-for="Form.MarksId" class="form-select form-select-sm" required>
-                            <option value="">— select —</option>
+                        <select asp-for="Form.MarksId" class="form-select form-select-sm">
+                            <option value="0">— select —</option>
                             @foreach (var m in Model.Marks)
                             { <option value="@m.Id" selected="@(Model.Form.MarksId == m.Id)">@m.Name (+@m.Value)</option> }
                         </select>
                     </div>
                     <div class="mb-0">
                         <label class="form-label small fw-semibold">Negative Marks <span class="text-danger">*</span></label>
-                        <select asp-for="Form.NegativeMarksId" class="form-select form-select-sm" required>
-                            <option value="">— select —</option>
+                        <select asp-for="Form.NegativeMarksId" class="form-select form-select-sm">
+                            <option value="0">— select —</option>
                             @foreach (var n in Model.NegativeMarks)
                             { <option value="@n.Id" selected="@(Model.Form.NegativeMarksId == n.Id)">@n.Name (@n.Value)</option> }
                         </select>
@@ -628,7 +643,7 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
         document.getElementById(inputId).value = empty ? '' : html;
     }
 
-    // ── Static editors ────────────────────────────────────────────────────────
+    // ── Static editors (always visible on page load) ──────────────────────────
     const qText      = mkEditor('editor-text',      fullToolbar, 'Enter the full question text…');
     const qSolution  = mkEditor('editor-solution',   miniToolbar, 'Step-by-step solution (optional)…');
     const qOptA      = mkEditor('editor-optA',       miniToolbar, 'Option A…');
@@ -637,7 +652,13 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
     const qOptD      = mkEditor('editor-optD',       miniToolbar, 'Option D…');
     const qAssertion = mkEditor('editor-assertion',  miniToolbar, 'Assertion (A) statement…');
     const qReason    = mkEditor('editor-reason',     miniToolbar, 'Reason (R) statement…');
-    const qPassage   = mkEditor('editor-passage',    fullToolbar, 'Enter the reading passage here…');
+
+    // NOTE: qPassage is intentionally NOT created here.
+    // The pbqCard div starts hidden (display:none). Quill editors initialised inside
+    // a hidden container cannot properly track typed content — root.innerHTML stays
+    // as "<p><br></p>" even after the user types.  We lazy-init qPassage the first
+    // time the user switches to Passage Based type, when the container is visible.
+    let qPassage = null;
 
     loadHtml(qText,      'Form_Text');
     loadHtml(qSolution,  'Form_Solution');
@@ -647,14 +668,14 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
     loadHtml(qOptD,      'Form_OptionD');
     loadHtml(qAssertion, 'Form_AssertionText');
     loadHtml(qReason,    'Form_ReasonText');
-    loadHtml(qPassage,   'Form_PassageTextContent');
+    // qPassage is loaded lazily in applyType(8)
 
     // ── Track active editor for LaTeX quick ref ───────────────────────────────
     let activeEditor = qText;
     function trackActive(ed) {
         ed.on('selection-change', r => { if (r) activeEditor = ed; });
     }
-    [qText, qSolution, qOptA, qOptB, qOptC, qOptD, qAssertion, qReason, qPassage].forEach(trackActive);
+    [qText, qSolution, qOptA, qOptB, qOptC, qOptD, qAssertion, qReason].forEach(trackActive);
 
     function insertFormula(latex) {
         const range = activeEditor.getSelection() || { index: Math.max(0, activeEditor.getLength() - 1) };
@@ -663,7 +684,7 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
         activeEditor.focus();
     }
 
-    // ── Image upload (question text editor) ───────────────────────────────────
+    // ── Image upload handler ──────────────────────────────────────────────────
     function setupImageUpload(editor) {
         editor.getModule('toolbar').addHandler('image', function () {
             const input = document.createElement('input');
@@ -691,7 +712,7 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
         });
     }
     setupImageUpload(qText);
-    setupImageUpload(qPassage);
+    // qPassage image upload is wired in applyType(8) after lazy init
 
     // ── Question type toggle ──────────────────────────────────────────────────
     const TYPE_SECTIONS = {
@@ -715,6 +736,16 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
         if (qtc) qtc.style.display = HIDE_QUESTION_TEXT.includes(v) ? 'none' : '';
         ALL_SECTIONS.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
         (TYPE_SECTIONS[v] || []).forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
+
+        // ── Lazy-init passage Quill editor (must be visible first) ────────────
+        if (v === 8 && !qPassage) {
+            // pbqCard is now visible — safe to initialise Quill
+            qPassage = mkEditor('editor-passage', fullToolbar, 'Enter the reading passage here…');
+            setupImageUpload(qPassage);
+            trackActive(qPassage);
+            // If in edit mode, load existing passage HTML from the hidden textarea
+            loadHtml(qPassage, 'Form_PassageTextContent');
+        }
     }
 
     const qtypeSelect = document.getElementById('qtypeSelect');
@@ -1051,7 +1082,7 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
             syncField(qReason,    'Form_ReasonText');
         }
         if (v === 8) {   // PassageBased
-            syncField(qPassage, 'Form_PassageTextContent');
+            if (qPassage) syncField(qPassage, 'Form_PassageTextContent');
             document.getElementById('Form_SubQuestionsJson').value = JSON.stringify(getSubQData());
         }
         if (v === 6) window.saveMtfJson();   // MatchTheFollowing
@@ -1161,26 +1192,49 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
             }
         }
 
+        // Required dropdowns — Subject, Topic, Difficulty, Complexity, Marks, ExamType
+        const reqSelects = [
+            { id: 'Form_SubjectId',        label: 'Subject' },
+            { id: 'Form_TopicId',          label: 'Topic' },
+            { id: 'Form_DifficultyLevelId',label: 'Difficulty' },
+            { id: 'Form_ComplexityLevelId',label: 'Complexity' },
+            { id: 'Form_MarksId',          label: 'Positive Marks' },
+            { id: 'Form_NegativeMarksId',  label: 'Negative Marks' },
+            { id: 'Form_ExamTypeId',       label: 'Exam Type' }
+        ];
+        for (const s of reqSelects) {
+            const el = document.getElementById(s.id);
+            if (el && (el.value === '' || el.value === '0')) {
+                e.preventDefault();
+                showClientError(s.label + ' is required. Please select a value from the Classification / Marks panel.', null);
+                el.focus();
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+        }
+
         // PassageBased — require passage text + at least one sub-question with option
         if (v === 8) {
+            // Sync passage content first, then validate
+            if (qPassage) syncField(qPassage, 'Form_PassageTextContent');
             const ptxt = (document.getElementById('Form_PassageTextContent').value || '').trim();
             if (!ptxt) {
                 e.preventDefault();
                 document.getElementById('wrap-passage').style.borderColor = '#dc3545';
-                document.getElementById('wrap-passage').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                showClientError('Passage text is required. Please type the reading passage in the editor above.', 'pbqCard');
                 return;
             }
             document.getElementById('wrap-passage').style.borderColor = '';
             const sqs = getSubQData();
             if (sqs.length === 0) {
                 e.preventDefault();
-                showClientError('Please add at least one sub-question for the passage.', 'pbqSubSection');
+                showClientError('Please add at least one sub-question. Click the "Add Sub-question" button.', 'pbqSubSection');
                 return;
             }
             const sqNoOpts = sqs.find(function(sq) { return sq.options.length === 0; });
             if (sqNoOpts) {
                 e.preventDefault();
-                showClientError('Each sub-question must have at least one option with text.', 'pbqSubSection');
+                showClientError('Each sub-question must have at least one option filled in (A, B, C or D).', 'pbqSubSection');
                 return;
             }
         }

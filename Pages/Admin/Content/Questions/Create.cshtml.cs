@@ -198,20 +198,49 @@ public class CreateModel : PageModel
     // ── POST ──────────────────────────────────────────────────────────────────
     public async Task<IActionResult> OnPostAsync()
     {
-        // Clear model-state errors for fields populated by JS / not applicable to all types
+        // Clear model-state errors for fields populated by JS / Quill / not all types
         foreach (var key in new[]
         {
             "Form.OptionA","Form.OptionB","Form.OptionC","Form.OptionD",
             "Form.SelectedTagIds","Form.BlanksJson","Form.MatchJson",
             "Form.AssertionText","Form.ReasonText",
-            "Form.PassageTextContent","Form.SubQuestionsJson"
+            "Form.PassageTextContent","Form.SubQuestionsJson",
+            // int fields with value=0 (placeholder "— select —") are valid; remove binding errors
+            "Form.SubjectId","Form.TopicId","Form.DifficultyLevelId","Form.ComplexityLevelId",
+            "Form.MarksId","Form.NegativeMarksId","Form.ExamTypeId"
         })
             ModelState.Remove(key);
 
-        // Text is not required for PassageBased (sub-questions carry their own text)
         bool isPbq = Form.QuestionType == QuestionType.PassageBased;
+
+        // Manual validation for required int dropdowns (0 = not selected)
+        if (Form.SubjectId == 0)
+            ModelState.AddModelError("Form.SubjectId", "Subject is required.");
+        if (Form.TopicId == 0)
+            ModelState.AddModelError("Form.TopicId", "Topic is required.");
+        if (Form.DifficultyLevelId == 0)
+            ModelState.AddModelError("Form.DifficultyLevelId", "Difficulty is required.");
+        if (Form.ComplexityLevelId == 0)
+            ModelState.AddModelError("Form.ComplexityLevelId", "Complexity is required.");
+        if (Form.MarksId == 0)
+            ModelState.AddModelError("Form.MarksId", "Positive marks selection is required.");
+        if (Form.NegativeMarksId == 0)
+            ModelState.AddModelError("Form.NegativeMarksId", "Negative marks selection is required.");
+        if (Form.ExamTypeId == 0)
+            ModelState.AddModelError("Form.ExamTypeId", "Exam type is required.");
+
+        // Text is not required for PassageBased (sub-questions carry their own text)
         if (!isPbq && string.IsNullOrWhiteSpace(Form.Text))
             ModelState.AddModelError("Form.Text", "Question text is required.");
+
+        // Passage-specific validation
+        if (isPbq)
+        {
+            if (string.IsNullOrWhiteSpace(Form.PassageTextContent))
+                ModelState.AddModelError("", "Passage text is required. Please type the passage in the editor.");
+            if (string.IsNullOrWhiteSpace(Form.SubQuestionsJson) || Form.SubQuestionsJson == "[]")
+                ModelState.AddModelError("", "At least one sub-question is required. Click 'Add Sub-question'.");
+        }
 
         if (!ModelState.IsValid)
         {
@@ -229,37 +258,53 @@ public class CreateModel : PageModel
             {
                 await _questions.UpdateAsync(Id.Value, BuildUpdateRequest(tagIds), userId);
                 TempData["Success"] = "Question updated.";
-                // If we came from a test, go back to Manage Questions
                 if (TestId.HasValue)
                     return RedirectToPage("/Admin/Content/Tests/Questions/Index", new { testId = TestId.Value });
             }
             else
             {
                 var created = await _questions.CreateAsync(BuildCreateRequest(tagIds), userId);
-                TempData["Success"] = isPbq
-                    ? "Passage-based question set created successfully."
-                    : "Question created successfully.";
+
                 // Auto-map to test and redirect back to Manage Questions
                 if (TestId.HasValue)
                 {
-                    await _tests.AddQuestionsToTestAsync(TestId.Value, [created.Id]);
+                    List<Guid> idsToMap;
+                    if (isPbq && created.Passage != null)
+                        // Map ALL sub-questions of this passage to the test, not just the first
+                        idsToMap = await _questions.GetSubQuestionIdsByPassageAsync(created.Passage.Id);
+                    else
+                        idsToMap = [created.Id];
+
+                    await _tests.AddQuestionsToTestAsync(TestId.Value, idsToMap);
+
+                    TempData["Success"] = isPbq
+                        ? $"Passage set saved — {idsToMap.Count} sub-question(s) added to test."
+                        : "Question created and added to test.";
                     return RedirectToPage("/Admin/Content/Tests/Questions/Index", new { testId = TestId.Value });
                 }
+
+                TempData["Success"] = isPbq
+                    ? "Passage-based question set created successfully."
+                    : "Question created successfully.";
             }
             return RedirectToPage("/Admin/Content/Questions/Index");
         }
         catch (ArgumentException ex)
         {
             ModelState.AddModelError("", ex.Message);
-            await LoadDropdownsAsync();
-            return Page();
         }
         catch (InvalidOperationException ex)
         {
             ModelState.AddModelError("", ex.Message);
-            await LoadDropdownsAsync();
-            return Page();
         }
+        catch (Exception ex)
+        {
+            // Catch-all: surface the real error so users/admins can see what went wrong
+            ModelState.AddModelError("", $"An unexpected error occurred: {ex.Message}");
+        }
+
+        await LoadDropdownsAsync();
+        return Page();
     }
 
     // ── Image Upload ──────────────────────────────────────────────────────────

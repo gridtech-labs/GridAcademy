@@ -333,13 +333,49 @@
                         </tr>
                     </thead>
                     <tbody>
+                    @{
+                        // Track passage groups so we only show the passage header once per group
+                        Guid? lastPassageId = null;
+                        int   passageSubIdx = 0;
+                    }
                     @foreach (var q in Model.Questions.Items)
                     {
+                        @* Passage-based: show a passage header row the first time we see a new passageId *@
+                        @if (q.QuestionType == QuestionType.PassageBased && q.Passage != null)
+                        {
+                            if (q.Passage.Id != lastPassageId)
+                            {
+                                lastPassageId = q.Passage.Id;
+                                passageSubIdx = 0;
+                                <tr class="table-info">
+                                    <td colspan="8" class="py-1 px-3">
+                                        <span class="badge bg-primary me-2" style="font-size:.7rem">PASSAGE</span>
+                                        <span class="small fw-semibold">
+                                            @(string.IsNullOrWhiteSpace(q.Passage.Title)
+                                                ? TextPreview(q.Passage.PassageText, 100)
+                                                : q.Passage.Title)
+                                        </span>
+                                        <span class="text-muted small ms-2" style="font-size:.7rem">ID: @q.Passage.Id.ToString()[..8]…</span>
+                                    </td>
+                                </tr>
+                            }
+                            passageSubIdx++;
+                        }
+                        else
+                        {
+                            lastPassageId = null;
+                            passageSubIdx = 0;
+                        }
+
                         @* Look up the SectionId for this question from the mapped list *@
                         @* We use the QuestionDto which doesn't have SectionId — we rely on the Section dropdown values *@
-                        <tr>
+                        <tr @(q.QuestionType == QuestionType.PassageBased ? "class=\"table-light\"" : "")>
                             <td>
                                 <div class="fw-semibold small" style="max-width:320px">
+                                    @if (q.QuestionType == QuestionType.PassageBased)
+                                    {
+                                        <span class="text-muted me-1" style="font-size:.75rem">Q@(passageSubIdx).</span>
+                                    }
                                     @TextPreview(q.Text)
                                 </div>
                                 @if (q.Tags.Any())

@@ -325,6 +325,14 @@ public class QuestionService : IQuestionService
         return MapToDto((await LoadFullAsync(firstId))!);
     }
 
+    // ── Get all sub-question IDs for a passage ────────────────────────────────
+
+    public async Task<List<Guid>> GetSubQuestionIdsByPassageAsync(Guid passageId) =>
+        await _db.Questions
+            .Where(q => q.PassageId == passageId)
+            .Select(q => q.Id)
+            .ToListAsync();
+
     // ── Private: load full question ───────────────────────────────────────────
 
     private Task<Question?> LoadFullAsync(Guid id) =>

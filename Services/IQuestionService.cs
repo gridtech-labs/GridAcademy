@@ -13,4 +13,10 @@ public interface IQuestionService
     Task                           PublishAsync(Guid id);
     Task                           UnpublishAsync(Guid id);
     Task                           DeleteAsync(Guid id);
+
+    /// <summary>
+    /// Returns the IDs of all sub-questions that share the given passage.
+    /// Used when auto-mapping a newly created passage-based set to a test.
+    /// </summary>
+    Task<List<Guid>>               GetSubQuestionIdsByPassageAsync(Guid passageId);
 }
