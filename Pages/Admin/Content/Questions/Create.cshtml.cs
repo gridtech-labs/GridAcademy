@@ -198,9 +198,12 @@ public class CreateModel : PageModel
     // ── POST ──────────────────────────────────────────────────────────────────
     public async Task<IActionResult> OnPostAsync()
     {
-        // Clear model-state errors for fields populated by JS / Quill / not all types
+        // Clear model-state errors for fields populated by JS / Quill / not all types.
+        // "Form.Text" must be cleared first: .NET 8 implicitly treats non-nullable string
+        // as [Required], which fires before OnPostAsync — we re-validate manually below.
         foreach (var key in new[]
         {
+            "Form.Text",
             "Form.OptionA","Form.OptionB","Form.OptionC","Form.OptionD",
             "Form.SelectedTagIds","Form.BlanksJson","Form.MatchJson",
             "Form.AssertionText","Form.ReasonText",
