@@ -740,6 +740,9 @@ public class AssessmentService : IAssessmentService
             .Include(a => a.Questions)
                 .ThenInclude(q => q.Question)
                     .ThenInclude(q => q.Options)
+            .Include(a => a.Questions)
+                .ThenInclude(q => q.Question)
+                    .ThenInclude(q => q.Passage)
             .Include(a => a.Answers)
             .AsNoTracking()
             .FirstAsync(a => a.Id == attemptId);
@@ -774,7 +777,9 @@ public class AssessmentService : IAssessmentService
                 IsVisited            = aq.IsVisited,
                 IsMarkedForReview    = aq.IsMarkedForReview,
                 MarksForCorrect      = aq.MarksForCorrect,
-                NegativeMarks        = aq.NegativeMarks
+                NegativeMarks        = aq.NegativeMarks,
+                PassageTitle         = aq.Question.Passage?.Title,
+                PassageText          = aq.Question.Passage?.PassageText
             })
             .ToList();
 

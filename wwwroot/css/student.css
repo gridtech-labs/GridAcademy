@@ -242,6 +242,33 @@ body {
 .question-marks-badge .marks-correct { color: var(--success); font-weight: 600; }
 .question-marks-badge .marks-negative { color: var(--danger); font-weight: 600; }
 
+/* ── Passage Block ─────────────────────────────────────────── */
+.passage-block {
+    background: #f8f6f0;
+    border-left: 4px solid var(--primary);
+    border-radius: .5rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.passage-title {
+    font-weight: 700;
+    font-size: .88rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--primary);
+    margin-bottom: .5rem;
+}
+
+.passage-text {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: .97rem;
+    line-height: 1.75;
+    color: var(--gray-800);
+}
+
 .question-text {
     font-family: Georgia, 'Times New Roman', serif;
     font-size: 1.05rem;

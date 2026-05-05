@@ -32,6 +32,12 @@
                 <span class="question-marks-badge ms-auto" id="qMarks"></span>
             </div>
 
+            <!-- Passage (shown only for passage-based questions) -->
+            <div class="passage-block" id="passageBlock" style="display:none;">
+                <div class="passage-title" id="passageTitle"></div>
+                <div class="passage-text" id="passageText"></div>
+            </div>
+
             <!-- Question Text -->
             <div class="question-text" id="questionText"></div>
 
@@ -270,6 +276,16 @@
         document.getElementById('qMarks').innerHTML =
             `<span class="marks-correct">+${q.marksForCorrect}</span>` +
             (q.negativeMarks > 0 ? ` / <span class="marks-negative">-${q.negativeMarks}</span>` : '');
+
+        // Passage block (shown for all sub-questions sharing the same passage)
+        const passageBlock = document.getElementById('passageBlock');
+        if (q.passageText) {
+            document.getElementById('passageTitle').textContent = q.passageTitle || '';
+            document.getElementById('passageText').innerHTML = q.passageText;
+            passageBlock.style.display = 'block';
+        } else {
+            passageBlock.style.display = 'none';
+        }
 
         // Question text
         const qtEl = document.getElementById('questionText');

@@ -28,6 +28,8 @@ public class AttemptQuestionDto
     public decimal MarksForCorrect { get; set; }
     public decimal NegativeMarks { get; set; }
     // NOTE: IsCorrect is intentionally NOT included — correct answers hidden during exam
+    public string? PassageTitle { get; set; }   // null when not a passage-based question
+    public string? PassageText  { get; set; }
 }
 
 // ── Instructions page info (lightweight — no question data) ──────────────
