@@ -485,7 +485,7 @@ Console.WriteLine("[Hangfire] Dashboard and jobs registered.");
 app.MapControllers();
 app.MapRazorPages();    // Admin panel routes
 
-// Root → admin panel (redirects to login if not authenticated)
-app.MapGet("/", () => Results.Redirect("/Admin")).AllowAnonymous();
+// "/" is served by Pages/Index.cshtml (public home page)
+// Admin panel is at /Admin
 
 app.Run();

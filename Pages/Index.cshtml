@@ -1,0 +1,411 @@
+@page
+@model GridAcademy.Pages.IndexModel
+@using GridAcademy.DTOs.Marketplace
+@{
+    ViewData["Title"]            = "India's Simplest Mock Test Platform";
+    ViewData["ActivePage"]       = "Home";
+    ViewData["MetaDescription"]  = "Practice for JEE, NEET, UPSC, SSC, RRB and more — clean, focused, distraction-free mock tests by GridAcademy.";
+    Layout = "_PublicLayout";
+}
+
+@section Styles {
+<style>
+    /* ── Shared card style ───────────────────────────────────── */
+    .ga-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        box-shadow: 0 1px 2px rgba(0,0,0,.06);
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    .ga-card-body { padding: 1.1rem 1.2rem; flex: 1; display: flex; flex-direction: column; }
+    .ga-card-title {
+        font-size: .925rem;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: .3rem;
+        line-height: 1.4;
+    }
+    .ga-card-meta { font-size: .8rem; color: #6b7280; margin-bottom: .65rem; }
+    .ga-card-footer { padding: .85rem 1.2rem; border-top: 1px solid #e5e7eb; }
+
+    /* ── Section heading ─────────────────────────────────────── */
+    .sec-heading {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 0;
+    }
+    .sec-divider {
+        border: none;
+        border-top: 1px solid #e5e7eb;
+        margin: .6rem 0 1.5rem;
+    }
+
+    /* ── Hero ────────────────────────────────────────────────── */
+    .ga-hero {
+        padding: 4.5rem 0 4rem;
+        background: #fff;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .ga-hero h1 {
+        font-size: clamp(1.65rem, 4vw, 2.4rem);
+        font-weight: 700;
+        color: #111827;
+        line-height: 1.25;
+        margin-bottom: .85rem;
+    }
+    .ga-hero p {
+        font-size: 1rem;
+        color: #6b7280;
+        max-width: 540px;
+        margin-bottom: 1.75rem;
+        line-height: 1.7;
+    }
+    .btn-ga-primary {
+        background: #1760f4;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: .62rem 1.4rem;
+        font-weight: 600;
+        font-size: .9rem;
+        text-decoration: none;
+        display: inline-block;
+        transition: background .15s;
+    }
+    .btn-ga-primary:hover { background: #0e4dd4; color: #fff; }
+    .btn-ga-outline {
+        background: transparent;
+        color: #111827;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: .62rem 1.4rem;
+        font-weight: 600;
+        font-size: .9rem;
+        text-decoration: none;
+        display: inline-block;
+        transition: border-color .15s, color .15s;
+    }
+    .btn-ga-outline:hover { border-color: #1760f4; color: #1760f4; }
+
+    /* ── Category chips ──────────────────────────────────────── */
+    .cat-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        padding: .38rem .85rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 50px;
+        background: #f9fafb;
+        color: #374151;
+        font-size: .825rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: background .12s, border-color .12s, color .12s;
+        white-space: nowrap;
+    }
+    .cat-chip:hover { background: #1760f4; border-color: #1760f4; color: #fff; }
+    .cat-chip:hover .cat-count { background: rgba(255,255,255,.25); color: #fff; }
+    .cat-count {
+        background: #e5e7eb;
+        color: #6b7280;
+        border-radius: 50px;
+        padding: .1rem .45rem;
+        font-size: .72rem;
+        font-weight: 600;
+        line-height: 1.5;
+        transition: background .12s, color .12s;
+    }
+
+    /* ── Series type badge ───────────────────────────────────── */
+    .series-badge {
+        display: inline-block;
+        background: #f3f4f6;
+        color: #6b7280;
+        border-radius: 50px;
+        padding: .1rem .55rem;
+        font-size: .72rem;
+        font-weight: 500;
+        margin-bottom: .4rem;
+    }
+
+    /* ── Price / free badge ──────────────────────────────────── */
+    .badge-free {
+        background: #f0fdf4;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+        border-radius: 4px;
+        padding: .1rem .45rem;
+        font-size: .75rem;
+        font-weight: 600;
+    }
+    .badge-price { font-size: .85rem; font-weight: 600; color: #374151; }
+
+    /* ── Start / buy button in card ──────────────────────────── */
+    .btn-card {
+        display: block;
+        text-align: center;
+        background: #1760f4;
+        color: #fff;
+        border-radius: 6px;
+        padding: .48rem;
+        font-weight: 600;
+        font-size: .82rem;
+        text-decoration: none;
+        transition: background .15s;
+    }
+    .btn-card:hover { background: #0e4dd4; color: #fff; }
+    .btn-card-outline {
+        display: block;
+        text-align: center;
+        background: #fff;
+        color: #1760f4;
+        border: 1px solid #1760f4;
+        border-radius: 6px;
+        padding: .48rem;
+        font-weight: 600;
+        font-size: .82rem;
+        text-decoration: none;
+        transition: background .15s, color .15s;
+    }
+    .btn-card-outline:hover { background: #1760f4; color: #fff; }
+</style>
+}
+
+<!-- ══════════════════════════════ HERO ════════════════════════════════════ -->
+<section class="ga-hero">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-7">
+                <h1>India's Simplest<br/>Mock Test Platform</h1>
+                <p>
+                    Practice for JEE, NEET, UPSC, SSC and more —<br/>
+                    clean, focused, distraction-free.
+                </p>
+                <div class="d-flex flex-wrap gap-3">
+                    <a href="/Courses" class="btn-ga-primary">
+                        <i class="bi bi-collection-play me-2"></i>Browse Free Tests
+                    </a>
+                    <a href="/Account/Login" class="btn-ga-outline">
+                        <i class="bi bi-person me-2"></i>Student Login
+                    </a>
+                </div>
+                <!-- Trust strip -->
+                <div class="d-flex flex-wrap gap-4 mt-4" style="font-size:.8rem;color:#6b7280;">
+                    <span><i class="bi bi-patch-check-fill me-1" style="color:#1760f4;"></i>No spam, ever</span>
+                    <span><i class="bi bi-shield-lock-fill me-1" style="color:#1760f4;"></i>100% free to browse</span>
+                    <span><i class="bi bi-people-fill me-1" style="color:#1760f4;"></i>Trusted by students across India</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@if (Model.Data != null)
+{
+    <!-- ══════════════════════════════ EXAM CATEGORIES ═════════════════════ -->
+    @if (Model.Data.ExamCategories.Count > 0)
+    {
+        <section class="py-5" style="background:#fff;">
+            <div class="container">
+                <p class="sec-heading">Browse by Exam</p>
+                <hr class="sec-divider" />
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var cat in Model.Data.ExamCategories)
+                    {
+                        <a href="/Courses?category=@cat.Slug" class="cat-chip">
+                            @if (!string.IsNullOrEmpty(cat.Emoji))
+                            {
+                                <span>@cat.Emoji</span>
+                            }
+                            @cat.Name
+                            @if (cat.SeriesCount > 0)
+                            {
+                                <span class="cat-count">@cat.SeriesCount</span>
+                            }
+                        </a>
+                    }
+                    <a href="/Courses" class="cat-chip" style="border-style:dashed;">
+                        View all <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </section>
+    }
+
+    <!-- ══════════════════════════════ FREE TESTS ══════════════════════════ -->
+    @if (Model.Data.FreeTests.Count > 0)
+    {
+        <section class="py-5" style="background:#f9fafb;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;">
+            <div class="container">
+                <div class="d-flex align-items-center justify-content-between mb-0">
+                    <p class="sec-heading mb-0">Free Mock Tests</p>
+                    <a href="/Courses" style="font-size:.82rem;color:#1760f4;text-decoration:none;font-weight:500;">
+                        See all <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+                <hr class="sec-divider" />
+                <div class="row g-3 row-cols-1 row-cols-sm-2 row-cols-lg-3">
+                    @foreach (var series in Model.Data.FreeTests.Take(6))
+                    {
+                        <div class="col">
+                            <div class="ga-card">
+                                @if (!string.IsNullOrEmpty(series.ThumbnailUrl))
+                                {
+                                    <img src="@series.ThumbnailUrl" alt="@series.Title"
+                                         style="width:100%;height:130px;object-fit:cover;border-radius:8px 8px 0 0;" />
+                                }
+                                <div class="ga-card-body">
+                                    <span class="series-badge">@series.SeriesType</span>
+                                    <div class="ga-card-title">@series.Title</div>
+                                    <div class="ga-card-meta">
+                                        <i class="bi bi-mortarboard me-1"></i>@series.ExamTypeName
+                                        &nbsp;·&nbsp;
+                                        <i class="bi bi-file-text me-1"></i>@series.TestCount test@(series.TestCount != 1 ? "s" : "")
+                                    </div>
+                                    <div class="mt-auto d-flex align-items-center justify-content-between">
+                                        <span class="badge-free">FREE</span>
+                                        @if (series.AvgRating > 0)
+                                        {
+                                            <span style="font-size:.78rem;color:#6b7280;">
+                                                <i class="bi bi-star-fill" style="color:#f59e0b;font-size:.75rem;"></i>
+                                                @series.AvgRating.ToString("0.0")
+                                                <span style="color:#d1d5db;">(@series.ReviewCount)</span>
+                                            </span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="ga-card-footer">
+                                    <a href="/Series/@series.Slug" class="btn-card">
+                                        Start Test <i class="bi bi-arrow-right ms-1"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </section>
+    }
+
+    <!-- ══════════════════════════════ TOP SELLING ═════════════════════════ -->
+    @if (Model.Data.TopSelling.Count > 0)
+    {
+        <section class="py-5" style="background:#fff;">
+            <div class="container">
+                <div class="d-flex align-items-center justify-content-between mb-0">
+                    <p class="sec-heading mb-0">Top Selling Series</p>
+                    <a href="/Courses?sort=popular" style="font-size:.82rem;color:#1760f4;text-decoration:none;font-weight:500;">
+                        See all <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+                <hr class="sec-divider" />
+                <div class="row g-3 row-cols-1 row-cols-sm-2 row-cols-lg-3">
+                    @foreach (var series in Model.Data.TopSelling.Take(6))
+                    {
+                        <div class="col">
+                            <div class="ga-card">
+                                @if (!string.IsNullOrEmpty(series.ThumbnailUrl))
+                                {
+                                    <img src="@series.ThumbnailUrl" alt="@series.Title"
+                                         style="width:100%;height:130px;object-fit:cover;border-radius:8px 8px 0 0;" />
+                                }
+                                <div class="ga-card-body">
+                                    <span class="series-badge">@series.SeriesType</span>
+                                    <div class="ga-card-title">@series.Title</div>
+                                    <div class="ga-card-meta">
+                                        <i class="bi bi-mortarboard me-1"></i>@series.ExamTypeName
+                                        &nbsp;·&nbsp;
+                                        <i class="bi bi-file-text me-1"></i>@series.TestCount test@(series.TestCount != 1 ? "s" : "")
+                                    </div>
+                                    @if (series.PurchaseCount > 0)
+                                    {
+                                        <div style="font-size:.78rem;color:#6b7280;margin-bottom:.4rem;">
+                                            <i class="bi bi-people me-1"></i>@series.PurchaseCount enrolled
+                                        </div>
+                                    }
+                                    <div class="mt-auto d-flex align-items-center justify-content-between">
+                                        @if (series.PriceInr == 0)
+                                        {
+                                            <span class="badge-free">FREE</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge-price">₹@series.PriceInr.ToString("0")</span>
+                                        }
+                                        @if (series.AvgRating > 0)
+                                        {
+                                            <span style="font-size:.78rem;color:#6b7280;">
+                                                <i class="bi bi-star-fill" style="color:#f59e0b;font-size:.75rem;"></i>
+                                                @series.AvgRating.ToString("0.0")
+                                                <span style="color:#d1d5db;">(@series.ReviewCount)</span>
+                                            </span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="ga-card-footer">
+                                    @if (series.PriceInr == 0 || series.IsFirstTestFree)
+                                    {
+                                        <a href="/Series/@series.Slug" class="btn-card">
+                                            Start Test <i class="bi bi-arrow-right ms-1"></i>
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <a href="/Series/@series.Slug" class="btn-card-outline">
+                                            View Details <i class="bi bi-arrow-right ms-1"></i>
+                                        </a>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </section>
+    }
+}
+else
+{
+    <!-- Fallback when data is unavailable -->
+    <section class="py-5">
+        <div class="container text-center py-5">
+            <i class="bi bi-wifi-off" style="font-size:2.5rem;color:#d1d5db;"></i>
+            <p class="mt-3" style="color:#6b7280;">Content is loading. Please refresh in a moment.</p>
+            <a href="/Courses" class="btn-ga-primary mt-2">Browse All Tests</a>
+        </div>
+    </section>
+}
+
+<!-- ══════════════════════════════ WHY US STRIP ═══════════════════════════ -->
+<section class="py-5" style="background:#f9fafb;border-top:1px solid #e5e7eb;">
+    <div class="container">
+        <p class="sec-heading text-center mb-0">Why GridAcademy?</p>
+        <hr class="sec-divider" />
+        <div class="row g-4 row-cols-1 row-cols-sm-2 row-cols-lg-4 text-center">
+            <div class="col">
+                <i class="bi bi-ui-checks-grid" style="font-size:1.6rem;color:#1760f4;"></i>
+                <div style="font-weight:600;color:#111827;margin:.5rem 0 .25rem;font-size:.9rem;">NTA-Style Interface</div>
+                <div style="font-size:.82rem;color:#6b7280;line-height:1.6;">Exactly like the real exam. No surprises on test day.</div>
+            </div>
+            <div class="col">
+                <i class="bi bi-graph-up-arrow" style="font-size:1.6rem;color:#1760f4;"></i>
+                <div style="font-weight:600;color:#111827;margin:.5rem 0 .25rem;font-size:.9rem;">Detailed Analytics</div>
+                <div style="font-size:.82rem;color:#6b7280;line-height:1.6;">Section-wise scores, time analysis and percentile rank.</div>
+            </div>
+            <div class="col">
+                <i class="bi bi-people" style="font-size:1.6rem;color:#1760f4;"></i>
+                <div style="font-weight:600;color:#111827;margin:.5rem 0 .25rem;font-size:.9rem;">Expert-Curated Tests</div>
+                <div style="font-size:.82rem;color:#6b7280;line-height:1.6;">Questions vetted by experienced educators and toppers.</div>
+            </div>
+            <div class="col">
+                <i class="bi bi-phone" style="font-size:1.6rem;color:#1760f4;"></i>
+                <div style="font-weight:600;color:#111827;margin:.5rem 0 .25rem;font-size:.9rem;">Works on Any Device</div>
+                <div style="font-size:.82rem;color:#6b7280;line-height:1.6;">Desktop, tablet or mobile — seamless across all screens.</div>
+            </div>
+        </div>
+    </div>
+</section>
