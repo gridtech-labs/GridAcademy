@@ -13,62 +13,67 @@
     @await RenderSectionAsync("Styles", required: false)
     <style>
         :root {
-            --ga-blue:      #1a3a6b;
-            --ga-blue-light:#2453a1;
-            --ga-orange:    #f47c20;
-            --ga-orange-lt: #fef3e8;
+            --ga-blue:       #1760f4;
+            --ga-blue-dark:  #0e4dd4;
+            --ga-blue-light: #1760f4;
+            --ga-orange:     #1760f4;   /* remapped — pages using --ga-orange get the primary blue */
+            --ga-text:       #111827;
+            --ga-muted:      #6b7280;
+            --ga-border:     #e5e7eb;
+            --ga-surface:    #f9fafb;
         }
-        body { font-family: 'Inter', sans-serif; color: #333; }
+
+        body { font-family: 'Inter', sans-serif; color: var(--ga-text); background: #fff; }
 
         /* ── Navbar ── */
         .ga-navbar {
             background: #fff;
-            box-shadow: 0 2px 12px rgba(0,0,0,.08);
-            padding: .75rem 0;
+            border-bottom: 1px solid var(--ga-border);
+            padding: .875rem 0;
             position: sticky; top: 0; z-index: 1000;
         }
         .ga-navbar .navbar-brand {
-            display: flex; align-items: center; gap: .6rem;
-            font-weight: 700; font-size: 1.25rem; color: var(--ga-blue);
+            display: flex; align-items: center; gap: .55rem;
+            font-weight: 700; font-size: 1.05rem; color: var(--ga-text);
             text-decoration: none;
         }
         .ga-navbar .navbar-brand .logo-icon {
-            width: 38px; height: 38px;
-            background: var(--ga-blue); border-radius: 8px;
+            width: 32px; height: 32px;
+            background: var(--ga-blue); border-radius: 7px;
             display: flex; align-items: center; justify-content: center;
         }
-        .ga-navbar .navbar-brand .logo-icon i { color: #fff; font-size: 1.1rem; }
-        .ga-navbar .brand-sub { font-size: .65rem; font-weight: 400; color: #888; display: block; line-height: 1; }
-        .ga-navbar .nav-link { color: #555; font-weight: 500; padding: .5rem 1rem !important; border-radius: 6px; transition: all .2s; }
-        .ga-navbar .nav-link:hover, .ga-navbar .nav-link.active { color: var(--ga-blue); background: #f0f4ff; }
+        .ga-navbar .navbar-brand .logo-icon i { color: #fff; font-size: .95rem; }
+        .ga-navbar .brand-sub { font-size: .6rem; font-weight: 400; color: var(--ga-muted); display: block; line-height: 1; }
+        .ga-navbar .nav-link { color: var(--ga-muted); font-weight: 500; font-size: .875rem; padding: .4rem .85rem !important; border-radius: 5px; transition: color .15s; }
+        .ga-navbar .nav-link:hover, .ga-navbar .nav-link.active { color: var(--ga-text); background: none; }
         .ga-navbar .btn-login {
-            background: var(--ga-blue); color: #fff !important; padding: .45rem 1.25rem !important;
-            border-radius: 20px; font-weight: 600; font-size: .875rem;
+            background: var(--ga-blue); color: #fff !important; padding: .4rem 1.1rem !important;
+            border-radius: 6px; font-weight: 600; font-size: .875rem; transition: background .15s;
         }
-        .ga-navbar .btn-login:hover { background: var(--ga-blue-light); }
+        .ga-navbar .btn-login:hover { background: var(--ga-blue-dark); }
 
         /* ── Footer ── */
-        .ga-footer { background: #0e2347; color: #cdd8ea; padding: 3.5rem 0 1.5rem; margin-top: auto; }
-        .ga-footer h5 { color: #fff; font-weight: 600; margin-bottom: 1rem; }
-        .ga-footer a { color: #aebdd6; text-decoration: none; transition: color .2s; }
-        .ga-footer a:hover { color: #fff; }
-        .ga-footer .footer-brand { font-size: 1.3rem; font-weight: 700; color: #fff; }
-        .ga-footer .footer-brand small { font-size: .7rem; font-weight: 300; color: #7e9ac0; display: block; }
+        .ga-footer { background: var(--ga-surface); color: var(--ga-muted); border-top: 1px solid var(--ga-border); padding: 3rem 0 1.25rem; margin-top: auto; }
+        .ga-footer h5 { color: var(--ga-text); font-weight: 600; margin-bottom: .85rem; font-size: .9rem; letter-spacing: .01em; }
+        .ga-footer a { color: var(--ga-muted); text-decoration: none; transition: color .15s; font-size: .875rem; }
+        .ga-footer a:hover { color: var(--ga-text); }
+        .ga-footer .footer-brand { font-size: 1.1rem; font-weight: 700; color: var(--ga-text); }
+        .ga-footer .footer-brand small { font-size: .68rem; font-weight: 400; color: var(--ga-muted); display: block; }
         .ga-footer .social-link {
-            width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,.1);
+            width: 32px; height: 32px; border-radius: 6px; background: var(--ga-border);
             display: inline-flex; align-items: center; justify-content: center;
-            color: #fff; transition: background .2s;
+            color: var(--ga-muted); transition: background .15s, color .15s;
         }
-        .ga-footer .social-link:hover { background: var(--ga-orange); color: #fff; }
-        .ga-footer .footer-bottom { border-top: 1px solid rgba(255,255,255,.1); margin-top: 2rem; padding-top: 1.25rem; font-size: .82rem; color: #6e88a8; }
+        .ga-footer .social-link:hover { background: var(--ga-blue); color: #fff; }
+        .ga-footer .footer-bottom { border-top: 1px solid var(--ga-border); margin-top: 1.75rem; padding-top: 1.1rem; font-size: .8rem; color: var(--ga-muted); }
 
         /* ── Page Hero ── */
-        .page-hero { background: linear-gradient(135deg, var(--ga-blue) 0%, var(--ga-blue-light) 100%); color: #fff; padding: 3.5rem 0 3rem; }
-        .page-hero h1 { font-weight: 700; font-size: 2rem; margin-bottom: .4rem; }
-        .page-hero p  { color: rgba(255,255,255,.8); margin: 0; }
-        .page-hero .breadcrumb-item, .page-hero .breadcrumb-item a { color: rgba(255,255,255,.7); font-size: .875rem; }
-        .page-hero .breadcrumb-item.active { color: rgba(255,255,255,.95); }
-        .page-hero .breadcrumb-item + .breadcrumb-item::before { color: rgba(255,255,255,.5); }
+        .page-hero { background: var(--ga-surface); border-bottom: 1px solid var(--ga-border); color: var(--ga-text); padding: 2.25rem 0 2rem; }
+        .page-hero h1 { font-weight: 700; font-size: 1.65rem; margin-bottom: .35rem; color: var(--ga-text); }
+        .page-hero p  { color: var(--ga-muted); margin: 0; font-size: .925rem; }
+        .page-hero .breadcrumb-item, .page-hero .breadcrumb-item a { color: var(--ga-muted); font-size: .82rem; text-decoration: none; }
+        .page-hero .breadcrumb-item.active { color: var(--ga-text); }
+        .page-hero .breadcrumb-item + .breadcrumb-item::before { color: var(--ga-border); }
     </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
@@ -110,12 +115,12 @@
             <!-- Brand -->
             <div class="col-lg-4">
                 <div class="footer-brand mb-2">
-                    <i class="bi bi-grid-3x3-gap-fill me-2" style="color:var(--ga-orange)"></i>GridAcademy
+                    <i class="bi bi-grid-3x3-gap-fill me-2" style="color:var(--ga-blue)"></i>GridAcademy
                     <small>India's Premier Exam Preparation Platform</small>
                 </div>
-                <p style="font-size:.875rem;color:#8aa5c8;line-height:1.7;">
-                    Empowering students across India to crack competitive exams with high-quality content,
-                    adaptive practice tests, and expert-curated study material.
+                <p style="font-size:.875rem;line-height:1.7;margin-top:.5rem;">
+                    Empowering students across India to crack competitive exams with high-quality content
+                    and expert-curated mock tests.
                 </p>
                 <div class="d-flex gap-2 mt-3">
                     <a href="#" class="social-link" title="Facebook"><i class="bi bi-facebook"></i></a>
@@ -128,18 +133,18 @@
             <!-- Quick Links -->
             <div class="col-6 col-lg-2 offset-lg-1">
                 <h5>Quick Links</h5>
-                <ul class="list-unstyled" style="font-size:.875rem;line-height:2;">
-                    <li><a href="/"><i class="bi bi-chevron-right me-1" style="font-size:.7rem;"></i>Home</a></li>
-                    <li><a href="/Courses"><i class="bi bi-chevron-right me-1" style="font-size:.7rem;"></i>Courses</a></li>
-                    <li><a href="/About"><i class="bi bi-chevron-right me-1" style="font-size:.7rem;"></i>About Us</a></li>
-                    <li><a href="/Contact"><i class="bi bi-chevron-right me-1" style="font-size:.7rem;"></i>Contact</a></li>
-                    <li><a href="/Account/Login"><i class="bi bi-chevron-right me-1" style="font-size:.7rem;"></i>Student Login</a></li>
+                <ul class="list-unstyled" style="line-height:2.1;">
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/Courses">Courses</a></li>
+                    <li><a href="/About">About Us</a></li>
+                    <li><a href="/Contact">Contact</a></li>
+                    <li><a href="/Account/Login">Student Login</a></li>
                 </ul>
             </div>
             <!-- Exams -->
             <div class="col-6 col-lg-2">
                 <h5>Exams</h5>
-                <ul class="list-unstyled" style="font-size:.875rem;line-height:2;">
+                <ul class="list-unstyled" style="line-height:2.1;">
                     <li><a href="/Courses">JEE Mains &amp; Advanced</a></li>
                     <li><a href="/Courses">NEET UG</a></li>
                     <li><a href="/Courses">UPSC CSE</a></li>
@@ -150,11 +155,11 @@
             <!-- Contact -->
             <div class="col-lg-3">
                 <h5>Contact Us</h5>
-                <ul class="list-unstyled" style="font-size:.875rem;line-height:2.2;color:#8aa5c8;">
-                    <li><i class="bi bi-envelope-fill me-2" style="color:var(--ga-orange)"></i><a href="mailto:info@gridacademy.in">info@gridacademy.in</a></li>
-                    <li><i class="bi bi-telephone-fill me-2" style="color:var(--ga-orange)"></i><a href="tel:+918000000000">+91 80000 00000</a></li>
-                    <li><i class="bi bi-clock-fill me-2" style="color:var(--ga-orange)"></i>Mon–Sat, 9 AM – 6 PM IST</li>
-                    <li><i class="bi bi-geo-alt-fill me-2" style="color:var(--ga-orange)"></i>India</li>
+                <ul class="list-unstyled" style="line-height:2.2;">
+                    <li><i class="bi bi-envelope me-2"></i><a href="mailto:info@gridacademy.in">info@gridacademy.in</a></li>
+                    <li><i class="bi bi-telephone me-2"></i><a href="tel:+918000000000">+91 80000 00000</a></li>
+                    <li><i class="bi bi-clock me-2"></i>Mon–Sat, 9 AM – 6 PM IST</li>
+                    <li><i class="bi bi-geo-alt me-2"></i>India</li>
                 </ul>
             </div>
         </div>
