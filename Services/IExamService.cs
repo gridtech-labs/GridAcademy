@@ -11,7 +11,7 @@ public interface IExamService
     Task                         DeleteExamLevelAsync(int id);
 
     // Exam Pages
-    Task<List<ExamPageCardDto>>  GetExamPagesAsync(bool activeOnly = false, int? levelId = null, string? search = null, string? category = null);
+    Task<List<ExamPageCardDto>>  GetExamPagesAsync(bool activeOnly = false, int? levelId = null, string? search = null, int? categoryId = null);
     Task<List<ExamTypeFilterDto>> GetActiveExamTypesAsync();
     Task<ExamPageDetailDto?>     GetExamBySlugAsync(string slug, bool incrementView = false);
     Task<ExamPageDetailDto?>     GetExamByIdAsync(Guid id);

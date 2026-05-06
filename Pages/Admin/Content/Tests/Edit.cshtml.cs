@@ -28,7 +28,6 @@ public class EditModel : PageModel
     [BindProperty] public UpdateTestRequest    TestForm    { get; set; } = new();
     [BindProperty] public CreateTestSectionRequest SectionForm { get; set; } = new();
 
-    public List<ExamTypeDto>        ExamTypes        { get; set; } = [];
     public List<SubjectDto>         Subjects         { get; set; } = [];
     public List<DifficultyLevelDto> DifficultyLevels { get; set; } = [];
 
@@ -46,7 +45,6 @@ public class EditModel : PageModel
                 DurationMinutes        = Test.DurationMinutes,
                 PassingPercent         = Test.PassingPercent,
                 NegativeMarkingEnabled = Test.NegativeMarkingEnabled,
-                ExamTypeId             = Test.ExamTypeId,
                 QuestionMode           = Test.QuestionMode
             };
         }
@@ -233,7 +231,6 @@ public class EditModel : PageModel
 
     private async Task LoadDropdownsAsync()
     {
-        ExamTypes        = await _masters.GetExamTypesAsync();
         Subjects         = await _masters.GetSubjectsAsync();
         DifficultyLevels = await _masters.GetDifficultyLevelsAsync();
     }

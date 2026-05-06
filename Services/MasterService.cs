@@ -284,4 +284,76 @@ public class MasterService : IMasterService
         _db.NegativeMarksMaster.Remove(e);
         await _db.SaveChangesAsync();
     }
+
+    // ── Exam Categories ───────────────────────────────────────────────────────
+
+    public async Task<List<ExamCategoryDto>> GetExamCategoriesAsync(bool activeOnly = false)
+    {
+        var q = _db.ExamCategories.AsNoTracking();
+        if (activeOnly) q = q.Where(x => x.IsActive);
+        return await q.OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
+            .Select(x => new ExamCategoryDto(x.Id, x.Name, x.IsActive, x.SortOrder))
+            .ToListAsync();
+    }
+
+    public async Task<ExamCategoryDto> CreateExamCategoryAsync(CreateMasterRequest r)
+    {
+        var e = new GridAcademy.Data.Entities.Exam.ExamCategory { Name = r.Name.Trim(), IsActive = r.IsActive, SortOrder = r.SortOrder };
+        _db.ExamCategories.Add(e);
+        await _db.SaveChangesAsync();
+        return new ExamCategoryDto(e.Id, e.Name, e.IsActive, e.SortOrder);
+    }
+
+    public async Task<ExamCategoryDto> UpdateExamCategoryAsync(int id, CreateMasterRequest r)
+    {
+        var e = await _db.ExamCategories.FindAsync(id) ?? throw new KeyNotFoundException($"ExamCategory {id} not found.");
+        e.Name = r.Name.Trim(); e.IsActive = r.IsActive; e.SortOrder = r.SortOrder;
+        await _db.SaveChangesAsync();
+        return new ExamCategoryDto(e.Id, e.Name, e.IsActive, e.SortOrder);
+    }
+
+    public async Task DeleteExamCategoryAsync(int id)
+    {
+        var e = await _db.ExamCategories.FindAsync(id) ?? throw new KeyNotFoundException($"ExamCategory {id} not found.");
+        _db.ExamCategories.Remove(e);
+        await _db.SaveChangesAsync();
+    }
+
+    // ── Exam Sub Categories ───────────────────────────────────────────────────
+
+    public async Task<List<ExamSubCategoryDto>> GetExamSubCategoriesAsync(int? examCategoryId = null, bool activeOnly = false)
+    {
+        var q = _db.ExamSubCategories.Include(x => x.Category).AsNoTracking();
+        if (examCategoryId.HasValue) q = q.Where(x => x.ExamCategoryId == examCategoryId.Value);
+        if (activeOnly) q = q.Where(x => x.IsActive);
+        return await q.OrderBy(x => x.ExamCategoryId).ThenBy(x => x.SortOrder).ThenBy(x => x.Name)
+            .Select(x => new ExamSubCategoryDto(x.Id, x.Name, x.IsActive, x.SortOrder, x.ExamCategoryId, x.Category.Name))
+            .ToListAsync();
+    }
+
+    public async Task<ExamSubCategoryDto> CreateExamSubCategoryAsync(CreateExamSubCategoryRequest r)
+    {
+        var e = new GridAcademy.Data.Entities.Exam.ExamSubCategory
+            { Name = r.Name.Trim(), ExamCategoryId = r.ExamCategoryId, IsActive = r.IsActive, SortOrder = r.SortOrder };
+        _db.ExamSubCategories.Add(e);
+        await _db.SaveChangesAsync();
+        var cat = await _db.ExamCategories.AsNoTracking().FirstAsync(x => x.Id == e.ExamCategoryId);
+        return new ExamSubCategoryDto(e.Id, e.Name, e.IsActive, e.SortOrder, e.ExamCategoryId, cat.Name);
+    }
+
+    public async Task<ExamSubCategoryDto> UpdateExamSubCategoryAsync(int id, CreateExamSubCategoryRequest r)
+    {
+        var e = await _db.ExamSubCategories.FindAsync(id) ?? throw new KeyNotFoundException($"ExamSubCategory {id} not found.");
+        e.Name = r.Name.Trim(); e.ExamCategoryId = r.ExamCategoryId; e.IsActive = r.IsActive; e.SortOrder = r.SortOrder;
+        await _db.SaveChangesAsync();
+        var cat = await _db.ExamCategories.AsNoTracking().FirstAsync(x => x.Id == e.ExamCategoryId);
+        return new ExamSubCategoryDto(e.Id, e.Name, e.IsActive, e.SortOrder, e.ExamCategoryId, cat.Name);
+    }
+
+    public async Task DeleteExamSubCategoryAsync(int id)
+    {
+        var e = await _db.ExamSubCategories.FindAsync(id) ?? throw new KeyNotFoundException($"ExamSubCategory {id} not found.");
+        _db.ExamSubCategories.Remove(e);
+        await _db.SaveChangesAsync();
+    }
 }

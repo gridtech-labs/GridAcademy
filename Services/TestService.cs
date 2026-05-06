@@ -24,16 +24,12 @@ public class TestService : ITestService
     public async Task<List<TestListDto>> GetTestsAsync(TestListRequest request)
     {
         var query = _db.Tests
-            .Include(t => t.ExamType)
             .Include(t => t.Sections)
             .AsNoTracking()
             .AsQueryable();
 
         if (request.Status.HasValue)
             query = query.Where(t => t.Status == request.Status.Value);
-
-        if (request.ExamTypeId.HasValue)
-            query = query.Where(t => t.ExamTypeId == request.ExamTypeId.Value);
 
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
@@ -47,7 +43,6 @@ public class TestService : ITestService
             {
                 Id                    = t.Id,
                 Title                 = t.Title,
-                ExamTypeName          = t.ExamType.Name,
                 Status                = t.Status,
                 QuestionMode          = t.QuestionMode,
                 SectionCount          = t.Sections.Count,
@@ -63,7 +58,6 @@ public class TestService : ITestService
     public async Task<TestDetailDto> GetTestByIdAsync(Guid id)
     {
         var test = await _db.Tests
-            .Include(t => t.ExamType)
             .Include(t => t.Sections)
                 .ThenInclude(s => s.Subject)
             .Include(t => t.Sections)
@@ -86,7 +80,6 @@ public class TestService : ITestService
             DurationMinutes       = request.DurationMinutes,
             PassingPercent        = request.PassingPercent,
             NegativeMarkingEnabled = request.NegativeMarkingEnabled,
-            ExamTypeId            = request.ExamTypeId,
             QuestionMode          = request.QuestionMode,
             Status                = TestStatus.Draft,
             CreatedAt             = DateTime.UtcNow,
@@ -111,7 +104,6 @@ public class TestService : ITestService
         test.DurationMinutes       = request.DurationMinutes;
         test.PassingPercent        = request.PassingPercent;
         test.NegativeMarkingEnabled = request.NegativeMarkingEnabled;
-        test.ExamTypeId            = request.ExamTypeId;
         test.UpdatedBy             = updatedBy;
         // Only allow QuestionMode change on non-published tests
         if (test.Status != TestStatus.Published)
@@ -563,8 +555,6 @@ public class TestService : ITestService
             DurationMinutes        = test.DurationMinutes,
             PassingPercent         = test.PassingPercent,
             NegativeMarkingEnabled  = test.NegativeMarkingEnabled,
-            ExamTypeId             = test.ExamTypeId,
-            ExamTypeName           = test.ExamType?.Name ?? "",
             Status                 = test.Status,
             QuestionMode           = test.QuestionMode,
             CreatedAt              = test.CreatedAt,

@@ -21,15 +21,17 @@
 <ul class="nav nav-tabs mb-3" id="masterTabs">
     @{
         var navItems = new[] {
-            ("subjects",   "Subjects",   "bi-journal-text", Model.Subjects.Count),
-            ("topics",     "Topics",     "bi-list-nested",  Model.Topics.Count),
-            ("difficulty", "Difficulty", "bi-speedometer",  Model.DifficultyLevels.Count),
-            ("complexity", "Complexity", "bi-layers",       Model.ComplexityLevels.Count),
-            ("examtypes",  "Exam Types", "bi-mortarboard",  Model.ExamTypes.Count),
-            ("marks",      "Marks",      "bi-plus-circle",  Model.Marks.Count),
-            ("negmarks",   "Neg. Marks", "bi-dash-circle",  Model.NegativeMarks.Count),
-            ("tags",       "Tags",       "bi-tags",         Model.Tags.Count),
-            ("qtypes",     "Q. Types",   "bi-ui-checks",    Model.QuestionTypes.Count),
+            ("subjects",         "Subjects",       "bi-journal-text", Model.Subjects.Count),
+            ("topics",           "Topics",         "bi-list-nested",  Model.Topics.Count),
+            ("difficulty",       "Difficulty",     "bi-speedometer",  Model.DifficultyLevels.Count),
+            ("complexity",       "Complexity",     "bi-layers",       Model.ComplexityLevels.Count),
+            ("examtypes",        "Exam Types",     "bi-mortarboard",  Model.ExamTypes.Count),
+            ("examcategories",   "Categories",     "bi-grid",         Model.ExamCategories.Count),
+            ("examsubcategories","Sub-Categories", "bi-grid-3x2",     Model.ExamSubCategories.Count),
+            ("marks",            "Marks",          "bi-plus-circle",  Model.Marks.Count),
+            ("negmarks",         "Neg. Marks",     "bi-dash-circle",  Model.NegativeMarks.Count),
+            ("tags",             "Tags",           "bi-tags",         Model.Tags.Count),
+            ("qtypes",           "Q. Types",       "bi-ui-checks",    Model.QuestionTypes.Count),
         };
     }
     @foreach (var (id, label, icon, count) in navItems)
@@ -547,6 +549,144 @@
         </div>
     </div>
 
+    <!-- ══ EXAM CATEGORIES ══════════════════════════════════════════════════ -->
+    <div class="tab-pane fade @(tab=="examcategories" ? "show active" : "")" id="tab-examcategories">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold py-2 small">Exam Categories</div>
+            <div class="card-body p-0">
+                <div class="px-3 py-2 border-bottom bg-white">
+                    <input type="search" class="form-control form-control-sm master-search" placeholder="&#128269; Search..." autocomplete="off" />
+                </div>
+                <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
+                    <thead class="table-light"><tr><th>Name</th><th>Status</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
+                    <tbody>
+                    @foreach (var ec in Model.ExamCategories)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@ec.Name</td>
+                            <td>
+                                @if (ec.IsActive) { <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span> }
+                                else              { <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Inactive</span> }
+                            </td>
+                            <td class="text-muted">@ec.SortOrder</td>
+                            <td class="text-end">
+                                @if (canEdit)
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary me-1" title="Edit"
+                                            data-bs-toggle="modal" data-bs-target="#editSimpleModal"
+                                            data-handler="UpdateExamCategory"
+                                            data-id="@ec.Id" data-name="@ec.Name"
+                                            data-sort="@ec.SortOrder" data-active="@ec.IsActive.ToString().ToLower()"
+                                            data-label="Exam Category">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                }
+                                @if (isAdmin)
+                                {
+                                    <form method="post" asp-page-handler="DeleteExamCategory" class="d-inline"
+                                          onsubmit="return confirm('Delete category \'@ec.Name\'? All sub-categories will also be deleted.')">
+                                        <input type="hidden" name="id" value="@ec.Id" />
+                                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.ExamCategories.Any())
+                    { <tr><td colspan="4" class="text-center text-muted py-3">No categories yet.</td></tr> }
+                    </tbody>
+                </table>
+            </div>
+            @if (canEdit)
+            {
+                <div class="card-footer bg-white">
+                    <form method="post" asp-page-handler="AddExamCategory" class="row g-2 align-items-end">
+                        <div class="col-12 col-md"><input asp-for="NewExamCategory.Name" class="form-control form-control-sm" placeholder="e.g. Engineering" required /></div>
+                        <div class="col-auto"><input asp-for="NewExamCategory.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" /></div>
+                        <div class="col-auto"><button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Category</button></div>
+                    </form>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- ══ EXAM SUB CATEGORIES ════════════════════════════════════════════════ -->
+    <div class="tab-pane fade @(tab=="examsubcategories" ? "show active" : "")" id="tab-examsubcategories">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold py-2 small">Exam Sub-Categories</div>
+            <div class="card-body p-0">
+                <div class="px-3 py-2 border-bottom bg-white">
+                    <input type="search" class="form-control form-control-sm master-search" placeholder="&#128269; Search..." autocomplete="off" />
+                </div>
+                <table class="table table-sm table-hover align-middle mb-0 paginated-table" style="font-size:0.8rem" data-page-size="10">
+                    <thead class="table-light"><tr><th>Name</th><th>Category</th><th>Status</th><th>Sort</th><th class="text-end">Actions</th></tr></thead>
+                    <tbody>
+                    @foreach (var sc in Model.ExamSubCategories)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@sc.Name</td>
+                            <td><span class="badge bg-primary-subtle text-primary border border-primary-subtle">@sc.ExamCategoryName</span></td>
+                            <td>
+                                @if (sc.IsActive) { <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span> }
+                                else              { <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Inactive</span> }
+                            </td>
+                            <td class="text-muted">@sc.SortOrder</td>
+                            <td class="text-end">
+                                @if (canEdit)
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary me-1" title="Edit"
+                                            data-bs-toggle="modal" data-bs-target="#editSubCategoryModal"
+                                            data-id="@sc.Id" data-name="@sc.Name"
+                                            data-categoryid="@sc.ExamCategoryId"
+                                            data-sort="@sc.SortOrder" data-active="@sc.IsActive.ToString().ToLower()">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                }
+                                @if (isAdmin)
+                                {
+                                    <form method="post" asp-page-handler="DeleteExamSubCategory" class="d-inline"
+                                          onsubmit="return confirm('Delete sub-category \'@sc.Name\'?')">
+                                        <input type="hidden" name="id" value="@sc.Id" />
+                                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.ExamSubCategories.Any())
+                    { <tr><td colspan="5" class="text-center text-muted py-3">No sub-categories yet.</td></tr> }
+                    </tbody>
+                </table>
+            </div>
+            @if (canEdit)
+            {
+                <div class="card-footer bg-white">
+                    <form method="post" asp-page-handler="AddExamSubCategory" class="row g-2 align-items-end">
+                        <div class="col-auto">
+                            <label class="form-label small mb-1 text-muted">Category</label>
+                            <select asp-for="NewExamSubCategory.ExamCategoryId" class="form-select form-select-sm" required>
+                                <option value="">— select —</option>
+                                @foreach (var ec in Model.ExamCategories.Where(x => x.IsActive))
+                                { <option value="@ec.Id">@ec.Name</option> }
+                            </select>
+                        </div>
+                        <div class="col-12 col-md">
+                            <label class="form-label small mb-1 text-muted">Sub-Category Name</label>
+                            <input asp-for="NewExamSubCategory.Name" class="form-control form-control-sm" placeholder="e.g. JEE Main" required />
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label small mb-1 text-muted">Sort</label>
+                            <input asp-for="NewExamSubCategory.SortOrder" type="number" class="form-control form-control-sm" style="width:80px" />
+                        </div>
+                        <div class="col-auto align-self-end">
+                            <button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Sub-Category</button>
+                        </div>
+                    </form>
+                </div>
+            }
+        </div>
+    </div>
+
     <!-- ══ QUESTION TYPES ════════════════════════════════════════════════════ -->
     <div class="tab-pane fade @(tab=="qtypes" ? "show active" : "")" id="tab-qtypes">
         <div class="card shadow-sm">
@@ -669,6 +809,47 @@
                         </div>
                         <div class="form-check form-switch">
                             <input asp-for="EditTopic.IsActive" id="editTopicActive" class="form-check-input" type="checkbox" />
+                            <label class="form-check-label">Active</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ExamSubCategory edit modal -->
+    <div class="modal fade" id="editSubCategoryModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" asp-page-handler="UpdateExamSubCategory" id="editSubCategoryForm">
+                    <input type="hidden" name="id" id="editSubCategoryId" />
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Edit Sub-Category</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Category <span class="text-danger">*</span></label>
+                            <select asp-for="EditExamSubCategory.ExamCategoryId" id="editSubCategoryParent" class="form-select" required>
+                                <option value="">— select —</option>
+                                @foreach (var ec in Model.ExamCategories)
+                                { <option value="@ec.Id">@ec.Name</option> }
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Sub-Category Name <span class="text-danger">*</span></label>
+                            <input asp-for="EditExamSubCategory.Name" id="editSubCategoryName" class="form-control" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Sort Order</label>
+                            <input asp-for="EditExamSubCategory.SortOrder" id="editSubCategorySort" type="number" class="form-control" style="width:120px" />
+                        </div>
+                        <div class="form-check form-switch">
+                            <input asp-for="EditExamSubCategory.IsActive" id="editSubCategoryActive" class="form-check-input" type="checkbox" />
                             <label class="form-check-label">Active</label>
                         </div>
                     </div>
@@ -859,11 +1040,12 @@
 
     // Handler → form field name prefix mapping
     const handlerFields = {
-        UpdateSubject:   { name: 'EditSubject.Name',    sort: 'EditSubject.SortOrder',    active: 'EditSubject.IsActive'    },
-        UpdateDifficulty:{ name: 'EditDifficulty.Name', sort: 'EditDifficulty.SortOrder', active: 'EditDifficulty.IsActive' },
-        UpdateComplexity:{ name: 'EditComplexity.Name', sort: 'EditComplexity.SortOrder', active: 'EditComplexity.IsActive' },
-        UpdateExamType:  { name: 'EditExamType.Name',   sort: 'EditExamType.SortOrder',   active: 'EditExamType.IsActive'   },
-        UpdateTag:       { name: 'EditTag.Name',        sort: 'EditTag.SortOrder',        active: 'EditTag.IsActive'        },
+        UpdateSubject:      { name: 'EditSubject.Name',      sort: 'EditSubject.SortOrder',      active: 'EditSubject.IsActive'      },
+        UpdateDifficulty:   { name: 'EditDifficulty.Name',   sort: 'EditDifficulty.SortOrder',   active: 'EditDifficulty.IsActive'   },
+        UpdateComplexity:   { name: 'EditComplexity.Name',   sort: 'EditComplexity.SortOrder',   active: 'EditComplexity.IsActive'   },
+        UpdateExamType:     { name: 'EditExamType.Name',     sort: 'EditExamType.SortOrder',     active: 'EditExamType.IsActive'     },
+        UpdateExamCategory: { name: 'EditExamCategory.Name', sort: 'EditExamCategory.SortOrder', active: 'EditExamCategory.IsActive' },
+        UpdateTag:          { name: 'EditTag.Name',          sort: 'EditTag.SortOrder',          active: 'EditTag.IsActive'          },
     };
 
     modal.addEventListener('show.bs.modal', function (e) {
@@ -899,6 +1081,20 @@
         modal.querySelector('#editTopicSubject').value        = btn.getAttribute('data-subjectid');
         modal.querySelector('#editTopicSort').value           = btn.getAttribute('data-sort');
         modal.querySelector('#editTopicActive').checked       = btn.getAttribute('data-active') === 'true';
+    });
+})();
+
+// ── SubCategory modal ─────────────────────────────────────────────────────
+(function () {
+    const modal = document.getElementById('editSubCategoryModal');
+    if (!modal) return;
+    modal.addEventListener('show.bs.modal', function (e) {
+        const btn = e.relatedTarget;
+        modal.querySelector('#editSubCategoryId').value         = btn.getAttribute('data-id');
+        modal.querySelector('#editSubCategoryName').value       = btn.getAttribute('data-name');
+        modal.querySelector('#editSubCategoryParent').value     = btn.getAttribute('data-categoryid');
+        modal.querySelector('#editSubCategorySort').value       = btn.getAttribute('data-sort');
+        modal.querySelector('#editSubCategoryActive').checked   = btn.getAttribute('data-active') === 'true';
     });
 })();
 

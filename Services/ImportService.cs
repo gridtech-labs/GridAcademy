@@ -242,7 +242,6 @@ public class ImportService : IImportService
                     ComplexityLevelId = defaultComp.Id,
                     MarksId           = pq.MarksId ?? defaultMarks.Id,
                     NegativeMarksId   = pq.NegMarksId ?? defaultNegMark.Id,
-                    ExamTypeId        = pq.ExamTypeId ?? defaultExam.Id,
                     NumericalAnswer   = pq.NumericalAnswer,
                     CreatedBy         = importedBy,
                     UpdatedBy         = importedBy
@@ -350,7 +349,6 @@ public class ImportService : IImportService
                     ComplexityLevelId = defaultComp.Id,
                     MarksId           = pq.MarksId    ?? defaultMarks.Id,
                     NegativeMarksId   = pq.NegMarksId ?? defaultNegMark.Id,
-                    ExamTypeId        = pq.ExamTypeId ?? defaultExam.Id,
                     NumericalAnswer   = pq.NumericalAnswer,
                     CreatedBy         = importedBy,
                     UpdatedBy         = importedBy
@@ -505,7 +503,6 @@ public class ImportService : IImportService
                     ComplexityLevelId = defaultComp.Id,
                     MarksId           = pq.MarksId    ?? defaultMarks.Id,
                     NegativeMarksId   = pq.NegMarksId ?? defaultNegMark.Id,
-                    ExamTypeId        = pq.ExamTypeId ?? defaultExam.Id,
                     NumericalAnswer   = pq.NumericalAnswer,
                     CreatedBy         = importedBy,
                     UpdatedBy         = importedBy
@@ -1002,7 +999,6 @@ public class ImportService : IImportService
             ComplexityLevelId = comp!.Id,
             MarksId           = marks!.Id,
             NegativeMarksId   = negMarks!.Id,
-            ExamTypeId        = exam!.Id,
             CreatedBy         = createdBy,
             UpdatedBy         = createdBy
         };
@@ -1110,7 +1106,6 @@ public class ImportService : IImportService
         public List<QuestionOption> Options        { get; set; } = [];
         public int?                SubjectId       { get; set; }
         public int?                TopicId         { get; set; }
-        public int?                ExamTypeId      { get; set; }
         public int?                MarksId         { get; set; }
         public int?                NegMarksId      { get; set; }
     }
@@ -1128,12 +1123,12 @@ public class ImportService : IImportService
         var result  = new ImportResultDto { Source = "RRB ALP Excel" };
         var masters = await LoadRrbAlpMastersAsync();
 
-        if (masters.RrbExamTypeId == 0)
+        if (false) // guard removed: ExamTypeId no longer required on questions
         {
             result.Errors.Add(new ImportRowError
             {
                 Row = 0, Field = "Setup",
-                Message = "RRB ALP exam type not found. Restart the application once to seed it."
+                Message = "Import setup error."
             });
             return result;
         }
@@ -1218,7 +1213,6 @@ public class ImportService : IImportService
                         ComplexityLevelId = masters.DefaultComplexityId,
                         MarksId           = marksId,
                         NegativeMarksId   = negMarksId,
-                        ExamTypeId        = masters.RrbExamTypeId,
                         CreatedBy         = importedBy,
                         UpdatedBy         = importedBy
                     };
@@ -1290,7 +1284,6 @@ public class ImportService : IImportService
                     DurationMinutes        = duration,
                     PassingPercent         = 40,
                     NegativeMarkingEnabled = true,
-                    ExamTypeId             = masters.RrbExamTypeId,
                     Status                 = GridAcademy.Data.Entities.Assessment.TestStatus.Published,
                     CreatedBy              = importedBy,
                     UpdatedBy              = importedBy
@@ -1384,7 +1377,6 @@ public class ImportService : IImportService
         public Dictionary<decimal, int>    MarksIds          { get; init; } = [];
         public Dictionary<decimal, int>    NegMarksIds       { get; init; } = [];
         public int                         DefaultComplexityId { get; init; }
-        public int                         RrbExamTypeId     { get; init; }
     }
 
     private async Task<RrbMasterCache> LoadRrbAlpMastersAsync()
@@ -1395,10 +1387,6 @@ public class ImportService : IImportService
         var complexities = await _db.ComplexityLevels.AsNoTracking().ToListAsync();
         var marksList   = await _db.MarksMaster.AsNoTracking().ToListAsync();
         var negMarksList = await _db.NegativeMarksMaster.AsNoTracking().ToListAsync();
-        var examTypes   = await _db.ExamTypes.AsNoTracking().ToListAsync();
-
-        var rrbType = examTypes.FirstOrDefault(e =>
-            e.Name.Equals("RRB ALP", StringComparison.OrdinalIgnoreCase));
 
         var mediumComplexity = complexities.FirstOrDefault(c =>
             c.Name.Equals("Medium", StringComparison.OrdinalIgnoreCase))
@@ -1413,7 +1401,6 @@ public class ImportService : IImportService
             MarksIds     = marksList.ToDictionary(m => m.Value, m => m.Id),
             NegMarksIds  = negMarksList.ToDictionary(m => m.Value, m => m.Id),
             DefaultComplexityId = mediumComplexity.Id,
-            RrbExamTypeId = rrbType?.Id ?? 0
         };
     }
 }

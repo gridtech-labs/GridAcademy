@@ -22,14 +22,17 @@ public class IndexModel : PageModel
     public List<MarksDto>           Marks            { get; set; } = [];
     public List<NegativeMarksDto>   NegativeMarks    { get; set; } = [];
     public List<TagDto>             Tags             { get; set; } = [];
+    public List<ExamCategoryDto>    ExamCategories   { get; set; } = [];
+    public List<ExamSubCategoryDto> ExamSubCategories { get; set; } = [];
 
     [TempData] public string? ActiveTab { get; set; }
 
     // ── Bound form models ─────────────────────────────────────────────────────
-    public class AddForm       { public string Name { get; set; } = ""; public bool IsActive { get; set; } = true; public int SortOrder { get; set; } = 0; }
-    public class AddTopicForm  { public string Name { get; set; } = ""; public int SubjectId { get; set; } = 0; public bool IsActive { get; set; } = true; public int SortOrder { get; set; } = 0; }
-    public class AddMarksForm  { public string Name { get; set; } = ""; public decimal Value { get; set; } = 0; public bool IsActive { get; set; } = true; public int SortOrder { get; set; } = 0; }
-    public class EditQTypeForm { public string Name { get; set; } = ""; public string? Description { get; set; } = ""; public bool IsActive { get; set; } = true; }
+    public class AddForm            { public string Name { get; set; } = ""; public bool IsActive { get; set; } = true; public int SortOrder { get; set; } = 0; }
+    public class AddTopicForm       { public string Name { get; set; } = ""; public int SubjectId { get; set; } = 0; public bool IsActive { get; set; } = true; public int SortOrder { get; set; } = 0; }
+    public class AddMarksForm       { public string Name { get; set; } = ""; public decimal Value { get; set; } = 0; public bool IsActive { get; set; } = true; public int SortOrder { get; set; } = 0; }
+    public class AddSubCategoryForm { public string Name { get; set; } = ""; public int ExamCategoryId { get; set; } = 0; public bool IsActive { get; set; } = true; public int SortOrder { get; set; } = 0; }
+    public class EditQTypeForm      { public string Name { get; set; } = ""; public string? Description { get; set; } = ""; public bool IsActive { get; set; } = true; }
     // Edit forms (same shape as Add — reuse AddForm/AddTopicForm/AddMarksForm)
 
     [BindProperty] public AddForm      NewSubject       { get; set; } = new();
@@ -40,16 +43,20 @@ public class IndexModel : PageModel
     [BindProperty] public AddForm      NewTag           { get; set; } = new();
     [BindProperty] public AddMarksForm NewMarks         { get; set; } = new();
     [BindProperty] public AddMarksForm NewNegativeMarks { get; set; } = new();
-    [BindProperty] public EditQTypeForm EditQType       { get; set; } = new();
+    [BindProperty] public AddForm            NewExamCategory    { get; set; } = new();
+    [BindProperty] public AddSubCategoryForm NewExamSubCategory { get; set; } = new();
+    [BindProperty] public EditQTypeForm      EditQType          { get; set; } = new();
 
-    [BindProperty] public AddForm      EditSubject      { get; set; } = new();
+    [BindProperty] public AddForm            EditSubject        { get; set; } = new();
     [BindProperty] public AddTopicForm EditTopic        { get; set; } = new();
     [BindProperty] public AddForm      EditDifficulty   { get; set; } = new();
     [BindProperty] public AddForm      EditComplexity   { get; set; } = new();
     [BindProperty] public AddForm      EditExamType     { get; set; } = new();
     [BindProperty] public AddForm      EditTag          { get; set; } = new();
     [BindProperty] public AddMarksForm EditMarks        { get; set; } = new();
-    [BindProperty] public AddMarksForm EditNegativeMarks{ get; set; } = new();
+    [BindProperty] public AddMarksForm       EditNegativeMarks  { get; set; } = new();
+    [BindProperty] public AddForm            EditExamCategory   { get; set; } = new();
+    [BindProperty] public AddSubCategoryForm EditExamSubCategory { get; set; } = new();
 
     // ── GET ───────────────────────────────────────────────────────────────────
     public async Task OnGetAsync() => await LoadAllAsync();
@@ -217,6 +224,49 @@ public class IndexModel : PageModel
         return Redirect("negmarks", null, "Negative marks entry deleted.");
     }
 
+    // ── EXAM CATEGORIES ───────────────────────────────────────────────────────
+    public async Task<IActionResult> OnPostAddExamCategoryAsync()
+    {
+        if (string.IsNullOrWhiteSpace(NewExamCategory.Name))
+            return Redirect("examcategories", "Category name is required.");
+        await _svc.CreateExamCategoryAsync(new(NewExamCategory.Name, NewExamCategory.IsActive, NewExamCategory.SortOrder));
+        return Redirect("examcategories", null, $"Category '{NewExamCategory.Name}' added.");
+    }
+    public async Task<IActionResult> OnPostUpdateExamCategoryAsync(int id)
+    {
+        if (string.IsNullOrWhiteSpace(EditExamCategory.Name)) return Redirect("examcategories", "Category name is required.");
+        await _svc.UpdateExamCategoryAsync(id, new(EditExamCategory.Name, EditExamCategory.IsActive, EditExamCategory.SortOrder));
+        return Redirect("examcategories", null, "Category updated.");
+    }
+    public async Task<IActionResult> OnPostDeleteExamCategoryAsync(int id)
+    {
+        await _svc.DeleteExamCategoryAsync(id);
+        return Redirect("examcategories", null, "Category deleted.");
+    }
+
+    // ── EXAM SUB CATEGORIES ───────────────────────────────────────────────────
+    public async Task<IActionResult> OnPostAddExamSubCategoryAsync()
+    {
+        if (string.IsNullOrWhiteSpace(NewExamSubCategory.Name))
+            return Redirect("examsubcategories", "Sub-category name is required.");
+        if (NewExamSubCategory.ExamCategoryId == 0)
+            return Redirect("examsubcategories", "Please select a category.");
+        await _svc.CreateExamSubCategoryAsync(new(NewExamSubCategory.Name, NewExamSubCategory.ExamCategoryId, NewExamSubCategory.IsActive, NewExamSubCategory.SortOrder));
+        return Redirect("examsubcategories", null, $"Sub-category '{NewExamSubCategory.Name}' added.");
+    }
+    public async Task<IActionResult> OnPostUpdateExamSubCategoryAsync(int id)
+    {
+        if (string.IsNullOrWhiteSpace(EditExamSubCategory.Name)) return Redirect("examsubcategories", "Sub-category name is required.");
+        if (EditExamSubCategory.ExamCategoryId == 0) return Redirect("examsubcategories", "Please select a category.");
+        await _svc.UpdateExamSubCategoryAsync(id, new(EditExamSubCategory.Name, EditExamSubCategory.ExamCategoryId, EditExamSubCategory.IsActive, EditExamSubCategory.SortOrder));
+        return Redirect("examsubcategories", null, "Sub-category updated.");
+    }
+    public async Task<IActionResult> OnPostDeleteExamSubCategoryAsync(int id)
+    {
+        await _svc.DeleteExamSubCategoryAsync(id);
+        return Redirect("examsubcategories", null, "Sub-category deleted.");
+    }
+
     // ── QUESTION TYPES (edit name/description/active only — no add/delete) ───
     public async Task<IActionResult> OnPostUpdateQuestionTypeAsync(int id)
     {
@@ -250,8 +300,10 @@ public class IndexModel : PageModel
         DifficultyLevels = await _svc.GetDifficultyLevelsAsync();
         ComplexityLevels = await _svc.GetComplexityLevelsAsync();
         ExamTypes        = await _svc.GetExamTypesAsync();
-        Marks            = await _svc.GetMarksAsync();
-        NegativeMarks    = await _svc.GetNegativeMarksAsync();
-        Tags             = await _svc.GetTagsAsync();
+        Marks              = await _svc.GetMarksAsync();
+        NegativeMarks      = await _svc.GetNegativeMarksAsync();
+        Tags               = await _svc.GetTagsAsync();
+        ExamCategories     = await _svc.GetExamCategoriesAsync();
+        ExamSubCategories  = await _svc.GetExamSubCategoriesAsync();
     }
 }

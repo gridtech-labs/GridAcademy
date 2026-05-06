@@ -24,7 +24,6 @@ public class Question
     public int ComplexityLevelId  { get; set; }
     public int MarksId            { get; set; }
     public int NegativeMarksId    { get; set; }
-    public int ExamTypeId         { get; set; }
 
     // ── Type-specific columns ──────────────────────────────────────────────
 
@@ -51,7 +50,6 @@ public class Question
     public ComplexityLevel     ComplexityLevel    { get; set; } = null!;
     public MarksMaster         Marks              { get; set; } = null!;
     public NegativeMarksMaster NegativeMarks      { get; set; } = null!;
-    public ExamType            ExamType           { get; set; } = null!;
     public QuestionPassage?    Passage            { get; set; }
 
     // ── Child collections ──────────────────────────────────────────────────

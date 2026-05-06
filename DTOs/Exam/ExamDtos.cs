@@ -20,7 +20,8 @@ public record ExamPageCardDto(
     string? ExamLevelName,
     string? ExamTypeName,
     string? ConductingBody,
-    string? Category,
+    string? ExamCategoryName,
+    string? ExamSubCategoryName,
     int  TestCount,
     bool IsFeatured,
     decimal PriceInr,
@@ -51,7 +52,8 @@ public record ExamPageDetailDto(
     string? ExamTypeName,
     string? MetaTitle,
     string? MetaDescription,
-    string? Category,
+    string? ExamCategoryName,
+    string? ExamSubCategoryName,
     bool IsFeatured,
     decimal PriceInr,
     int ViewCount,
@@ -60,6 +62,8 @@ public record ExamPageDetailDto(
     // Edit-form fields
     int? ExamLevelId,
     int? ExamTypeId,
+    int? ExamCategoryId,
+    int? ExamSubCategoryId,
     bool IsActive,
     ExamPageStatus Status,
     int SortOrder);
@@ -95,12 +99,13 @@ public record SaveExamPageRequest(
     string? BannerUrl,
     int? ExamLevelId,
     int? ExamTypeId,
+    int? ExamCategoryId,
+    int? ExamSubCategoryId,
     bool IsFeatured,
     bool IsActive,
     ExamPageStatus Status,
     int SortOrder,
     decimal PriceInr,
-    string? Category,
     string? MetaTitle,
     string? MetaDescription);
 

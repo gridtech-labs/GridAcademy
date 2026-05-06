@@ -25,7 +25,6 @@ public class IndexModel : PageModel
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         var tests = await _db.Tests
-            .Include(t => t.ExamType)
             .Include(t => t.Sections)
             .Where(t => t.CreatedBy == userId)
             .OrderByDescending(t => t.CreatedAt)
@@ -34,7 +33,6 @@ public class IndexModel : PageModel
         Tests = tests.Select(t => new TestListItem(
             t.Id,
             t.Title,
-            t.ExamType?.Name ?? "—",
             t.DurationMinutes,
             t.Status,
             t.Sections.Count
@@ -66,7 +64,6 @@ public class IndexModel : PageModel
     public record TestListItem(
         Guid       Id,
         string     Title,
-        string     ExamTypeName,
         int        DurationMinutes,
         TestStatus Status,
         int        SectionCount

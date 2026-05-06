@@ -52,4 +52,16 @@ public interface IMasterService
     Task<NegativeMarksDto>         CreateNegativeMarksAsync(CreateMarksRequest request);
     Task<NegativeMarksDto>         UpdateNegativeMarksAsync(int id, CreateMarksRequest request);
     Task                           DeleteNegativeMarksAsync(int id);
+
+    // Exam Categories
+    Task<List<ExamCategoryDto>>    GetExamCategoriesAsync(bool activeOnly = false);
+    Task<ExamCategoryDto>          CreateExamCategoryAsync(CreateMasterRequest request);
+    Task<ExamCategoryDto>          UpdateExamCategoryAsync(int id, CreateMasterRequest request);
+    Task                           DeleteExamCategoryAsync(int id);
+
+    // Exam Sub Categories
+    Task<List<ExamSubCategoryDto>> GetExamSubCategoriesAsync(int? examCategoryId = null, bool activeOnly = false);
+    Task<ExamSubCategoryDto>       CreateExamSubCategoryAsync(CreateExamSubCategoryRequest request);
+    Task<ExamSubCategoryDto>       UpdateExamSubCategoryAsync(int id, CreateExamSubCategoryRequest request);
+    Task                           DeleteExamSubCategoryAsync(int id);
 }

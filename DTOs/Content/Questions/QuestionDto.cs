@@ -62,8 +62,6 @@ public class QuestionDto
     public decimal Marks             { get; set; }
     public int     NegativeMarksId   { get; set; }
     public decimal NegativeMarks     { get; set; }
-    public int     ExamTypeId        { get; set; }
-    public string  ExamType          { get; set; } = "";
 
     // ── Type-specific fields ──────────────────────────────────────────────────
     public decimal? NumericalAnswer    { get; set; }

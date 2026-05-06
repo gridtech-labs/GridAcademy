@@ -62,7 +62,6 @@ public class CreateQuestionRequest
     [Range(1, int.MaxValue)] public int ComplexityLevelId { get; set; }
     [Range(1, int.MaxValue)] public int MarksId           { get; set; }
     [Range(1, int.MaxValue)] public int NegativeMarksId   { get; set; }
-    [Range(1, int.MaxValue)] public int ExamTypeId        { get; set; }
 
     // ── NAT ──────────────────────────────────────────────────────────────────
     public decimal? NumericalAnswer    { get; set; }

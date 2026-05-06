@@ -14,9 +14,9 @@ public class ExamController(IExamService svc) : ControllerBase
     // ── Public Endpoints ──────────────────────────────────────────────────
 
     [HttpGet]
-    public async Task<IActionResult> List([FromQuery] int? levelId, [FromQuery] string? search, [FromQuery] string? category)
+    public async Task<IActionResult> List([FromQuery] int? levelId, [FromQuery] string? search, [FromQuery] int? categoryId)
     {
-        var items = await svc.GetExamPagesAsync(activeOnly: true, levelId, search, category);
+        var items = await svc.GetExamPagesAsync(activeOnly: true, levelId, search, categoryId);
         return Ok(ApiResponse<object>.Ok(items));
     }
 

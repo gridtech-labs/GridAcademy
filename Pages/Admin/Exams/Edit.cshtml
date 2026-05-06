@@ -249,21 +249,27 @@
                         <input asp-for="SortOrder" type="number" class="form-control" />
                     </div>
 
-                    @* Category — auto-derived from Exam Type (no separate field needed) *@
+                    @* Category / Sub-Category *@
                     <div class="mb-3">
                         <label class="form-label fw-semibold">
-                            <i class="bi bi-tag me-1 text-info"></i>Category
+                            <i class="bi bi-grid me-1 text-info"></i>Category
                         </label>
-                        <div class="form-control bg-light text-muted" id="categoryDisplay">
-                            @(Model.ExamTypeId.HasValue
-                                ? (Model.ExamTypes.FirstOrDefault(t => t.Id == Model.ExamTypeId)?.Name ?? "—")
-                                : "— select an Exam Type above —")
-                        </div>
-                        <div class="form-text">
-                            <i class="bi bi-info-circle me-1"></i>
-                            Category is automatically derived from the <strong>Exam Type</strong> selected above.
-                            The frontend sidebar groups exams by Exam Type — no separate value needed.
-                        </div>
+                        <select asp-for="ExamCategoryId" id="ExamCategoryId" class="form-select">
+                            <option value="">— none —</option>
+                            @foreach (var ec in Model.ExamCategories)
+                            { <option value="@ec.Id">@ec.Name</option> }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-grid-3x2 me-1 text-info"></i>Sub-Category
+                        </label>
+                        <select asp-for="ExamSubCategoryId" id="ExamSubCategoryId" class="form-select">
+                            <option value="">— none —</option>
+                            @foreach (var sc in Model.ExamSubCategories)
+                            { <option value="@sc.Id" data-categoryid="@sc.ExamCategoryId">@sc.Name</option> }
+                        </select>
+                        <div class="form-text text-muted">Filtered by selected Category.</div>
                     </div>
 
                     @* Pricing *@
@@ -372,27 +378,37 @@ function updateSlugPrefix() {
     document.getElementById('slugPrefix').textContent = label;
 }
 
-// ── Exam-type → display name map ──────────────────────────────────────
-var _examTypeNames = {
-    @foreach (var t in Model.ExamTypes)
-    {
-        @:@t.Id: '@t.Name.Replace("'", "\\'")' ,
-    }
-};
-
-function updateCategoryDisplay() {
-    var sel  = document.getElementById('ExamTypeId');
-    var val  = sel ? sel.value : '';
-    var disp = document.getElementById('categoryDisplay');
-    if (disp) disp.textContent = (val && _examTypeNames[val]) ? _examTypeNames[val] : '— select an Exam Type above —';
-}
-
 var _examTypeSelect = document.getElementById('ExamTypeId');
 if (_examTypeSelect) {
-    _examTypeSelect.addEventListener('change', function() { updateSlugPrefix(); updateCategoryDisplay(); });
-    updateSlugPrefix();       // set correct prefix on page load (edit mode)
-    updateCategoryDisplay();  // set correct category label on page load
+    _examTypeSelect.addEventListener('change', updateSlugPrefix);
+    updateSlugPrefix();
 }
+
+// ── Category → filter Sub-Category options ────────────────────────────
+(function () {
+    var catSel = document.getElementById('ExamCategoryId');
+    var subSel = document.getElementById('ExamSubCategoryId');
+    if (!catSel || !subSel) return;
+
+    var allOptions = Array.from(subSel.querySelectorAll('option[data-categoryid]'));
+
+    function filterSubCategories() {
+        var catId = catSel.value;
+        allOptions.forEach(function (opt) {
+            opt.hidden = catId && opt.dataset.categoryid !== catId;
+        });
+        // If currently selected sub-category doesn't belong to new category, clear it
+        var sel = subSel.value;
+        if (sel) {
+            var selOpt = subSel.querySelector('option[value="' + sel + '"]');
+            if (selOpt && catId && selOpt.dataset.categoryid !== catId)
+                subSel.value = '';
+        }
+    }
+
+    catSel.addEventListener('change', filterSubCategories);
+    filterSubCategories(); // apply on page load (edit mode)
+})();
 
 // ── Auto-slug ─────────────────────────────────────────────────────────
 function autoSlug(v) {

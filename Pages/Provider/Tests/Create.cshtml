@@ -27,18 +27,6 @@
                         <span asp-validation-for="Form.Title" class="text-danger small"></span>
                     </div>
 
-                    <div class="mb-3">
-                        <label asp-for="Form.ExamTypeId" class="form-label fw-medium">Exam Type <span class="text-danger">*</span></label>
-                        <select asp-for="Form.ExamTypeId" class="form-select">
-                            <option value="0">-- Select Exam Type --</option>
-                            @foreach (var et in Model.ExamTypes)
-                            {
-                                <option value="@et.Id">@et.Name</option>
-                            }
-                        </select>
-                        <span asp-validation-for="Form.ExamTypeId" class="text-danger small"></span>
-                    </div>
-
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label asp-for="Form.DurationMinutes" class="form-label fw-medium">Duration (minutes)</label>

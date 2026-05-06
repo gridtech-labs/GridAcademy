@@ -16,7 +16,8 @@ public class ExamService(AppDbContext db) : IExamService
     private static ExamPageCardDto MapCard(ExamPage e) => new(
         e.Id, e.Slug, e.Title, e.ShortDescription,
         MediaUrlHelper.Abs(e.ThumbnailUrl), MediaUrlHelper.Abs(e.BannerUrl),
-        e.ExamLevel?.Name, e.ExamType?.Name, e.ConductingBody, e.Category,
+        e.ExamLevel?.Name, e.ExamType?.Name, e.ConductingBody,
+        e.ExamCategory?.Name, e.ExamSubCategory?.Name,
         e.Tests.Count, e.IsFeatured, e.PriceInr, e.Status, e.CreatedAt);
 
     private static ExamPageDetailDto MapDetail(ExamPage e) => new(
@@ -26,7 +27,8 @@ public class ExamService(AppDbContext db) : IExamService
         e.ConductingBody, e.OfficialWebsite, e.NotificationUrl,
         MediaUrlHelper.Abs(e.ThumbnailUrl), MediaUrlHelper.Abs(e.BannerUrl),
         e.ExamLevel?.Name, e.ExamType?.Name,
-        e.MetaTitle, e.MetaDescription, e.Category,
+        e.MetaTitle, e.MetaDescription,
+        e.ExamCategory?.Name, e.ExamSubCategory?.Name,
         e.IsFeatured, e.PriceInr, e.ViewCount,
         e.Tests.OrderBy(t => t.SortOrder)
                .Select(t => new ExamTestDto(
@@ -39,12 +41,14 @@ public class ExamService(AppDbContext db) : IExamService
                    t.Test?.Sections?.Sum(s => s.QuestionCount) ?? 0))
                .ToList(),
         e.UpdatedAt,
-        e.ExamLevelId, e.ExamTypeId, e.IsActive, e.Status, e.SortOrder);
+        e.ExamLevelId, e.ExamTypeId, e.ExamCategoryId, e.ExamSubCategoryId, e.IsActive, e.Status, e.SortOrder);
 
     private IQueryable<ExamPage> BaseQuery() =>
         db.ExamPages
           .Include(e => e.ExamLevel)
           .Include(e => e.ExamType)
+          .Include(e => e.ExamCategory)
+          .Include(e => e.ExamSubCategory)
           .Include(e => e.Tests)
               .ThenInclude(t => t.Test)
               .ThenInclude(t => t.Sections);
@@ -92,13 +96,12 @@ public class ExamService(AppDbContext db) : IExamService
 
     // ── Exam Pages ─────────────────────────────────────────────────────────
 
-    public async Task<List<ExamPageCardDto>> GetExamPagesAsync(bool activeOnly = false, int? levelId = null, string? search = null, string? category = null)
+    public async Task<List<ExamPageCardDto>> GetExamPagesAsync(bool activeOnly = false, int? levelId = null, string? search = null, int? categoryId = null)
     {
         var q = BaseQuery().AsQueryable();
         if (activeOnly) q = q.Where(e => e.IsActive && e.Status == ExamPageStatus.Published);
         if (levelId.HasValue) q = q.Where(e => e.ExamLevelId == levelId.Value);
-        if (!string.IsNullOrWhiteSpace(category))
-            q = q.Where(e => e.ExamType != null && e.ExamType.Name == category);
+        if (categoryId.HasValue) q = q.Where(e => e.ExamCategoryId == categoryId.Value);
         if (!string.IsNullOrWhiteSpace(search))
             q = q.Where(e => e.Title.ToLower().Contains(search.ToLower()) ||
                              (e.ConductingBody != null && e.ConductingBody.ToLower().Contains(search.ToLower())));
@@ -232,9 +235,9 @@ public class ExamService(AppDbContext db) : IExamService
         e.NotificationUrl = r.NotificationUrl;
         e.ThumbnailUrl = r.ThumbnailUrl; e.BannerUrl = r.BannerUrl;
         e.ExamLevelId = r.ExamLevelId; e.ExamTypeId = r.ExamTypeId;
+        e.ExamCategoryId = r.ExamCategoryId; e.ExamSubCategoryId = r.ExamSubCategoryId;
         e.IsFeatured = r.IsFeatured; e.IsActive = r.IsActive;
         e.Status = r.Status; e.SortOrder = r.SortOrder; e.PriceInr = r.PriceInr;
-        e.Category = r.Category;
         e.MetaTitle = r.MetaTitle; e.MetaDescription = r.MetaDescription;
         return e;
     }

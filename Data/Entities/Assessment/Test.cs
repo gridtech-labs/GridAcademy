@@ -1,5 +1,3 @@
-using GridAcademy.Data.Entities.Content;
-
 namespace GridAcademy.Data.Entities.Assessment;
 
 public class Test
@@ -16,8 +14,6 @@ public class Test
     public decimal PassingPercent { get; set; }
 
     public bool NegativeMarkingEnabled { get; set; } = false;
-
-    public int ExamTypeId { get; set; }
 
     public TestStatus   Status       { get; set; } = TestStatus.Draft;
 
@@ -37,8 +33,6 @@ public class Test
     public Guid? UpdatedBy { get; set; }
 
     // ── Navigations ────────────────────────────────────────────────────────
-    public ExamType ExamType { get; set; } = null!;
-
     public ICollection<TestSection> Sections { get; set; } = [];
 
     public ICollection<TestAssignment> Assignments { get; set; } = [];

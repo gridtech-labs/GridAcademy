@@ -28,7 +28,6 @@ public class AssessmentService : IAssessmentService
 
         var assignments = await _db.TestAssignments
             .Include(a => a.Test)
-                .ThenInclude(t => t.ExamType)
             .Include(a => a.Test)
                 .ThenInclude(t => t.Sections)
                     .ThenInclude(s => s.Subject)
@@ -55,7 +54,6 @@ public class AssessmentService : IAssessmentService
                 AssignmentId          = assignment.Id,
                 TestId                = assignment.TestId,
                 Title                 = assignment.Test.Title,
-                ExamTypeName          = assignment.Test.ExamType?.Name ?? "",
                 DurationMinutes       = assignment.Test.DurationMinutes,
                 TotalQuestions        = assignment.Test.Sections.Sum(s => s.QuestionCount),
                 SectionCount          = assignment.Test.Sections.Count,

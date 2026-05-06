@@ -8,7 +8,6 @@ public class QuestionListRequest
     public int?           SubjectId       { get; set; }
     public int?           TopicId         { get; set; }
     public int?           DifficultyLevelId { get; set; }
-    public int?           ExamTypeId      { get; set; }
     public QuestionType?  QuestionType    { get; set; }
     public QuestionStatus? Status         { get; set; }
     /// <summary>When set, restricts results to questions directly mapped to this test.</summary>

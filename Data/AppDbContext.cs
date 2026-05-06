@@ -17,8 +17,10 @@ public class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
 
     // ── Exam Module ────────────────────────────────────────────────────────
-    public DbSet<ExamLevel>    ExamLevels    => Set<ExamLevel>();
-    public DbSet<ExamPage>     ExamPages     => Set<ExamPage>();
+    public DbSet<ExamLevel>       ExamLevels        => Set<ExamLevel>();
+    public DbSet<ExamCategory>    ExamCategories    => Set<ExamCategory>();
+    public DbSet<ExamSubCategory> ExamSubCategories => Set<ExamSubCategory>();
+    public DbSet<ExamPage>        ExamPages         => Set<ExamPage>();
     public DbSet<ExamPageTest> ExamPageTests => Set<ExamPageTest>();
     public DbSet<Exam> Exams => Set<Exam>();
     public DbSet<ExamNotification> ExamNotifications => Set<ExamNotification>();
@@ -164,6 +166,18 @@ public class AppDbContext : DbContext
             e.Property(x => x.SortOrder).HasColumnName("sort_order").HasDefaultValue(0);
         }
 
+        modelBuilder.Entity<ExamCategory>(e => {
+            ConfigureMaster(e, "exam_categories");
+            e.HasMany(x => x.SubCategories).WithOne(x => x.Category)
+             .HasForeignKey(x => x.ExamCategoryId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ExamSubCategory>(e => {
+            ConfigureMaster(e, "exam_sub_categories");
+            e.Property(x => x.ExamCategoryId).HasColumnName("exam_category_id");
+            e.HasIndex(x => x.ExamCategoryId).HasDatabaseName("ix_exam_sub_categories_category_id");
+        });
+
         modelBuilder.Entity<Subject>(e        => ConfigureMaster(e, "subjects"));
         modelBuilder.Entity<DifficultyLevel>(e => ConfigureMaster(e, "difficulty_levels"));
         modelBuilder.Entity<ComplexityLevel>(e => ConfigureMaster(e, "complexity_levels"));
@@ -250,7 +264,6 @@ public class AppDbContext : DbContext
             e.Property(q => q.ComplexityLevelId).HasColumnName("complexity_level_id");
             e.Property(q => q.MarksId).HasColumnName("marks_id");
             e.Property(q => q.NegativeMarksId).HasColumnName("negative_marks_id");
-            e.Property(q => q.ExamTypeId).HasColumnName("exam_type_id");
 
             // Type-specific nullable columns
             e.Property(q => q.NumericalAnswer).HasColumnName("numerical_answer").HasColumnType("numeric(12,4)");
@@ -272,14 +285,12 @@ public class AppDbContext : DbContext
             e.HasOne(q => q.ComplexityLevel).WithMany(c => c.Questions).HasForeignKey(q => q.ComplexityLevelId);
             e.HasOne(q => q.Marks).WithMany(m => m.Questions).HasForeignKey(q => q.MarksId);
             e.HasOne(q => q.NegativeMarks).WithMany(n => n.Questions).HasForeignKey(q => q.NegativeMarksId);
-            e.HasOne(q => q.ExamType).WithMany(et => et.Questions).HasForeignKey(q => q.ExamTypeId);
             e.HasOne(q => q.Passage).WithMany(p => p.Questions)
              .HasForeignKey(q => q.PassageId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
 
             // Performance indexes
             e.HasIndex(q => q.SubjectId).HasDatabaseName("ix_questions_subject_id");
             e.HasIndex(q => q.DifficultyLevelId).HasDatabaseName("ix_questions_difficulty_level_id");
-            e.HasIndex(q => q.ExamTypeId).HasDatabaseName("ix_questions_exam_type_id");
             e.HasIndex(q => q.Status).HasDatabaseName("ix_questions_status");
             e.HasIndex(q => q.QuestionType).HasDatabaseName("ix_questions_question_type_id");
             e.HasIndex(q => q.PassageId).HasDatabaseName("ix_questions_passage_id");
@@ -372,16 +383,13 @@ public class AppDbContext : DbContext
             e.Property(t => t.DurationMinutes).HasColumnName("duration_minutes");
             e.Property(t => t.PassingPercent).HasColumnName("passing_percent").HasColumnType("numeric(5,2)");
             e.Property(t => t.NegativeMarkingEnabled).HasColumnName("negative_marking_enabled").HasDefaultValue(false);
-            e.Property(t => t.ExamTypeId).HasColumnName("exam_type_id");
             e.Property(t => t.Status).HasColumnName("status").HasConversion<int>().HasDefaultValue(TestStatus.Draft);
             e.Property(t => t.QuestionMode).HasColumnName("question_mode").HasConversion<int>().HasDefaultValue(QuestionMode.GlobalBank);
             e.Property(t => t.CreatedAt).HasColumnName("created_at");
             e.Property(t => t.UpdatedAt).HasColumnName("updated_at");
             e.Property(t => t.CreatedBy).HasColumnName("created_by");
             e.Property(t => t.UpdatedBy).HasColumnName("updated_by");
-            e.HasOne(t => t.ExamType).WithMany().HasForeignKey(t => t.ExamTypeId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(t => t.Status).HasDatabaseName("ix_tests_status");
-            e.HasIndex(t => t.ExamTypeId).HasDatabaseName("ix_tests_exam_type_id");
         });
 
         // ── TestSection ────────────────────────────────────────────────────────────
@@ -927,9 +935,14 @@ public class AppDbContext : DbContext
                 .HasForeignKey(x => x.ExamLevelId).OnDelete(DeleteBehavior.SetNull).IsRequired(false);
             e.HasOne(x => x.ExamType).WithMany()
                 .HasForeignKey(x => x.ExamTypeId).OnDelete(DeleteBehavior.SetNull).IsRequired(false);
+            e.HasOne(x => x.ExamCategory).WithMany(c => c.ExamPages)
+                .HasForeignKey(x => x.ExamCategoryId).OnDelete(DeleteBehavior.SetNull).IsRequired(false);
+            e.HasOne(x => x.ExamSubCategory).WithMany(c => c.ExamPages)
+                .HasForeignKey(x => x.ExamSubCategoryId).OnDelete(DeleteBehavior.SetNull).IsRequired(false);
             e.HasIndex(x => x.Slug).HasFilter("\"Status\" = 1").IsUnique()
                 .HasDatabaseName("ix_exam_pages_slug_published");
             e.HasIndex(x => x.ExamLevelId).HasDatabaseName("ix_exam_pages_level");
+            e.HasIndex(x => x.ExamCategoryId).HasDatabaseName("ix_exam_pages_category");
             e.HasIndex(x => x.Status).HasDatabaseName("ix_exam_pages_status");
             e.HasIndex(x => x.IsFeatured).HasDatabaseName("ix_exam_pages_featured");
         });

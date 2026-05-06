@@ -45,7 +45,6 @@ public class CreateModel : PageModel
     public List<TopicDto>           Topics           { get; set; } = [];
     public List<DifficultyLevelDto> DifficultyLevels { get; set; } = [];
     public List<ComplexityLevelDto> ComplexityLevels { get; set; } = [];
-    public List<ExamTypeDto>        ExamTypes        { get; set; } = [];
     public List<MarksDto>           Marks            { get; set; } = [];
     public List<NegativeMarksDto>   NegativeMarks    { get; set; } = [];
     public List<TagDto>             Tags             { get; set; } = [];
@@ -64,7 +63,6 @@ public class CreateModel : PageModel
         public int          ComplexityLevelId { get; set; }
         public int          MarksId       { get; set; }
         public int          NegativeMarksId   { get; set; }
-        public int          ExamTypeId    { get; set; }
         public QuestionStatus Status      { get; set; } = QuestionStatus.Published;
         public string?      SelectedTagIds    { get; set; }
 
@@ -132,7 +130,6 @@ public class CreateModel : PageModel
                 ComplexityLevelId = q.ComplexityLevelId,
                 MarksId           = q.MarksId,
                 NegativeMarksId   = q.NegativeMarksId,
-                ExamTypeId        = q.ExamTypeId,
                 NumericalAnswer   = q.NumericalAnswer,
                 NumericalTolerance= q.NumericalTolerance,
                 Status            = q.Status,
@@ -210,7 +207,7 @@ public class CreateModel : PageModel
             "Form.PassageTextContent","Form.SubQuestionsJson",
             // int fields with value=0 (placeholder "— select —") are valid; remove binding errors
             "Form.SubjectId","Form.TopicId","Form.DifficultyLevelId","Form.ComplexityLevelId",
-            "Form.MarksId","Form.NegativeMarksId","Form.ExamTypeId"
+            "Form.MarksId","Form.NegativeMarksId"
         })
             ModelState.Remove(key);
 
@@ -229,9 +226,6 @@ public class CreateModel : PageModel
             ModelState.AddModelError("Form.MarksId", "Positive marks selection is required.");
         if (Form.NegativeMarksId == 0)
             ModelState.AddModelError("Form.NegativeMarksId", "Negative marks selection is required.");
-        if (Form.ExamTypeId == 0)
-            ModelState.AddModelError("Form.ExamTypeId", "Exam type is required.");
-
         // Text is not required for PassageBased (sub-questions carry their own text)
         if (!isPbq && string.IsNullOrWhiteSpace(Form.Text))
             ModelState.AddModelError("Form.Text", "Question text is required.");
@@ -344,7 +338,6 @@ public class CreateModel : PageModel
             ComplexityLevelId = Form.ComplexityLevelId,
             MarksId           = Form.MarksId,
             NegativeMarksId   = Form.NegativeMarksId,
-            ExamTypeId        = Form.ExamTypeId,
             Status            = Form.Status,
             TagIds            = tagIds
         };
@@ -366,7 +359,6 @@ public class CreateModel : PageModel
             ComplexityLevelId = Form.ComplexityLevelId,
             MarksId           = Form.MarksId,
             NegativeMarksId   = Form.NegativeMarksId,
-            ExamTypeId        = Form.ExamTypeId,
             Status            = Form.Status,
             TagIds            = tagIds
         };
@@ -479,7 +471,6 @@ public class CreateModel : PageModel
         Topics           = await _masters.GetTopicsAsync();
         DifficultyLevels = await _masters.GetDifficultyLevelsAsync();
         ComplexityLevels = await _masters.GetComplexityLevelsAsync();
-        ExamTypes        = await _masters.GetExamTypesAsync();
         Marks            = await _masters.GetMarksAsync();
         NegativeMarks    = await _masters.GetNegativeMarksAsync();
         Tags             = await _masters.GetTagsAsync();

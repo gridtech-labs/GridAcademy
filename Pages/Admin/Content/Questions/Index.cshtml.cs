@@ -26,7 +26,6 @@ public class IndexModel : PageModel
     [BindProperty(SupportsGet = true)] public int?            SubjectId       { get; set; }
     [BindProperty(SupportsGet = true)] public int?            TopicId         { get; set; }
     [BindProperty(SupportsGet = true)] public int?            DifficultyLevelId { get; set; }
-    [BindProperty(SupportsGet = true)] public int?            ExamTypeId      { get; set; }
     [BindProperty(SupportsGet = true)] public QuestionType?   QuestionType    { get; set; }
     [BindProperty(SupportsGet = true)] public QuestionStatus? Status          { get; set; }
     [BindProperty(SupportsGet = true)] public int             CurrentPage     { get; set; } = 1;
@@ -37,7 +36,6 @@ public class IndexModel : PageModel
     public List<SubjectDto>          Subjects         { get; set; } = [];
     public List<TopicDto>            Topics           { get; set; } = [];
     public List<DifficultyLevelDto>  DifficultyLevels { get; set; } = [];
-    public List<ExamTypeDto>         ExamTypes        { get; set; } = [];
 
     public async Task OnGetAsync()
     {
@@ -47,7 +45,6 @@ public class IndexModel : PageModel
             SubjectId         = SubjectId,
             TopicId           = TopicId,
             DifficultyLevelId = DifficultyLevelId,
-            ExamTypeId        = ExamTypeId,
             QuestionType      = QuestionType,
             Status            = Status,
             Page              = CurrentPage,
@@ -60,7 +57,6 @@ public class IndexModel : PageModel
                            ? await _masters.GetTopicsAsync(SubjectId)
                            : await _masters.GetTopicsAsync();
         DifficultyLevels = await _masters.GetDifficultyLevelsAsync();
-        ExamTypes        = await _masters.GetExamTypesAsync();
     }
 
     public async Task<IActionResult> OnPostPublishAsync(Guid id)

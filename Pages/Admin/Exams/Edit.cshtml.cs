@@ -2,6 +2,7 @@ using GridAcademy.Data;
 using GridAcademy.Helpers;
 using GridAcademy.Data.Entities.Content;
 using GridAcademy.Data.Entities.Exam;
+using GridAcademy.DTOs.Content.Masters;
 using GridAcademy.DTOs.Exam;
 using GridAcademy.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -33,11 +34,12 @@ public class EditModel(IExamService svc, AppDbContext db, IWebHostEnvironment en
     [BindProperty] public string? NotificationUrl  { get; set; }
     [BindProperty] public string? ThumbnailUrl     { get; set; }
     [BindProperty] public string? BannerUrl        { get; set; }
-    [BindProperty] public int?    ExamLevelId      { get; set; }
-    [BindProperty] public int?    ExamTypeId       { get; set; }
-    [BindProperty] public decimal PriceInr         { get; set; } = 0;
-    [BindProperty] public string? Category         { get; set; }
-    [BindProperty] public bool    IsFeatured       { get; set; }
+    [BindProperty] public int?    ExamLevelId        { get; set; }
+    [BindProperty] public int?    ExamTypeId         { get; set; }
+    [BindProperty] public int?    ExamCategoryId     { get; set; }
+    [BindProperty] public int?    ExamSubCategoryId  { get; set; }
+    [BindProperty] public decimal PriceInr           { get; set; } = 0;
+    [BindProperty] public bool    IsFeatured         { get; set; }
     [BindProperty] public bool    IsActive         { get; set; } = true;
     [BindProperty] public ExamPageStatus Status    { get; set; } = ExamPageStatus.Draft;
     [BindProperty] public int     SortOrder        { get; set; }
@@ -48,9 +50,11 @@ public class EditModel(IExamService svc, AppDbContext db, IWebHostEnvironment en
     public IFormFile? ThumbnailFile { get; set; }
     public IFormFile? BannerFile    { get; set; }
 
-    public bool               IsEdit    => Id.HasValue && Id != Guid.Empty;
-    public List<ExamLevelDto> Levels    { get; set; } = [];
-    public List<ExamType>     ExamTypes { get; set; } = [];
+    public bool                    IsEdit          => Id.HasValue && Id != Guid.Empty;
+    public List<ExamLevelDto>      Levels          { get; set; } = [];
+    public List<ExamType>          ExamTypes       { get; set; } = [];
+    public List<ExamCategoryDto>   ExamCategories  { get; set; } = [];
+    public List<ExamSubCategoryDto> ExamSubCategories { get; set; } = [];
 
     public async Task<IActionResult> OnGetAsync()
     {
@@ -67,14 +71,15 @@ public class EditModel(IExamService svc, AppDbContext db, IWebHostEnvironment en
             ConductingBody = dto.ConductingBody; OfficialWebsite = dto.OfficialWebsite;
             NotificationUrl = dto.NotificationUrl; ThumbnailUrl = dto.ThumbnailUrl;
             BannerUrl = dto.BannerUrl; IsFeatured = dto.IsFeatured; PriceInr = dto.PriceInr;
-            Category = dto.Category;
             MetaTitle = dto.MetaTitle; MetaDescription = dto.MetaDescription;
             // Restore dropdown / settings values
-            Status      = dto.Status;
-            ExamLevelId = dto.ExamLevelId;
-            ExamTypeId  = dto.ExamTypeId;
-            IsActive    = dto.IsActive;
-            SortOrder   = dto.SortOrder;
+            Status             = dto.Status;
+            ExamLevelId        = dto.ExamLevelId;
+            ExamTypeId         = dto.ExamTypeId;
+            ExamCategoryId     = dto.ExamCategoryId;
+            ExamSubCategoryId  = dto.ExamSubCategoryId;
+            IsActive           = dto.IsActive;
+            SortOrder          = dto.SortOrder;
         }
         return Page();
     }
@@ -160,11 +165,14 @@ public class EditModel(IExamService svc, AppDbContext db, IWebHostEnvironment en
         ExamPattern, ImportantDates, AdmitCard, ResultInfo, CutOff, HowToApply,
         ConductingBody, OfficialWebsite, NotificationUrl,
         ThumbnailUrl, BannerUrl, ExamLevelId, ExamTypeId,
-        IsFeatured, IsActive, Status, SortOrder, PriceInr, Category, MetaTitle, MetaDescription);
+        ExamCategoryId, ExamSubCategoryId,
+        IsFeatured, IsActive, Status, SortOrder, PriceInr, MetaTitle, MetaDescription);
 
     private async Task LoadDropdownsAsync()
     {
-        Levels    = await svc.GetExamLevelsAsync();
-        ExamTypes = await db.ExamTypes.Where(t => t.IsActive).OrderBy(t => t.SortOrder).ToListAsync();
+        Levels            = await svc.GetExamLevelsAsync();
+        ExamTypes         = await db.ExamTypes.Where(t => t.IsActive).OrderBy(t => t.SortOrder).ToListAsync();
+        ExamCategories    = await db.ExamCategories.Where(c => c.IsActive).OrderBy(c => c.SortOrder).Select(c => new ExamCategoryDto(c.Id, c.Name, c.IsActive, c.SortOrder)).ToListAsync();
+        ExamSubCategories = await db.ExamSubCategories.OrderBy(s => s.SortOrder).Select(s => new ExamSubCategoryDto(s.Id, s.Name, s.IsActive, s.SortOrder, s.ExamCategoryId, "")).ToListAsync();
     }
 }

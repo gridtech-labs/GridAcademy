@@ -515,15 +515,6 @@
                         </select>
                     </div>
 
-                    <div class="mb-0">
-                        <label class="form-label small fw-semibold">Exam Type <span class="text-danger">*</span></label>
-                        <select asp-for="Form.ExamTypeId" class="form-select form-select-sm">
-                            <option value="0">— select —</option>
-                            @foreach (var e in Model.ExamTypes)
-                            { <option value="@e.Id" selected="@(Model.Form.ExamTypeId == e.Id)">@e.Name</option> }
-                        </select>
-                    </div>
-
                 </div>
             </div>
 
@@ -1192,15 +1183,14 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
             }
         }
 
-        // Required dropdowns — Subject, Topic, Difficulty, Complexity, Marks, ExamType
+        // Required dropdowns — Subject, Topic, Difficulty, Complexity, Marks
         const reqSelects = [
             { id: 'Form_SubjectId',        label: 'Subject' },
             { id: 'Form_TopicId',          label: 'Topic' },
             { id: 'Form_DifficultyLevelId',label: 'Difficulty' },
             { id: 'Form_ComplexityLevelId',label: 'Complexity' },
             { id: 'Form_MarksId',          label: 'Positive Marks' },
-            { id: 'Form_NegativeMarksId',  label: 'Negative Marks' },
-            { id: 'Form_ExamTypeId',       label: 'Exam Type' }
+            { id: 'Form_NegativeMarksId',  label: 'Negative Marks' }
         ];
         for (const s of reqSelects) {
             const el = document.getElementById(s.id);

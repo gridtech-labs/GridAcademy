@@ -24,7 +24,6 @@ public class QuestionService : IQuestionService
             .Include(x => x.ComplexityLevel)
             .Include(x => x.Marks)
             .Include(x => x.NegativeMarks)
-            .Include(x => x.ExamType)
             .Include(x => x.Options)
             .Include(x => x.QuestionTags).ThenInclude(qt => qt.Tag)
             .AsNoTracking()
@@ -39,7 +38,6 @@ public class QuestionService : IQuestionService
         if (req.SubjectId.HasValue)         q = q.Where(x => x.SubjectId         == req.SubjectId);
         if (req.TopicId.HasValue)           q = q.Where(x => x.TopicId           == req.TopicId);
         if (req.DifficultyLevelId.HasValue) q = q.Where(x => x.DifficultyLevelId == req.DifficultyLevelId);
-        if (req.ExamTypeId.HasValue)        q = q.Where(x => x.ExamTypeId        == req.ExamTypeId);
         if (req.QuestionType.HasValue)      q = q.Where(x => x.QuestionType      == req.QuestionType);
         if (req.Status.HasValue)            q = q.Where(x => x.Status            == req.Status);
         if (req.TestId.HasValue)
@@ -120,7 +118,6 @@ public class QuestionService : IQuestionService
         entity.ComplexityLevelId  = r.ComplexityLevelId;
         entity.MarksId            = r.MarksId;
         entity.NegativeMarksId    = r.NegativeMarksId;
-        entity.ExamTypeId         = r.ExamTypeId;
         entity.NumericalAnswer    = r.NumericalAnswer;
         entity.NumericalTolerance = r.NumericalTolerance;
         entity.AssertionText      = r.AssertionText?.Trim();
@@ -202,7 +199,6 @@ public class QuestionService : IQuestionService
         ComplexityLevelId  = r.ComplexityLevelId,
         MarksId            = r.MarksId,
         NegativeMarksId    = r.NegativeMarksId,
-        ExamTypeId         = r.ExamTypeId,
         NumericalAnswer    = r.NumericalAnswer,
         NumericalTolerance = r.NumericalTolerance,
         AssertionText      = r.AssertionText?.Trim(),
@@ -307,7 +303,6 @@ public class QuestionService : IQuestionService
                 ComplexityLevelId = r.ComplexityLevelId,
                 MarksId           = r.MarksId,
                 NegativeMarksId   = r.NegativeMarksId,
-                ExamTypeId        = r.ExamTypeId,
                 PassageId         = passage.Id,
                 CreatedBy         = createdBy,
                 UpdatedBy         = createdBy
@@ -343,7 +338,6 @@ public class QuestionService : IQuestionService
             .Include(x => x.ComplexityLevel)
             .Include(x => x.Marks)
             .Include(x => x.NegativeMarks)
-            .Include(x => x.ExamType)
             .Include(x => x.Options)
             .Include(x => x.Blanks)
             .Include(x => x.MatchItems)
@@ -446,8 +440,6 @@ public class QuestionService : IQuestionService
         Marks             = q.Marks?.Value ?? 0,
         NegativeMarksId   = q.NegativeMarksId,
         NegativeMarks     = q.NegativeMarks?.Value ?? 0,
-        ExamTypeId        = q.ExamTypeId,
-        ExamType          = q.ExamType?.Name ?? "",
         NumericalAnswer   = q.NumericalAnswer,
         NumericalTolerance= q.NumericalTolerance,
         AssertionText     = q.AssertionText,

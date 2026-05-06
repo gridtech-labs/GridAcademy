@@ -311,7 +311,7 @@
                 <ul class="pagination pagination-sm mb-0">
                     <li class="page-item @(Model.CurrentPage <= 1 ? "disabled" : "")">
                         <a class="page-link" asp-page="/Admin/Content/Questions/Index"
-                           asp-all-route-data="@(new Dictionary<string,string?> { ["Search"]=Model.Search, ["SubjectId"]=Model.SubjectId?.ToString(), ["TopicId"]=Model.TopicId?.ToString(), ["DifficultyLevelId"]=Model.DifficultyLevelId?.ToString(), ["ExamTypeId"]=Model.ExamTypeId?.ToString(), ["Status"]=((int?)Model.Status)?.ToString(), ["QuestionType"]=((int?)Model.QuestionType)?.ToString(), ["CurrentPage"]=(Model.CurrentPage-1).ToString() })">
+                           asp-all-route-data="@(new Dictionary<string,string?> { ["Search"]=Model.Search, ["SubjectId"]=Model.SubjectId?.ToString(), ["TopicId"]=Model.TopicId?.ToString(), ["DifficultyLevelId"]=Model.DifficultyLevelId?.ToString(), ["Status"]=((int?)Model.Status)?.ToString(), ["QuestionType"]=((int?)Model.QuestionType)?.ToString(), ["CurrentPage"]=(Model.CurrentPage-1).ToString() })">
                             &laquo;
                         </a>
                     </li>
@@ -319,14 +319,14 @@
                     {
                         <li class="page-item @(p == Model.CurrentPage ? "active" : "")">
                             <a class="page-link" asp-page="/Admin/Content/Questions/Index"
-                               asp-all-route-data="@(new Dictionary<string,string?> { ["Search"]=Model.Search, ["SubjectId"]=Model.SubjectId?.ToString(), ["TopicId"]=Model.TopicId?.ToString(), ["DifficultyLevelId"]=Model.DifficultyLevelId?.ToString(), ["ExamTypeId"]=Model.ExamTypeId?.ToString(), ["Status"]=((int?)Model.Status)?.ToString(), ["QuestionType"]=((int?)Model.QuestionType)?.ToString(), ["CurrentPage"]=p.ToString() })">
+                               asp-all-route-data="@(new Dictionary<string,string?> { ["Search"]=Model.Search, ["SubjectId"]=Model.SubjectId?.ToString(), ["TopicId"]=Model.TopicId?.ToString(), ["DifficultyLevelId"]=Model.DifficultyLevelId?.ToString(), ["Status"]=((int?)Model.Status)?.ToString(), ["QuestionType"]=((int?)Model.QuestionType)?.ToString(), ["CurrentPage"]=p.ToString() })">
                                 @p
                             </a>
                         </li>
                     }
                     <li class="page-item @(Model.CurrentPage >= totalPages ? "disabled" : "")">
                         <a class="page-link" asp-page="/Admin/Content/Questions/Index"
-                           asp-all-route-data="@(new Dictionary<string,string?> { ["Search"]=Model.Search, ["SubjectId"]=Model.SubjectId?.ToString(), ["TopicId"]=Model.TopicId?.ToString(), ["DifficultyLevelId"]=Model.DifficultyLevelId?.ToString(), ["ExamTypeId"]=Model.ExamTypeId?.ToString(), ["Status"]=((int?)Model.Status)?.ToString(), ["QuestionType"]=((int?)Model.QuestionType)?.ToString(), ["CurrentPage"]=(Model.CurrentPage+1).ToString() })">
+                           asp-all-route-data="@(new Dictionary<string,string?> { ["Search"]=Model.Search, ["SubjectId"]=Model.SubjectId?.ToString(), ["TopicId"]=Model.TopicId?.ToString(), ["DifficultyLevelId"]=Model.DifficultyLevelId?.ToString(), ["Status"]=((int?)Model.Status)?.ToString(), ["QuestionType"]=((int?)Model.QuestionType)?.ToString(), ["CurrentPage"]=(Model.CurrentPage+1).ToString() })">
                             &raquo;
                         </a>
                     </li>

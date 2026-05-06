@@ -122,16 +122,6 @@
                     <label asp-for="TestForm.PassingPercent" class="form-label fw-semibold">Passing %</label>
                     <input asp-for="TestForm.PassingPercent" type="number" min="0" max="100" step="0.01" class="form-control" disabled="@isPublished" />
                 </div>
-                <div class="col-sm-3">
-                    <label asp-for="TestForm.ExamTypeId" class="form-label fw-semibold">Exam Type</label>
-                    <select asp-for="TestForm.ExamTypeId" class="form-select" disabled="@isPublished">
-                        <option value="0">— None —</option>
-                        @foreach (var et in Model.ExamTypes)
-                        {
-                            <option value="@et.Id">@et.Name</option>
-                        }
-                    </select>
-                </div>
                 <div class="col-sm-3 d-flex align-items-end pb-1">
                     <div class="form-check form-switch">
                         <input asp-for="TestForm.NegativeMarkingEnabled" class="form-check-input" type="checkbox"

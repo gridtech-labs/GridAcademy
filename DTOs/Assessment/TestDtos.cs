@@ -8,7 +8,6 @@ public class TestListDto
 {
     public Guid Id { get; set; }
     public string Title { get; set; } = "";
-    public string ExamTypeName { get; set; } = "";
     public TestStatus Status { get; set; }
     public QuestionMode QuestionMode { get; set; }
     public int SectionCount { get; set; }
@@ -27,8 +26,6 @@ public class TestDetailDto
     public int DurationMinutes { get; set; }
     public decimal PassingPercent { get; set; }
     public bool NegativeMarkingEnabled { get; set; }
-    public int ExamTypeId { get; set; }
-    public string ExamTypeName { get; set; } = "";
     public TestStatus Status { get; set; }
     public QuestionMode QuestionMode { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -61,7 +58,6 @@ public class CreateTestRequest
     public int DurationMinutes { get; set; } = 60;
     public decimal PassingPercent { get; set; } = 35;
     public bool NegativeMarkingEnabled { get; set; } = false;
-    public int ExamTypeId { get; set; }
     public QuestionMode QuestionMode { get; set; } = QuestionMode.GlobalBank;
 }
 
@@ -83,7 +79,6 @@ public class TestListRequest
 {
     public string? Search { get; set; }
     public TestStatus? Status { get; set; }
-    public int? ExamTypeId { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
 }
@@ -145,7 +140,6 @@ public class StudentTestCardDto
     public Guid AssignmentId { get; set; }
     public Guid TestId { get; set; }
     public string Title { get; set; } = "";
-    public string ExamTypeName { get; set; } = "";
     public int DurationMinutes { get; set; }
     public int TotalQuestions { get; set; }
     public int SectionCount { get; set; }

@@ -46,10 +46,8 @@ public class ExamPage
     // ── Categorization ────────────────────────────────────────────────────
     public int? ExamLevelId         { get; set; }   // FK → ExamLevel
     public int? ExamTypeId          { get; set; }   // FK → Content.ExamType (Engineering, Civil, etc.)
-
-    /// <summary>Frontend filter category. Values: Railway, UPSC, Banking, SSC, GATE, Defence</summary>
-    [MaxLength(50)]
-    public string? Category         { get; set; }
+    public int? ExamCategoryId      { get; set; }   // FK → ExamCategory
+    public int? ExamSubCategoryId   { get; set; }   // FK → ExamSubCategory
 
     // ── Media ─────────────────────────────────────────────────────────────
     public string? ThumbnailUrl     { get; set; }   // stored path e.g. /uploads/exams/xxx.jpg
@@ -80,7 +78,9 @@ public class ExamPage
     public Guid? UpdatedBy          { get; set; }
 
     // ── Navigation ────────────────────────────────────────────────────────
-    public ExamLevel?              ExamLevel    { get; set; }
-    public ExamType?               ExamType     { get; set; }
-    public ICollection<ExamPageTest> Tests      { get; set; } = [];
+    public ExamLevel?              ExamLevel       { get; set; }
+    public ExamType?               ExamType        { get; set; }
+    public ExamCategory?           ExamCategory    { get; set; }
+    public ExamSubCategory?        ExamSubCategory { get; set; }
+    public ICollection<ExamPageTest> Tests         { get; set; } = [];
 }
