@@ -48,6 +48,10 @@ public static class DbSeeder
         try { await EnsurePaymentTablesAsync(db); }
         catch (Exception ex) { logger.LogError(ex, "EnsurePaymentTablesAsync failed"); }
 
+        // ── Exam category/sub-category tables and exam_pages FK columns ──────
+        try { await EnsureExamCategoryTablesAsync(db); }
+        catch (Exception ex) { logger.LogError(ex, "EnsureExamCategoryTablesAsync failed"); }
+
         // ── Users ─────────────────────────────────────────────────────────
         const string adminEmail      = "admin@gridacademy.com";
         const string instructorEmail = "instructor@gridacademy.com";
@@ -474,6 +478,93 @@ public static class DbSeeder
                 ADD COLUMN IF NOT EXISTS instructions_acknowledged boolean NOT NULL DEFAULT false;
             """);
 
+    }
+
+    private static async Task EnsureExamCategoryTablesAsync(AppDbContext db)
+    {
+        // exam_categories
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS exam_categories (
+                id        integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                name      character varying(150) NOT NULL,
+                is_active boolean NOT NULL DEFAULT true,
+                sort_order integer NOT NULL DEFAULT 0
+            );
+            """);
+
+        // exam_sub_categories
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS exam_sub_categories (
+                id               integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                exam_category_id integer NOT NULL,
+                name             character varying(150) NOT NULL,
+                is_active        boolean NOT NULL DEFAULT true,
+                sort_order       integer NOT NULL DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS ix_exam_sub_categories_category_id
+                ON exam_sub_categories (exam_category_id);
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE constraint_name = 'FK_exam_sub_categories_exam_categories_exam_category_id'
+                ) THEN
+                    ALTER TABLE exam_sub_categories
+                        ADD CONSTRAINT "FK_exam_sub_categories_exam_categories_exam_category_id"
+                        FOREIGN KEY (exam_category_id) REFERENCES exam_categories(id)
+                        ON DELETE CASCADE;
+                END IF;
+            END; $$;
+            """);
+
+        // ExamCategoryId + ExamSubCategoryId columns on exam_pages
+        await db.Database.ExecuteSqlRawAsync("""
+            ALTER TABLE exam_pages ADD COLUMN IF NOT EXISTS "ExamCategoryId" integer;
+            ALTER TABLE exam_pages ADD COLUMN IF NOT EXISTS "ExamSubCategoryId" integer;
+            CREATE INDEX IF NOT EXISTS ix_exam_pages_exam_category_id ON exam_pages ("ExamCategoryId");
+            CREATE INDEX IF NOT EXISTS ix_exam_pages_exam_sub_category_id ON exam_pages ("ExamSubCategoryId");
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE constraint_name = 'FK_exam_pages_exam_categories_ExamCategoryId'
+                ) THEN
+                    ALTER TABLE exam_pages
+                        ADD CONSTRAINT "FK_exam_pages_exam_categories_ExamCategoryId"
+                        FOREIGN KEY ("ExamCategoryId") REFERENCES exam_categories(id)
+                        ON DELETE SET NULL;
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE constraint_name = 'FK_exam_pages_exam_sub_categories_ExamSubCategoryId'
+                ) THEN
+                    ALTER TABLE exam_pages
+                        ADD CONSTRAINT "FK_exam_pages_exam_sub_categories_ExamSubCategoryId"
+                        FOREIGN KEY ("ExamSubCategoryId") REFERENCES exam_sub_categories(id)
+                        ON DELETE SET NULL;
+                END IF;
+            END; $$;
+            """);
+
+        // Drop exam_type_id from tests if still present (safe to run multiple times)
+        await db.Database.ExecuteSqlRawAsync("""
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'tests' AND column_name = 'exam_type_id'
+                ) THEN
+                    ALTER TABLE tests DROP CONSTRAINT IF EXISTS "FK_tests_exam_types_exam_type_id";
+                    DROP INDEX IF EXISTS ix_tests_exam_type_id;
+                    ALTER TABLE tests DROP COLUMN exam_type_id;
+                END IF;
+            END; $$;
+            """);
+
+        // Drop Category string column from exam_pages if still present
+        await db.Database.ExecuteSqlRawAsync("""
+            ALTER TABLE exam_pages DROP COLUMN IF EXISTS "Category";
+            """);
     }
 
     // ── Payment tables — separate method called independently of MigrateAsync ──
