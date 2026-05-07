@@ -182,11 +182,19 @@ public record SeriesTestDto(
 // ─────────────────────────────────────────────────────────────────────────────
 
 public record HomepageDto(
-    IReadOnlyList<CmsBannerDto>     Banners,
-    IReadOnlyList<ExamCategoryDto>  ExamCategories,
-    IReadOnlyList<TestSeriesListDto> FreeTests,
-    IReadOnlyList<TestSeriesListDto> TopSelling,
-    IReadOnlyList<TestSeriesListDto> NewArrivals
+    IReadOnlyList<CmsBannerDto>                    Banners,
+    IReadOnlyList<ExamCategoryDto>                 ExamCategories,
+    IReadOnlyList<TestSeriesListDto>               FreeTests,
+    IReadOnlyList<TestSeriesListDto>               TopSelling,
+    IReadOnlyList<TestSeriesListDto>               NewArrivals,
+    IReadOnlyList<CategorySeriesGroup>             ByCategory
+);
+
+public record CategorySeriesGroup(
+    string                          CategoryName,
+    string                          CategorySlug,
+    string?                         Emoji,
+    IReadOnlyList<TestSeriesListDto> Series
 );
 
 public record CmsBannerDto(

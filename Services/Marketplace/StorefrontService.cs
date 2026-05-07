@@ -56,7 +56,27 @@ public class StorefrontService : IStorefrontService
             .OrderByDescending(s => s.PublishedAt)
             .Take(8).Select(s => MapToListDto(s)).ToListAsync(ct);
 
-        return new HomepageDto(banners, examCategories, freeTests, topSelling, newArrivals);
+        var allSeries = await publishedBase
+            .OrderBy(s => s.ExamType.Name)
+            .ThenByDescending(s => s.PurchaseCount)
+            .Select(s => MapToListDto(s))
+            .ToListAsync(ct);
+
+        var byCategory = allSeries
+            .GroupBy(s => s.ExamTypeName)
+            .Select(g =>
+            {
+                var cat = examCategories.FirstOrDefault(c => c.Name == g.Key);
+                return new CategorySeriesGroup(
+                    g.Key,
+                    cat?.Slug ?? g.Key.ToLower().Replace(" ", "-").Replace("/", "-"),
+                    cat?.Emoji,
+                    (IReadOnlyList<TestSeriesListDto>)g.ToList());
+            })
+            .OrderBy(g => g.CategoryName)
+            .ToList();
+
+        return new HomepageDto(banners, examCategories, freeTests, topSelling, newArrivals, byCategory);
     }
 
     // ── Search / Browse ───────────────────────────────────────────────────────
