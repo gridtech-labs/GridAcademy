@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using GridAcademy.Data.Entities.Content;
-using GridAcademy.Data.Entities.VideoLearning;
 
 namespace GridAcademy.Data.Entities.Exam;
 
@@ -47,8 +46,8 @@ public class ExamPage
     // ── Categorization ────────────────────────────────────────────────────
     public int? ExamLevelId         { get; set; }   // FK → ExamLevel
     public int? ExamTypeId          { get; set; }   // FK → Content.ExamType (Engineering, Civil, etc.)
-    public int? ExamCategoryId      { get; set; }   // FK → VlDomain
-    public int? ExamSubCategoryId   { get; set; }   // FK → VlVideoCategory
+    public int? ExamCategoryId      { get; set; }   // FK → ExamCategory
+    public int? ExamSubCategoryId   { get; set; }   // FK → ExamSubCategory
 
     // ── Media ─────────────────────────────────────────────────────────────
     public string? ThumbnailUrl     { get; set; }   // stored path e.g. /uploads/exams/xxx.jpg
@@ -81,7 +80,7 @@ public class ExamPage
     // ── Navigation ────────────────────────────────────────────────────────
     public ExamLevel?              ExamLevel       { get; set; }
     public ExamType?               ExamType        { get; set; }
-    public VlDomain?               ExamCategory    { get; set; }
-    public VlVideoCategory?        ExamSubCategory { get; set; }
+    public ExamCategory?           ExamCategory    { get; set; }
+    public ExamSubCategory?        ExamSubCategory { get; set; }
     public ICollection<ExamPageTest> Tests         { get; set; } = [];
 }

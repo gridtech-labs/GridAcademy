@@ -172,7 +172,7 @@ public class EditModel(IExamService svc, AppDbContext db, IWebHostEnvironment en
     {
         Levels            = await svc.GetExamLevelsAsync();
         ExamTypes         = await db.ExamTypes.Where(t => t.IsActive).OrderBy(t => t.SortOrder).ToListAsync();
-        ExamCategories    = await db.VlDomains.Where(d => d.IsActive).OrderBy(d => d.SortOrder).Select(d => new ExamCategoryDto(d.Id, d.Name, d.IsActive, d.SortOrder)).ToListAsync();
-        ExamSubCategories = await db.VlVideoCategories.Where(c => c.IsActive).OrderBy(c => c.SortOrder).Select(c => new ExamSubCategoryDto(c.Id, c.Name, c.IsActive, c.SortOrder, c.DomainId, "")).ToListAsync();
+        ExamCategories    = await db.ExamCategories.Where(c => c.IsActive).OrderBy(c => c.SortOrder).Select(c => new ExamCategoryDto(c.Id, c.Name, c.IsActive, c.SortOrder)).ToListAsync();
+        ExamSubCategories = await db.ExamSubCategories.OrderBy(s => s.SortOrder).Select(s => new ExamSubCategoryDto(s.Id, s.Name, s.IsActive, s.SortOrder, s.ExamCategoryId, "")).ToListAsync();
     }
 }
