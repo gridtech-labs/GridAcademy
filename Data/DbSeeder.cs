@@ -52,6 +52,10 @@ public static class DbSeeder
         try { await EnsureExamCategoryTablesAsync(db); }
         catch (Exception ex) { logger.LogError(ex, "EnsureExamCategoryTablesAsync failed"); }
 
+        // ── Migrate VlDomain → exam_categories, VlVideoCategory → exam_sub_categories
+        try { await MigrateVlCategoriesToExamMastersAsync(db); }
+        catch (Exception ex) { logger.LogError(ex, "MigrateVlCategoriesToExamMastersAsync failed"); }
+
         // ── Users ─────────────────────────────────────────────────────────
         const string adminEmail      = "admin@gridacademy.com";
         const string instructorEmail = "instructor@gridacademy.com";
@@ -564,6 +568,37 @@ public static class DbSeeder
         // Drop Category string column from exam_pages if still present
         await db.Database.ExecuteSqlRawAsync("""
             ALTER TABLE exam_pages DROP COLUMN IF EXISTS "Category";
+            """);
+    }
+
+    // One-time migration: copy VlDomain → exam_categories, VlVideoCategory → exam_sub_categories.
+    // Runs only when exam_categories is empty to avoid duplicates on subsequent startups.
+    private static async Task MigrateVlCategoriesToExamMastersAsync(AppDbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync("""
+            DO $$
+            BEGIN
+                -- Only run if exam_categories is still empty
+                IF NOT EXISTS (SELECT 1 FROM exam_categories LIMIT 1) THEN
+
+                    -- 1. Copy vl_domains → exam_categories (preserve sort_order and is_active)
+                    INSERT INTO exam_categories (name, is_active, sort_order)
+                    SELECT name, is_active, sort_order
+                    FROM   vl_domains
+                    ORDER  BY sort_order, name;
+
+                    -- 2. Copy vl_video_categories → exam_sub_categories,
+                    --    mapping old domain_id → new exam_category_id by name match
+                    INSERT INTO exam_sub_categories (exam_category_id, name, is_active, sort_order)
+                    SELECT ec.id, vc.name, vc.is_active, vc.sort_order
+                    FROM   vl_video_categories vc
+                    JOIN   vl_domains           vd ON vd.id = vc.domain_id
+                    JOIN   exam_categories      ec ON ec.name = vd.name
+                    ORDER  BY ec.id, vc.sort_order, vc.name;
+
+                END IF;
+            END;
+            $$;
             """);
     }
 

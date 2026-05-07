@@ -40,8 +40,7 @@
                                  Context.Request.Path.StartsWithSegments("/Admin/UserMgmt");
                 var inContent  = Context.Request.Path.StartsWithSegments("/Admin/Content") ||
                                  Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Videos") ||
-                                 Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/ContentFiles") ||
-                                 Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Categories");
+                                 Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/ContentFiles");
                 var inExams    = Context.Request.Path.StartsWithSegments("/Admin/Exams");
                 var inProgram  = Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Domains") ||
                                  Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Programs") ||
@@ -108,18 +107,11 @@
                             var inImport    = Context.Request.Path.StartsWithSegments("/Admin/Content/Import");
                             var inVideos    = Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Videos");
                             var inCFiles    = Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/ContentFiles");
-                            var inCats      = Context.Request.Path.StartsWithSegments("/Admin/VideoLearning/Categories");
                         }
                         <li class="nav-item">
                             <a asp-page="/Admin/Content/Masters/Index"
                                class="nav-link py-1 @(inMasters ? "text-white active" : "text-white-50")">
                                 <i class="bi bi-collection me-2"></i>Masters
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a asp-page="/Admin/VideoLearning/Categories/Index"
-                               class="nav-link py-1 @(inCats ? "text-white active" : "text-white-50")">
-                                <i class="bi bi-folder me-2"></i>Categories
                             </a>
                         </li>
                         <li class="nav-item">
