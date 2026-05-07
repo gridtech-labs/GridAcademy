@@ -160,6 +160,10 @@ public class ExamService(AppDbContext db) : IExamService
             throw new InvalidOperationException($"Slug '{slug}' is already in use.");
         Apply(entity, request);
         entity.Slug = slug; entity.UpdatedAt = DateTime.UtcNow; entity.UpdatedBy = updatedBy;
+        // Clear loaded navigation references so EF only writes the FK columns,
+        // not the previously-tracked navigation entity instances.
+        entity.ExamCategory    = null;
+        entity.ExamSubCategory = null;
         await db.SaveChangesAsync();
         return MapCard(await BaseQuery().FirstAsync(e => e.Id == entity.Id));
     }

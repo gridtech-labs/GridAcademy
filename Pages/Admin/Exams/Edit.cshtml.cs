@@ -119,7 +119,7 @@ public class EditModel(IExamService svc, AppDbContext db, IWebHostEnvironment en
                 return RedirectToPage("Tests", new { id = created.Id });
             }
         }
-        catch (Exception ex) { TempData["Error"] = ex.Message; return Page(); }
+        catch (Exception ex) { TempData["Error"] = ex.InnerException?.Message ?? ex.Message; return Page(); }
     }
 
     /// <summary>CKEditor 5 image upload (JSON response)</summary>
