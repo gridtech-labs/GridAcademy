@@ -5,13 +5,11 @@ namespace GridAcademy.Data.Entities.Exam;
 public class ExamCategory : MasterBase
 {
     public ICollection<ExamSubCategory> SubCategories { get; set; } = [];
-    public ICollection<ExamPage>        ExamPages     { get; set; } = [];
 }
 
 public class ExamSubCategory : MasterBase
 {
     public int ExamCategoryId { get; set; }
 
-    public ExamCategory        Category  { get; set; } = null!;
-    public ICollection<ExamPage> ExamPages { get; set; } = [];
+    public ExamCategory Category { get; set; } = null!;
 }

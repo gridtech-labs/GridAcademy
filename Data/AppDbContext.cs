@@ -935,9 +935,9 @@ public class AppDbContext : DbContext
                 .HasForeignKey(x => x.ExamLevelId).OnDelete(DeleteBehavior.SetNull).IsRequired(false);
             e.HasOne(x => x.ExamType).WithMany()
                 .HasForeignKey(x => x.ExamTypeId).OnDelete(DeleteBehavior.SetNull).IsRequired(false);
-            e.HasOne(x => x.ExamCategory).WithMany(c => c.ExamPages)
+            e.HasOne(x => x.ExamCategory).WithMany()
                 .HasForeignKey(x => x.ExamCategoryId).OnDelete(DeleteBehavior.SetNull).IsRequired(false);
-            e.HasOne(x => x.ExamSubCategory).WithMany(c => c.ExamPages)
+            e.HasOne(x => x.ExamSubCategory).WithMany()
                 .HasForeignKey(x => x.ExamSubCategoryId).OnDelete(DeleteBehavior.SetNull).IsRequired(false);
             e.HasIndex(x => x.Slug).HasFilter("\"Status\" = 1").IsUnique()
                 .HasDatabaseName("ix_exam_pages_slug_published");
