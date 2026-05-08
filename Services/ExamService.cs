@@ -20,7 +20,7 @@ public class ExamService(AppDbContext db) : IExamService
         e.ExamCategory?.Name, e.ExamSubCategory?.Name,
         e.Tests.Count, e.IsFeatured, e.PriceInr, e.Status, e.CreatedAt);
 
-    private static ExamPageDetailDto MapDetail(ExamPage e) => new(
+    private ExamPageDetailDto MapDetail(ExamPage e) => new(
         e.Id, e.Slug, e.Title, e.ShortDescription,
         e.Overview, e.Eligibility, e.Syllabus, e.ExamPattern,
         e.ImportantDates, e.AdmitCard, e.ResultInfo, e.CutOff, e.HowToApply,
@@ -38,7 +38,7 @@ public class ExamService(AppDbContext db) : IExamService
                    t.IsFree,
                    t.SortOrder,
                    t.Test?.DurationMinutes ?? 0,
-                   t.Test?.Sections?.Sum(s => s.QuestionCount) ?? 0))
+                   db.TestQuestions.Count(tq => tq.TestId == t.TestId)))
                .ToList(),
         e.UpdatedAt,
         e.ExamLevelId, e.ExamTypeId, e.ExamCategoryId, e.ExamSubCategoryId, e.IsActive, e.Status, e.SortOrder);
