@@ -38,7 +38,8 @@ public class ExamService(AppDbContext db) : IExamService
                    t.IsFree,
                    t.SortOrder,
                    t.Test?.DurationMinutes ?? 0,
-                   db.TestQuestions.Count(tq => tq.TestId == t.TestId)))
+                   db.TestQuestions.Count(tq => tq.TestId == t.TestId),
+                   db.TestAttempts.Count(a => a.TestId == t.TestId)))
                .ToList(),
         e.UpdatedAt,
         e.ExamLevelId, e.ExamTypeId, e.ExamCategoryId, e.ExamSubCategoryId, e.IsActive, e.Status, e.SortOrder);
@@ -222,7 +223,8 @@ public class ExamService(AppDbContext db) : IExamService
                 t.IsFree,
                 t.SortOrder,
                 t.Test.DurationMinutes,
-                db.TestQuestions.Count(tq => tq.TestId == t.TestId)))
+                db.TestQuestions.Count(tq => tq.TestId == t.TestId),
+                db.TestAttempts.Count(a => a.TestId == t.TestId)))
             .ToListAsync();
     }
 

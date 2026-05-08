@@ -76,7 +76,8 @@ public record ExamTestDto(
     bool IsFree,
     int SortOrder,
     int DurationMinutes,
-    int TotalQuestions);
+    int TotalQuestions,
+    int AttemptCount = 0);
 
 // ── Save exam page (admin create/edit) ────────────────────────────────
 public record SaveExamPageRequest(
