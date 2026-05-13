@@ -231,6 +231,52 @@ public class AssessmentService : IAssessmentService
 
         int globalDisplayOrder = 1;
 
+        // ── No-section fallback ───────────────────────────────────────────────
+        // If the test was created without sections, treat all assigned questions as
+        // one implicit "General" section so the attempt can still be taken.
+        if (sections.Count == 0)
+        {
+            var allQuestionIds = await _db.TestQuestions
+                .Where(tq => tq.TestId == assignment.TestId)
+                .OrderBy(tq => tq.SortOrder)
+                .Select(tq => tq.QuestionId)
+                .ToListAsync();
+
+            if (allQuestionIds.Count == 0)
+                throw new InvalidOperationException(
+                    "This test has no questions. Please add questions before taking the test.");
+
+            var qMarksAll = await _db.Questions
+                .Where(q => allQuestionIds.Contains(q.Id))
+                .Include(q => q.Marks)
+                .Include(q => q.NegativeMarks)
+                .ToDictionaryAsync(
+                    q => q.Id,
+                    q => (q.Marks?.Value ?? 1m, q.NegativeMarks?.Value ?? 0m));
+
+            for (int pos = 0; pos < allQuestionIds.Count; pos++)
+            {
+                var qId = allQuestionIds[pos];
+                var (marks, negMarks) = qMarksAll.TryGetValue(qId, out var qm) ? qm : (1m, 0m);
+                _db.AttemptQuestions.Add(new AttemptQuestion
+                {
+                    Attempt               = attempt,
+                    QuestionId            = qId,
+                    SectionIndex          = 0,
+                    SectionName           = "General",
+                    DisplayOrder          = globalDisplayOrder++,
+                    DisplayOrderInSection = pos + 1,
+                    MarksForCorrect       = marks,
+                    NegativeMarks         = negMarks,
+                    IsVisited             = false,
+                    IsMarkedForReview     = false
+                });
+            }
+
+            await _db.SaveChangesAsync();
+            return await BuildAttemptStartDtoAsync(attempt.Id, assignment.Test);
+        }
+
         for (int sectionIndex = 0; sectionIndex < sections.Count; sectionIndex++)
         {
             var section = sections[sectionIndex];
@@ -239,6 +285,17 @@ public class AssessmentService : IAssessmentService
             // Manual sections (SubjectId == null): questions explicitly assigned via section_id, in sort order
             // GlobalBank sections: direct subject-matched mappings, then criteria pool
             var candidateIds = await GetCandidateIdsAsync(section);
+
+            // For Manual sections, also pick up questions not yet assigned to any section
+            // (questions imported before sections were created land with SectionId = null).
+            if (candidateIds.Count == 0 && !section.SubjectId.HasValue)
+            {
+                candidateIds = await _db.TestQuestions
+                    .Where(tq => tq.TestId == section.TestId && tq.SectionId == null)
+                    .OrderBy(tq => tq.SortOrder)
+                    .Select(tq => tq.QuestionId)
+                    .ToListAsync();
+            }
 
             if (candidateIds.Count == 0)
                 throw new InvalidOperationException(

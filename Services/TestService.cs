@@ -468,6 +468,13 @@ public class TestService : ITestService
             .Where(tq => tq.TestId == testId)
             .MaxAsync(tq => (int?)tq.SortOrder) ?? 0;
 
+        // Auto-assign to the first section if one exists, so counts are visible immediately.
+        var firstSectionId = await _db.TestSections
+            .Where(s => s.TestId == testId)
+            .OrderBy(s => s.SortOrder).ThenBy(s => s.Id)
+            .Select(s => (int?)s.Id)
+            .FirstOrDefaultAsync();
+
         foreach (var qid in questionIds.Distinct().Where(q => !existing.Contains(q)))
         {
             maxSort++;
@@ -475,6 +482,7 @@ public class TestService : ITestService
             {
                 TestId     = testId,
                 QuestionId = qid,
+                SectionId  = firstSectionId,
                 SortOrder  = maxSort,
                 AddedAt    = DateTime.UtcNow
             });

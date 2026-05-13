@@ -84,9 +84,20 @@ public class InstructionsModel : PageModel
         {
             var sectionIds = Test.Sections.Select(s => s.Id).ToList();
             ManualSectionCounts = await _db.TestQuestions
-                .Where(tq => tq.SectionId.HasValue && sectionIds.Contains(tq.SectionId.Value))
+                .Where(tq => tq.TestId == Test.Id && tq.SectionId.HasValue && sectionIds.Contains(tq.SectionId.Value))
                 .GroupBy(tq => tq.SectionId!.Value)
                 .ToDictionaryAsync(g => g.Key, g => g.Count());
+
+            // Questions added before sections were created land with SectionId = null.
+            // Roll them into the first section so the count is never hidden.
+            var unassignedCount = await _db.TestQuestions
+                .CountAsync(tq => tq.TestId == Test.Id && tq.SectionId == null);
+            if (unassignedCount > 0)
+            {
+                var firstSectionId = Test.Sections.OrderBy(s => s.SortOrder).ThenBy(s => s.Id).First().Id;
+                ManualSectionCounts[firstSectionId] =
+                    ManualSectionCounts.GetValueOrDefault(firstSectionId) + unassignedCount;
+            }
         }
 
         return Page();

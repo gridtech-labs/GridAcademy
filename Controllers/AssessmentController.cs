@@ -67,6 +67,21 @@ public class AssessmentController(IAssessmentService assessmentSvc, AppDbContext
             .OrderByDescending(a => a.StartedAt)
             .FirstOrDefault(a => a.Status == AttemptStatus.InProgress);
 
+        // Abandon any in-progress attempt that has no questions (created before sections existed).
+        // Returning it would show "No questions found" in the exam engine, so we discard it
+        // and let the caller create a fresh attempt with the now-populated question set.
+        if (inProgress != null)
+        {
+            var hasQuestions = await db.AttemptQuestions
+                .AnyAsync(aq => aq.AttemptId == inProgress.Id);
+            if (!hasQuestions)
+            {
+                inProgress.Status = AttemptStatus.Abandoned;
+                await db.SaveChangesAsync();
+                inProgress = null;
+            }
+        }
+
         return Ok(ApiResponse<object>.Ok(new {
             assignmentId = assignment.Id,
             attemptId    = inProgress?.Id as Guid?
