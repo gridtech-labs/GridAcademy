@@ -26,15 +26,30 @@ public class StorefrontService : IStorefrontService
             .Select(b => new CmsBannerDto(b.Id, b.Title, b.SubTitle, b.ImageUrl, b.LinkUrl, b.SortOrder))
             .ToListAsync(ct);
 
-        var examCategories = await _db.ExamTypes
+        // Project to an anonymous type so EF Core can translate the correlated Count subquery,
+        // then map to ExamCategoryDto in memory (string operations like ToLower/Replace
+        // cannot be combined with record constructors in a single SQL projection).
+        var examCategoryRaw = await _db.ExamTypes
+            .OrderBy(e => e.Id)
+            .Select(e => new
+            {
+                e.Id,
+                e.Name,
+                SeriesCount = _db.MpTestSeries.Count(s =>
+                    s.ExamTypeId == e.Id &&
+                    s.Status == SeriesStatus.Published &&
+                    s.IsActive)
+            })
+            .ToListAsync(ct);
+
+        var examCategories = examCategoryRaw
             .Select(e => new ExamCategoryDto(
                 e.Id,
                 e.Name,
                 e.Name.ToLower().Replace(" ", "-").Replace("/", "-"),
                 null,
-                _db.MpTestSeries.Count(s => s.ExamTypeId == e.Id && s.Status == SeriesStatus.Published && s.IsActive)))
-            .OrderBy(e => e.Id)
-            .ToListAsync(ct);
+                e.SeriesCount))
+            .ToList();
 
         var publishedBase = _db.MpTestSeries
             .Where(s => s.Status == SeriesStatus.Published && s.IsActive)
