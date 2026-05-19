@@ -211,6 +211,29 @@
                 </div>
             </li>
 
+            <!-- ── CAREER GUIDE ──────────────────────── -->
+            @{
+                var inCareerGuide = Context.Request.Path.StartsWithSegments("/Admin/CareerGuide");
+            }
+            <li class="nav-item mt-1">
+                <a href="#careerGuideMenu" data-bs-toggle="collapse"
+                   class="nav-link text-white d-flex justify-content-between align-items-center @(inCareerGuide ? "" : "collapsed")"
+                   aria-expanded="@(inCareerGuide ? "true" : "false")">
+                    <span><i class="bi bi-compass me-2"></i>Career Guide</span>
+                    <i class="bi bi-chevron-down small"></i>
+                </a>
+                <div class="collapse @(inCareerGuide ? "show" : "")" id="careerGuideMenu">
+                    <ul class="nav flex-column ms-3 mt-1">
+                        <li class="nav-item">
+                            <a asp-page="/Admin/CareerGuide/Quiz/Index"
+                               class="nav-link py-1 @(inCareerGuide ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-patch-question me-2"></i>Quiz Questions
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
             <!-- ── PROGRAM MANAGEMENT ─────────────────── -->
             <li class="nav-item mt-1">
                 <a href="#programMenu" data-bs-toggle="collapse"

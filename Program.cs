@@ -315,6 +315,10 @@ builder.Services.AddScoped<IMarketplaceAdminService, MarketplaceAdminService>();
 builder.Services.AddScoped<IExamPaymentService, ExamPaymentService>();
 builder.Services.AddScoped<IExamOfferService, ExamOfferService>();
 
+// ── Career Guide ───────────────────────────────────────────────────────────
+builder.Services.AddScoped<GridAcademy.Services.CareerGuide.ICareerGuideService,
+                            GridAcademy.Services.CareerGuide.CareerGuideService>();
+
 // ── Video Learning Module ──────────────────────────────────────────────────
 builder.Services.Configure<GridAcademy.Data.Entities.VideoLearning.VideoLearningFeatures>(
     builder.Configuration.GetSection("VideoLearning:Features"));

@@ -1,5 +1,6 @@
 using GridAcademy.Data.Entities;
 using GridAcademy.Data.Entities.Assessment;
+using GridAcademy.Data.Entities.CareerGuide;
 using GridAcademy.Data.Entities.Content;
 using GridAcademy.Data.Entities.Exam;
 using GridAcademy.Data.Entities.Marketplace;
@@ -79,6 +80,10 @@ public class AppDbContext : DbContext
     // ── User Management ─────────────────────────────────────────────────────
     public DbSet<SystemRole>   SystemRoles   => Set<SystemRole>();
     public DbSet<UserRoleMap>  UserRoleMaps  => Set<UserRoleMap>();
+
+    // ── Career Guide ────────────────────────────────────────────
+    public DbSet<CareerQuizQuestion> CareerQuizQuestions => Set<CareerQuizQuestion>();
+    public DbSet<CareerQuizOption>   CareerQuizOptions   => Set<CareerQuizOption>();
 
     // ── Video Learning ──────────────────────────────────────────
     public DbSet<VlDomain>             VlDomains             => Set<VlDomain>();
@@ -1029,6 +1034,31 @@ public class AppDbContext : DbContext
             e.Property(x => x.SourceUrl).HasColumnName("source_url").HasMaxLength(500).IsRequired();
             e.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz");
             e.HasIndex(x => x.HashValue).IsUnique().HasDatabaseName("ix_content_hashes_hash_value");
+        });
+
+        // ── Career Guide ────────────────────────────────────────────────────
+        modelBuilder.Entity<CareerQuizQuestion>(e =>
+        {
+            e.ToTable("career_quiz_questions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.QuestionText).HasColumnName("question_text").IsRequired();
+            e.Property(x => x.SortOrder).HasColumnName("sort_order");
+            e.Property(x => x.IsActive).HasColumnName("is_active");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz");
+            e.HasMany(x => x.Options).WithOne(o => o.Question).HasForeignKey(o => o.QuestionId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CareerQuizOption>(e =>
+        {
+            e.ToTable("career_quiz_options");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.QuestionId).HasColumnName("question_id");
+            e.Property(x => x.OptionText).HasColumnName("option_text").IsRequired();
+            e.Property(x => x.CareerCategory).HasColumnName("career_category").HasMaxLength(50);
+            e.Property(x => x.SortOrder).HasColumnName("sort_order");
+            e.HasIndex(x => x.QuestionId).HasDatabaseName("ix_career_quiz_options_question_id");
         });
     }
 

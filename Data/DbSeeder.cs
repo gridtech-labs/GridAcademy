@@ -1,4 +1,5 @@
 using GridAcademy.Data.Entities;
+using GridAcademy.Data.Entities.CareerGuide;
 using GridAcademy.Data.Entities.Content;
 using GridAcademy.Data.Entities.Exam;
 using GridAcademy.Data.Entities.VideoLearning;
@@ -51,6 +52,10 @@ public static class DbSeeder
         // ── Exam category/sub-category tables and exam_pages FK columns ──────
         try { await EnsureExamCategoryTablesAsync(db); }
         catch (Exception ex) { logger.LogError(ex, "EnsureExamCategoryTablesAsync failed"); }
+
+        // ── Career Guide tables ────────────────────────────────────────────
+        try { await EnsureCareerGuideTablesAsync(db); }
+        catch (Exception ex) { logger.LogError(ex, "EnsureCareerGuideTablesAsync failed"); }
 
         // ── Migrate VlDomain → exam_categories, VlVideoCategory → exam_sub_categories
         try { await MigrateVlCategoriesToExamMastersAsync(db); }
@@ -690,5 +695,116 @@ public static class DbSeeder
             try   { await db.Database.ExecuteSqlRawAsync(sql); }
             catch { /* table/index already exists or minor schema mismatch — continue */ }
         }
+    }
+
+    private static async Task EnsureCareerGuideTablesAsync(AppDbContext db)
+    {
+        var sqls = new[]
+        {
+            @"CREATE TABLE IF NOT EXISTS career_quiz_questions (
+                id           SERIAL PRIMARY KEY,
+                question_text TEXT NOT NULL,
+                sort_order   INT  NOT NULL DEFAULT 0,
+                is_active    BOOL NOT NULL DEFAULT TRUE,
+                created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )",
+            @"CREATE TABLE IF NOT EXISTS career_quiz_options (
+                id              SERIAL PRIMARY KEY,
+                question_id     INT  NOT NULL REFERENCES career_quiz_questions(id) ON DELETE CASCADE,
+                option_text     TEXT NOT NULL,
+                career_category VARCHAR(50) NOT NULL DEFAULT '',
+                sort_order      INT  NOT NULL DEFAULT 0
+            )",
+            @"CREATE INDEX IF NOT EXISTS ix_career_quiz_options_question_id ON career_quiz_options(question_id)",
+        };
+
+        foreach (var sql in sqls)
+        {
+            try   { await db.Database.ExecuteSqlRawAsync(sql); }
+            catch { /* already exists — continue */ }
+        }
+
+        // ── Seed 5 default quiz questions (only if table is empty) ────────────
+        await SeedCareerQuizQuestionsAsync(db);
+    }
+
+    private static async Task SeedCareerQuizQuestionsAsync(AppDbContext db)
+    {
+        // Skip if any questions already exist (idempotent)
+        if (await db.CareerQuizQuestions.AnyAsync()) return;
+
+        // 5 default questions — each option maps to one of the 8 career categories.
+        // Admins can edit, reorder, add, or delete these from the admin panel.
+        var questions = new List<Entities.CareerGuide.CareerQuizQuestion>
+        {
+            new()
+            {
+                QuestionText = "It's a free Saturday afternoon. What sounds most appealing?",
+                SortOrder    = 1,
+                IsActive     = true,
+                Options      =
+                [
+                    new() { OptionText = "Build or fix something with my hands — cook, craft, repair", CareerCategory = "makers",         SortOrder = 1 },
+                    new() { OptionText = "Head outdoors — a hike, a park, anywhere open",              CareerCategory = "explorers",      SortOrder = 2 },
+                    new() { OptionText = "Call friends, plan a gathering, or help someone",            CareerCategory = "connectors",     SortOrder = 3 },
+                    new() { OptionText = "Work on a personal digital project or learn something new",  CareerCategory = "screen-workers", SortOrder = 4 },
+                ],
+            },
+            new()
+            {
+                QuestionText = "Which kind of problem excites you the most?",
+                SortOrder    = 2,
+                IsActive     = true,
+                Options      =
+                [
+                    new() { OptionText = "A complex puzzle or research challenge with a clever answer", CareerCategory = "thinkers",   SortOrder = 1 },
+                    new() { OptionText = "A creative or performance challenge — music, design, stage",  CareerCategory = "performers", SortOrder = 2 },
+                    new() { OptionText = "A people challenge — supporting or motivating someone",       CareerCategory = "healers",    SortOrder = 3 },
+                    new() { OptionText = "A business challenge — building something from nothing",      CareerCategory = "builders",   SortOrder = 4 },
+                ],
+            },
+            new()
+            {
+                QuestionText = "Which achievement would make you proudest five years from now?",
+                SortOrder    = 3,
+                IsActive     = true,
+                Options      =
+                [
+                    new() { OptionText = "A handmade product in someone's home that I built myself",   CareerCategory = "makers",         SortOrder = 1 },
+                    new() { OptionText = "A community or event I organised that people still mention", CareerCategory = "connectors",     SortOrder = 2 },
+                    new() { OptionText = "A thriving business or product used by thousands",           CareerCategory = "builders",       SortOrder = 3 },
+                    new() { OptionText = "Content I created that genuinely changed how people think",  CareerCategory = "screen-workers", SortOrder = 4 },
+                ],
+            },
+            new()
+            {
+                QuestionText = "Which environment makes you feel most alive?",
+                SortOrder    = 4,
+                IsActive     = true,
+                Options      =
+                [
+                    new() { OptionText = "Outdoors — trails, forests, fields, or open water",           CareerCategory = "explorers",  SortOrder = 1 },
+                    new() { OptionText = "On stage, in front of a camera, or at a microphone",          CareerCategory = "performers", SortOrder = 2 },
+                    new() { OptionText = "Surrounded by people I am genuinely helping recover or grow", CareerCategory = "healers",    SortOrder = 3 },
+                    new() { OptionText = "A quiet desk with a hard problem and access to data",          CareerCategory = "thinkers",   SortOrder = 4 },
+                ],
+            },
+            new()
+            {
+                QuestionText = "Which sentence feels most true to you right now?",
+                SortOrder    = 5,
+                IsActive     = true,
+                Options      =
+                [
+                    new() { OptionText = "I want to perform, entertain, and move people",       CareerCategory = "performers", SortOrder = 1 },
+                    new() { OptionText = "I want to care for and heal those around me",         CareerCategory = "healers",    SortOrder = 2 },
+                    new() { OptionText = "I want to connect people and lead communities",       CareerCategory = "connectors", SortOrder = 3 },
+                    new() { OptionText = "I want to build a product or business that lasts",   CareerCategory = "builders",   SortOrder = 4 },
+                ],
+            },
+        };
+
+        db.CareerQuizQuestions.AddRange(questions);
+        await db.SaveChangesAsync();
     }
 }
