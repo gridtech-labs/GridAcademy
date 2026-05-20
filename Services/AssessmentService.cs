@@ -1055,10 +1055,11 @@ public class AssessmentService : IAssessmentService
                 .ToListAsync();
         }
 
-        // ── GlobalBank: 1. Direct mappings filtered by subject ────────────────
+        // ── GlobalBank: 1. Direct mappings filtered by subject (published only) ─
         var directIds = await _db.TestQuestions
             .Where(tq => tq.TestId == section.TestId)
-            .Join(_db.Questions.Where(q => q.SubjectId == section.SubjectId),
+            .Join(_db.Questions.Where(q => q.SubjectId == section.SubjectId
+                                       && q.Status == QuestionStatus.Published),
                 tq => tq.QuestionId,
                 q  => q.Id,
                 (tq, q) => q.Id)
@@ -1067,9 +1068,10 @@ public class AssessmentService : IAssessmentService
         if (directIds.Count > 0)
             return directIds;
 
-        // ── GlobalBank: 2. Criteria-based pool (subject + optional difficulty) ─
+        // ── GlobalBank: 2. Criteria-based pool (subject + optional difficulty, published only) ─
         var query = _db.Questions
-            .Where(q => q.SubjectId == section.SubjectId);
+            .Where(q => q.SubjectId == section.SubjectId
+                     && q.Status == QuestionStatus.Published);
 
         if (section.DifficultyLevelId.HasValue)
             query = query.Where(q => q.DifficultyLevelId == section.DifficultyLevelId.Value);
@@ -1077,11 +1079,12 @@ public class AssessmentService : IAssessmentService
         return await query.Select(q => q.Id).ToListAsync();
     }
 
-    // Keep old sync version for any callers — delegates to async helper
+    // Keep old sync version for any callers — published-only, matches async helper
     private IQueryable<Question> BuildCandidateQuery(TestSection section)
     {
         var query = _db.Questions
-            .Where(q => q.SubjectId == section.SubjectId);
+            .Where(q => q.SubjectId == section.SubjectId
+                     && q.Status == QuestionStatus.Published);
 
         if (section.DifficultyLevelId.HasValue)
             query = query.Where(q => q.DifficultyLevelId == section.DifficultyLevelId.Value);
