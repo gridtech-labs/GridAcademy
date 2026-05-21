@@ -1211,6 +1211,10 @@ body {
 .test-card-footer {
     padding: .85rem 1.25rem .85rem 1.6rem;
     border-top: 1px solid var(--gray-100);
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
 }
 
 .btn-card-action {
@@ -1289,6 +1293,8 @@ body {
     line-height: 1.35;
     margin-bottom: .5rem;
     margin-top: .35rem;
+    padding-left: 1.6rem;
+    padding-right: 1.25rem;
 }
 
 .test-meta {
@@ -1298,15 +1304,23 @@ body {
     font-size: .78rem;
     color: var(--gray-600);
     margin-bottom: .35rem;
+    padding-left: 1.6rem;
+    padding-right: 1.25rem;
 }
 
 .test-window {
     font-size: .75rem;
     color: var(--gray-500);
-    padding: .4rem 0;
+    padding: .4rem 1.25rem .4rem 1.6rem;
 }
 
-.attempts-info { font-size: .8rem; color: var(--gray-500); }
+.attempts-info {
+    font-size: .8rem;
+    color: var(--gray-500);
+    flex: 1;                /* push buttons to the right */
+    white-space: nowrap;
+}
+
 .test-card-dim  { opacity: .65; }
 
 /* Inline action buttons used in Dashboard.cshtml */
