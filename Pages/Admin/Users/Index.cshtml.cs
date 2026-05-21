@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace GridAcademy.Pages.Admin.Users;
 
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin")]   // SuperAdmin inherits Admin via IClaimsTransformation
 public class IndexModel : PageModel
 {
     private readonly IUserService _users;
@@ -21,6 +21,9 @@ public class IndexModel : PageModel
     [BindProperty(SupportsGet = true)] public string? IsActive    { get; set; }  // "true" | "false" | null
     [BindProperty(SupportsGet = true)] public int     CurrentPage { get; set; } = 1;
 
+    // Whether the current session is a SuperAdmin (controls cross-client visibility)
+    public bool IsSuperAdmin => User.IsInRole("SuperAdmin");
+
     private const int PageSize = 15;
 
     public async Task OnGetAsync()
@@ -32,11 +35,21 @@ public class IndexModel : PageModel
             _       => null
         };
 
+        // SuperAdmin sees all clients; Admin/Instructor see only their own client
+        int? clientIdFilter = null;
+        if (!IsSuperAdmin)
+        {
+            var cidClaim = User.FindFirst("ClientId")?.Value;
+            if (int.TryParse(cidClaim, out var cid))
+                clientIdFilter = cid;
+        }
+
         Users = await _users.GetUsersAsync(new UserListRequest
         {
             Search   = Search,
             Role     = Role,
             IsActive = activeFilter,
+            ClientId = clientIdFilter,
             Page     = CurrentPage,
             PageSize = PageSize
         });

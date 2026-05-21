@@ -73,6 +73,10 @@
                             <th>Email</th>
                             <th>Mobile</th>
                             <th>Role</th>
+                            @if (Model.IsSuperAdmin)
+                            {
+                                <th>Client</th>
+                            }
                             <th>Status</th>
                             <th>Last Login</th>
                             <th>Joined</th>
@@ -99,6 +103,7 @@
                                     @{
                                         var roleClass = user.Role switch
                                         {
+                                            "SuperAdmin" => "bg-dark",
                                             "Admin"      => "badge-admin",
                                             "Instructor" => "badge-instructor",
                                             "Provider"   => "bg-success",
@@ -107,6 +112,14 @@
                                     }
                                     <span class="badge @roleClass">@user.Role</span>
                                 </td>
+                                @if (Model.IsSuperAdmin)
+                                {
+                                    <td class="text-muted small">
+                                        @(string.IsNullOrEmpty(user.ClientName)
+                                            ? "—"
+                                            : user.ClientName)
+                                    </td>
+                                }
                                 <td>
                                     @if (user.IsActive)
                                     {

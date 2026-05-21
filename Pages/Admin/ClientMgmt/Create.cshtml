@@ -1,0 +1,86 @@
+@page
+@model GridAcademy.Pages.Admin.ClientMgmt.CreateModel
+@{
+    ViewData["Title"] = "Add Client";
+}
+
+<div class="d-flex align-items-center gap-2 mb-4">
+    <a asp-page="./Index" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <h5 class="fw-bold mb-0">Add New Client</h5>
+</div>
+
+<div class="row">
+    <div class="col-12 col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <form method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="Input.Name" class="form-label fw-semibold">Client Name <span class="text-danger">*</span></label>
+                            <input asp-for="Input.Name" class="form-control" placeholder="e.g. Apex Institute" />
+                            <span asp-validation-for="Input.Name" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Input.Slug" class="form-label fw-semibold">Slug</label>
+                            <input asp-for="Input.Slug" class="form-control font-monospace"
+                                   placeholder="e.g. apex-institute (auto-generated if blank)" />
+                            <div class="form-text">URL-safe identifier. Leave blank to auto-generate from name.</div>
+                            <span asp-validation-for="Input.Slug" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Input.Description" class="form-label fw-semibold">Description</label>
+                            <textarea asp-for="Input.Description" class="form-control" rows="3"
+                                      placeholder="Brief description of this client…"></textarea>
+                            <span asp-validation-for="Input.Description" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Input.LogoUrl" class="form-label fw-semibold">Logo URL</label>
+                            <input asp-for="Input.LogoUrl" type="url" class="form-control"
+                                   placeholder="https://…" />
+                            <span asp-validation-for="Input.LogoUrl" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input asp-for="Input.IsActive" class="form-check-input" type="checkbox" />
+                                <label asp-for="Input.IsActive" class="form-check-label fw-semibold">Active</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4" />
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-building-add me-1"></i>Create Client
+                        </button>
+                        <a asp-page="./Index" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+        <div class="card shadow-sm border-0 bg-light">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold mb-3"><i class="bi bi-info-circle me-2 text-primary"></i>About Clients</h6>
+                <p class="small text-muted mb-2">
+                    Each client is a separate tenant. Users (Admin, Instructor, Students)
+                    are linked to a client and can only see data within their client.
+                </p>
+                <p class="small text-muted mb-0">
+                    <strong>SuperAdmin</strong> users have cross-client visibility and
+                    are not restricted to a single client.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

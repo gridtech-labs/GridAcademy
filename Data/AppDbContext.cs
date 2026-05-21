@@ -14,6 +14,9 @@ public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
+    // ── Clients (tenants) ─────────────────────────────────────────────────
+    public DbSet<Client> Clients => Set<Client>();
+
     // ── Users ──────────────────────────────────────────────────────────────
     public DbSet<User> Users => Set<User>();
 
@@ -106,6 +109,22 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        // ── Client ─────────────────────────────────────────────────────────
+        modelBuilder.Entity<Client>(e =>
+        {
+            e.ToTable("clients");
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Id).HasColumnName("id").UseIdentityAlwaysColumn();
+            e.Property(c => c.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            e.Property(c => c.Slug).HasColumnName("slug").HasMaxLength(220).IsRequired();
+            e.Property(c => c.Description).HasColumnName("description");
+            e.Property(c => c.LogoUrl).HasColumnName("logo_url").HasMaxLength(500);
+            e.Property(c => c.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            e.Property(c => c.CreatedAt).HasColumnName("created_at");
+            e.Property(c => c.UpdatedAt).HasColumnName("updated_at");
+            e.HasIndex(c => c.Slug).IsUnique().HasDatabaseName("ix_clients_slug");
+        });
+
         // ── User ──────────────────────────────────────────────────────────
         modelBuilder.Entity<User>(entity =>
         {
@@ -122,6 +141,13 @@ public class AppDbContext : DbContext
             entity.Property(u => u.CreatedAt).HasColumnName("created_at");
             entity.Property(u => u.UpdatedAt).HasColumnName("updated_at");
             entity.Property(u => u.LastLoginAt).HasColumnName("last_login_at");
+            entity.Property(u => u.ClientId).HasColumnName("client_id");
+            entity.HasOne(u => u.Client)
+                  .WithMany(c => c.Users)
+                  .HasForeignKey(u => u.ClientId)
+                  .IsRequired(false)
+                  .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(u => u.ClientId).HasDatabaseName("ix_users_client_id");
             entity.Ignore(u => u.FullName);
         });
 

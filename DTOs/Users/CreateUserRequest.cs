@@ -19,4 +19,7 @@ public class CreateUserRequest
 
     /// <summary>Allowed values: "Admin", "User". Defaults to "User".</summary>
     public string Role { get; set; } = "User";
+
+    /// <summary>Client (tenant) this user belongs to. Null allowed for SuperAdmin.</summary>
+    public int? ClientId { get; set; }
 }

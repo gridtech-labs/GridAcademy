@@ -72,6 +72,10 @@ public class LoginModel : PageModel
             new(ClaimTypes.Role,           user.Role)
         };
 
+        // Include ClientId so page models can scope data to the user's tenant
+        if (user.ClientId.HasValue)
+            claims.Add(new Claim("ClientId", user.ClientId.Value.ToString()));
+
         var identity  = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         var principal = new ClaimsPrincipal(identity);
 
@@ -90,6 +94,7 @@ public class LoginModel : PageModel
         if (user.Role == "Provider")
             return RedirectToPage("/Provider/Dashboard");
 
+        // Admin, Instructor, SuperAdmin → Admin panel
         return RedirectToPage("/Admin/Index");
     }
 }

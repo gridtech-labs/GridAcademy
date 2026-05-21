@@ -14,4 +14,7 @@ public class UpdateUserRequest
     public string Role { get; set; } = "User";
 
     public bool IsActive { get; set; } = true;
+
+    /// <summary>Client (tenant) this user belongs to.</summary>
+    public int? ClientId { get; set; }
 }
