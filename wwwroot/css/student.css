@@ -1631,8 +1631,8 @@ body {
 
 /* ── Override: student-container inside sidebar layout ─── */
 #studentContent .student-container {
-    max-width: 100%;
-    padding: 0;
+    max-width: 960px;
+    padding: 0;  /* main p-4 handles outer spacing */
 }
 
 #studentContent main {
