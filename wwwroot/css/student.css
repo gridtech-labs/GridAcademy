@@ -1131,7 +1131,7 @@ body {
 .card-status-expired      { border-left: 4px solid var(--gray-300); }
 
 .test-card-header {
-    padding: 1.1rem 1.25rem .85rem;
+    padding: 1.1rem 1.25rem .85rem 1.6rem;
     border-bottom: 1px solid var(--gray-100);
 }
 
@@ -1169,7 +1169,7 @@ body {
 .status-no-attempts   { background: var(--gray-100); color: var(--gray-500); border: 1px solid var(--gray-200); }
 
 .test-card-body {
-    padding: .85rem 1.25rem;
+    padding: .85rem 1.25rem .85rem 1.6rem;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -1209,7 +1209,7 @@ body {
 }
 
 .test-card-footer {
-    padding: .85rem 1.25rem;
+    padding: .85rem 1.25rem .85rem 1.6rem;
     border-top: 1px solid var(--gray-100);
 }
 
@@ -1649,7 +1649,7 @@ body {
 }
 
 #studentContent main {
-    background: var(--gray-100);
+    background: #e8edf5;
 }
 
 /* ── Performance / Available Tests cards ────────────────── */
