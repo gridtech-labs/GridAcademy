@@ -43,7 +43,7 @@ else
             else if (isInProgress) { statusClass = "status-in-progress"; statusText = "In Progress"; }
             else if (isCompleted)  { statusClass = "status-completed";   statusText = "Completed"; }
 
-            <div class="test-card @(isExpired || (noAttempts && !isCompleted) ? "test-card-dim" : "")">
+            <div class="test-card card-@statusClass @(isExpired || (noAttempts && !isCompleted) ? "test-card-dim" : "")">
                 <div class="test-card-header">
                     <span class="test-badge @statusClass">@statusText</span>
                 </div>
