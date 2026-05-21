@@ -55,6 +55,31 @@
                             </select>
                             <span asp-validation-for="Input.Role" class="text-danger small"></span>
                         </div>
+
+                        @if (Model.AvailableClients.Count > 0)
+                        {
+                            <div class="col-12">
+                                <label asp-for="Input.ClientId" class="form-label fw-semibold">
+                                    Client / Organization
+                                </label>
+                                @if (Model.IsSuperAdmin && Model.AvailableClients.Count > 1)
+                                {
+                                    <select asp-for="Input.ClientId" class="form-select">
+                                        <option value="">— Select Client —</option>
+                                        @foreach (var c in Model.AvailableClients)
+                                        {
+                                            <option value="@c.Id">@c.Name</option>
+                                        }
+                                    </select>
+                                }
+                                else
+                                {
+                                    <input type="hidden" asp-for="Input.ClientId" value="@Model.AvailableClients[0].Id" />
+                                    <input type="text" class="form-control" value="@Model.AvailableClients[0].Name" readonly />
+                                }
+                                <div class="form-text">Organisation this user belongs to.</div>
+                            </div>
+                        }
                     </div>
 
                     <hr class="my-4" />

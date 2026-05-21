@@ -22,6 +22,15 @@ public class User
     /// <summary>Mobile number for OTP-based login (optional).</summary>
     public string? Phone { get; set; }
 
+    /// <summary>
+    /// FK to the tenant/client this user belongs to.
+    /// Null only for SuperAdmin users who have platform-wide access.
+    /// </summary>
+    public int? ClientId { get; set; }
+
+    /// <summary>Navigation to the owning client.</summary>
+    public Client? Client { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

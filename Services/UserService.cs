@@ -15,7 +15,7 @@ public class UserService : IUserService
 
     // Fallback valid roles used only when system_roles table is empty (e.g. first boot before seeding).
     // After seeding, validation is done against the DB.
-    private static readonly HashSet<string> FallbackRoles = ["Admin", "Instructor", "User", "Student", "Provider"];
+    private static readonly HashSet<string> FallbackRoles = ["Admin", "SuperAdmin", "Instructor", "User", "Student", "Provider"];
 
     public UserService(AppDbContext db, ILogger<UserService> logger)
     {
@@ -26,7 +26,7 @@ public class UserService : IUserService
     // ── List / Search ────────────────────────────────────────────────────────
     public async Task<PagedResult<UserDto>> GetUsersAsync(UserListRequest request)
     {
-        var query = _db.Users.AsNoTracking().AsQueryable();
+        var query = _db.Users.AsNoTracking().Include(u => u.Client).AsQueryable();
 
         // Optional filters
         if (!string.IsNullOrWhiteSpace(request.Search))
@@ -45,18 +45,21 @@ public class UserService : IUserService
         if (request.IsActive.HasValue)
             query = query.Where(u => u.IsActive == request.IsActive.Value);
 
+        // Client-scoping: non-SuperAdmin users see only their own client's users
+        if (request.ClientId.HasValue)
+            query = query.Where(u => u.ClientId == request.ClientId.Value);
+
         var totalCount = await query.CountAsync();
 
         var items = await query
             .OrderByDescending(u => u.CreatedAt)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
-            .Select(u => MapToDto(u))
             .ToListAsync();
 
         return new PagedResult<UserDto>
         {
-            Items      = items,
+            Items      = items.Select(MapToDto).ToList(),
             TotalCount = totalCount,
             Page       = request.Page,
             PageSize   = request.PageSize
@@ -66,7 +69,10 @@ public class UserService : IUserService
     // ── Get Single ──────────────────────────────────────────────────────────
     public async Task<UserDto> GetByIdAsync(Guid id)
     {
-        var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id)
+        var user = await _db.Users
+            .AsNoTracking()
+            .Include(u => u.Client)
+            .FirstOrDefaultAsync(u => u.Id == id)
             ?? throw new KeyNotFoundException($"User {id} not found.");
 
         return MapToDto(user);
@@ -97,6 +103,7 @@ public class UserService : IUserService
             Email        = request.Email.Trim().ToLower(),
             PasswordHash = PasswordHelper.Hash(request.Password),
             Role         = role,
+            ClientId     = request.ClientId,
             IsActive     = true
         };
 
@@ -106,7 +113,7 @@ public class UserService : IUserService
         // Map to system role table
         await SyncUserRoleMapAsync(user.Id, role, assignedBy: null);
 
-        _logger.LogInformation("User created: {Email} ({Role})", user.Email, user.Role);
+        _logger.LogInformation("User created: {Email} ({Role}) client={ClientId}", user.Email, user.Role, user.ClientId);
         return MapToDto(user);
     }
 
@@ -123,6 +130,7 @@ public class UserService : IUserService
         user.LastName  = request.LastName.Trim();
         user.Role      = role;
         user.IsActive  = request.IsActive;
+        user.ClientId  = request.ClientId;
         // UpdatedAt is stamped automatically by AppDbContext.SaveChangesAsync()
 
         await _db.SaveChangesAsync();
@@ -209,6 +217,8 @@ public class UserService : IUserService
         Role        = u.Role,
         IsActive    = u.IsActive,
         CreatedAt   = u.CreatedAt,
-        LastLoginAt = u.LastLoginAt
+        LastLoginAt = u.LastLoginAt,
+        ClientId    = u.ClientId,
+        ClientName  = u.Client?.Name
     };
 }

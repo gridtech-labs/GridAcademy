@@ -73,10 +73,11 @@ public static class DbSeeder
                 LastName     = "Admin",
                 Email        = adminEmail,
                 PasswordHash = PasswordHelper.Hash("Admin@123!"),
-                Role         = "Admin",
+                Role         = "SuperAdmin",   // SuperAdmin — platform-wide access
+                ClientId     = null,           // no client restriction for SuperAdmin
                 IsActive     = true
             });
-            logger.LogInformation("Default admin seeded → {Email}", adminEmail);
+            logger.LogInformation("Default SuperAdmin seeded → {Email}", adminEmail);
         }
 
         if (!await db.Users.AnyAsync(u => u.Email == instructorEmail))
@@ -485,6 +486,104 @@ public static class DbSeeder
             """
             ALTER TABLE test_attempts
                 ADD COLUMN IF NOT EXISTS instructions_acknowledged boolean NOT NULL DEFAULT false;
+            """);
+
+        // ── 10. clients table ─────────────────────────────────────────────────
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS clients (
+                id          integer  GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                name        varchar(200) NOT NULL,
+                slug        varchar(220) NOT NULL,
+                description text,
+                logo_url    varchar(500),
+                is_active   boolean  NOT NULL DEFAULT true,
+                created_at  timestamptz NOT NULL DEFAULT now(),
+                updated_at  timestamptz
+            );
+            """);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS ix_clients_slug ON clients (slug);
+            """);
+
+        // ── 11. users.client_id column ────────────────────────────────────────
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS client_id integer;
+            """);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS ix_users_client_id ON users (client_id);
+            """);
+
+        // ── 12. FK: users.client_id → clients.id ─────────────────────────────
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE  constraint_type = 'FOREIGN KEY'
+                    AND    table_name      = 'users'
+                    AND    constraint_name = 'fk_users_client_id'
+                ) THEN
+                    ALTER TABLE users
+                        ADD CONSTRAINT fk_users_client_id
+                        FOREIGN KEY (client_id) REFERENCES clients(id)
+                        ON DELETE SET NULL;
+                END IF;
+            END;
+            $$;
+            """);
+
+        // ── 13. Seed default "GridAcademy" client ─────────────────────────────
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            INSERT INTO clients (name, slug, description, is_active, created_at)
+            SELECT 'GridAcademy', 'gridacademy', 'Default platform client.', true, now()
+            WHERE  NOT EXISTS (SELECT 1 FROM clients WHERE slug = 'gridacademy');
+            """);
+
+        // ── 14. Backfill all existing users to the GridAcademy client ─────────
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            UPDATE users
+               SET client_id = (SELECT id FROM clients WHERE slug = 'gridacademy' LIMIT 1)
+             WHERE client_id IS NULL;
+            """);
+
+        // ── 15. Add SuperAdmin to system_roles ───────────────────────────────
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            INSERT INTO system_roles
+                   (name, display_name, description, color, is_system, is_active, sort_order, created_at)
+            SELECT 'SuperAdmin', 'Super Administrator',
+                   'Platform-wide super admin — full access across all clients.',
+                   'dark', true, true, 0, now()
+            WHERE  NOT EXISTS (SELECT 1 FROM system_roles WHERE name = 'SuperAdmin');
+            """);
+
+        // ── 16. Promote admin@gridacademy.com to SuperAdmin ──────────────────
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            UPDATE users
+               SET role = 'SuperAdmin', client_id = NULL
+             WHERE email = 'admin@gridacademy.com'
+               AND role  = 'Admin';
+            """);
+
+        // Keep user_role_maps in sync for the promoted admin
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            UPDATE user_role_maps urm
+               SET role_id = (SELECT id FROM system_roles WHERE name = 'SuperAdmin' LIMIT 1)
+              FROM users u
+             WHERE urm.user_id = u.id
+               AND u.email     = 'admin@gridacademy.com'
+               AND EXISTS (SELECT 1 FROM system_roles WHERE name = 'SuperAdmin');
             """);
 
     }

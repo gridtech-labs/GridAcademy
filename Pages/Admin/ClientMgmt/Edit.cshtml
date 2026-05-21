@@ -1,0 +1,90 @@
+@page "{id:int}"
+@model GridAcademy.Pages.Admin.ClientMgmt.EditModel
+@{
+    ViewData["Title"] = "Edit Client";
+}
+
+<div class="d-flex align-items-center gap-2 mb-4">
+    <a asp-page="./Index" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <h5 class="fw-bold mb-0">Edit Client</h5>
+    @if (!Model.Input.IsActive)
+    {
+        <span class="badge bg-secondary ms-2">Inactive</span>
+    }
+</div>
+
+<div class="row">
+    <div class="col-12 col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <form method="post">
+                    <input type="hidden" asp-for="Input.Id" />
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="Input.Name" class="form-label fw-semibold">Client Name <span class="text-danger">*</span></label>
+                            <input asp-for="Input.Name" class="form-control" />
+                            <span asp-validation-for="Input.Name" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Input.Slug" class="form-label fw-semibold">Slug</label>
+                            <input asp-for="Input.Slug" class="form-control font-monospace" />
+                            <div class="form-text">Leave blank to re-generate from name.</div>
+                            <span asp-validation-for="Input.Slug" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Input.Description" class="form-label fw-semibold">Description</label>
+                            <textarea asp-for="Input.Description" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Input.LogoUrl" class="form-label fw-semibold">Logo URL</label>
+                            <input asp-for="Input.LogoUrl" type="url" class="form-control" />
+                            <span asp-validation-for="Input.LogoUrl" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input asp-for="Input.IsActive" class="form-check-input" type="checkbox" />
+                                <label asp-for="Input.IsActive" class="form-check-label fw-semibold">Active</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4" />
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-1"></i>Save Changes
+                        </button>
+                        <a asp-page="./Index" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+        <div class="card shadow-sm border-0 bg-light">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold mb-3"><i class="bi bi-info-circle me-2 text-primary"></i>Client Stats</h6>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="text-center">
+                        <div class="fs-4 fw-bold text-primary">@Model.UserCount</div>
+                        <small class="text-muted">Users</small>
+                    </div>
+                </div>
+                <hr />
+                <p class="small text-muted mb-0">
+                    Deactivating a client hides it from user assignment dropdowns
+                    but does <strong>not</strong> deactivate existing users.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

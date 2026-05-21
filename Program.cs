@@ -212,6 +212,11 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+// SuperAdmin gets Admin + Instructor roles injected so all existing [Authorize(Roles = "Admin")]
+// checks pass without having to update every page model.
+builder.Services.AddScoped<Microsoft.AspNetCore.Authentication.IClaimsTransformation,
+                            GridAcademy.Helpers.SuperAdminClaimsTransformer>();
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 3. HANGFIRE — Background jobs
 //    Hangfire.PostgreSql.UsePostgreSqlStorage() opens a SYNCHRONOUS connection
