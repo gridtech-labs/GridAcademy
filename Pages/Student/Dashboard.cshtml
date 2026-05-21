@@ -78,25 +78,27 @@ else
                         }
                     </span>
 
-                    @if (isInProgress && t.InProgressAttemptId.HasValue)
-                    {
-                        <a href="/Student/Assessment/Take?attemptId=@t.InProgressAttemptId" class="btn-card btn-continue">
-                            <i class="bi bi-play-fill me-1"></i>Continue
-                        </a>
-                    }
-                    else if (!isExpired && !notStarted && !noAttempts)
-                    {
-                        <a href="/Student/Assessment/Instructions?assignmentId=@t.AssignmentId" class="btn-card btn-start">
-                            <i class="bi bi-pencil-fill me-1"></i>Start Test
-                        </a>
-                    }
+                    <div class="card-btns">
+                        @if (isInProgress && t.InProgressAttemptId.HasValue)
+                        {
+                            <a href="/Student/Assessment/Take?attemptId=@t.InProgressAttemptId" class="btn-card btn-continue">
+                                <i class="bi bi-play-fill me-1"></i>Continue
+                            </a>
+                        }
+                        else if (!isExpired && !notStarted && !noAttempts)
+                        {
+                            <a href="/Student/Assessment/Instructions?assignmentId=@t.AssignmentId" class="btn-card btn-start">
+                                <i class="bi bi-pencil-fill me-1"></i>Start Test
+                            </a>
+                        }
 
-                    @if ((isCompleted || noAttempts) && t.LastCompletedAttemptId.HasValue)
-                    {
-                        <a href="/Student/Assessment/Result?attemptId=@t.LastCompletedAttemptId" class="btn-card btn-result">
-                            <i class="bi bi-bar-chart-fill me-1"></i>View Result
-                        </a>
-                    }
+                        @if ((isCompleted || noAttempts) && t.LastCompletedAttemptId.HasValue)
+                        {
+                            <a href="/Student/Assessment/Result?attemptId=@t.LastCompletedAttemptId" class="btn-card btn-result">
+                                <i class="bi bi-bar-chart-fill me-1"></i>View Result
+                            </a>
+                        }
+                    </div>
                 </div>
             </div>
         }
