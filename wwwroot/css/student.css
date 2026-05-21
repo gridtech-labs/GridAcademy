@@ -1590,7 +1590,7 @@ body {
 
 /* ── Sidebar ─────────────────────────────────────────────── */
 #studentSidebar {
-    width: 230px;
+    width: 250px;
     min-height: 100vh;
     position: sticky;
     top: 0;
@@ -1602,20 +1602,20 @@ body {
 
 #studentSidebar .nav-link {
     font-size: .875rem;
-    padding: .5rem 1rem;
-    border-radius: 6px;
-    margin: 1px 8px;
-    transition: background .15s, color .15s;
-    color: rgba(255,255,255,.7);
+    padding: .5rem .75rem;
+    border-radius: 0;
+    margin: 0;
+    transition: background .15s;
+    color: rgba(255,255,255,.8);
 }
 
 #studentSidebar .nav-link:hover {
-    background: rgba(255,255,255,.08);
+    background-color: rgba(255,255,255,.12);
     color: #fff;
 }
 
 #studentSidebar .nav-link.active {
-    background: var(--primary, #1760f4);
+    background-color: #0d6efd !important;
     color: #fff !important;
     font-weight: 600;
 }
@@ -1795,7 +1795,7 @@ body {
     }
 
     #studentSidebar {
-        width: 100%;
+        width: 100% !important;
         min-height: unset;
         height: auto;
         position: fixed;
