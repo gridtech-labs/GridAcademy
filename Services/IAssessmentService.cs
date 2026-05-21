@@ -63,6 +63,12 @@ public interface IAssessmentService
     /// <summary>Returns the result for a submitted/timed-out attempt belonging to the student.</summary>
     Task<AttemptResultDto> GetResultAsync(Guid attemptId, Guid studentId);
 
+    /// <summary>
+    /// Returns performance summary (stats + full attempt list) for a student.
+    /// Only includes Submitted and TimedOut attempts, ordered newest-first.
+    /// </summary>
+    Task<MyPerformanceDto> GetMyPerformanceAsync(Guid studentId);
+
     // ── Admin ─────────────────────────────────────────────────────────────
 
     /// <summary>Returns a summary list of all attempts for a test (admin view).</summary>

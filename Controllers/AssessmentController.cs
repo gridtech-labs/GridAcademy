@@ -219,4 +219,15 @@ public class AssessmentController(IAssessmentService assessmentSvc, AppDbContext
         }
         catch (Exception ex) { return BadRequest(ApiResponse.Fail(ex.Message)); }
     }
+
+    [HttpGet("my-performance")]
+    public async Task<IActionResult> MyPerformance()
+    {
+        try
+        {
+            var result = await assessmentSvc.GetMyPerformanceAsync(UserId);
+            return Ok(ApiResponse<object>.Ok(result));
+        }
+        catch (Exception ex) { return BadRequest(ApiResponse.Fail(ex.Message)); }
+    }
 }

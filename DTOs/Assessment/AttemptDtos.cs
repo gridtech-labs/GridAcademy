@@ -166,6 +166,33 @@ public class AttemptResultDto
     public List<QuestionResultDto> Questions { get; set; } = [];
 }
 
+// ── My performance (student) ──────────────────────────────────────────────
+
+public class PerformanceAttemptDto
+{
+    public Guid     AttemptId          { get; set; }
+    public string   TestTitle          { get; set; } = "";
+    public DateTime SubmittedAt        { get; set; }
+    public int      DurationSecondsUsed{ get; set; }
+    public decimal  TotalMarksObtained { get; set; }
+    public decimal  TotalMarksPossible { get; set; }
+    public decimal  Percentage         { get; set; }
+    public bool     IsPassed           { get; set; }
+    public decimal  PassingPercent     { get; set; }
+    public int      ViolationCount     { get; set; }
+    public List<SectionResultDto> Sections { get; set; } = [];
+}
+
+public class MyPerformanceDto
+{
+    public int      TotalAttempts      { get; set; }
+    public int      PassedCount        { get; set; }
+    public int      FailedCount        { get; set; }
+    public decimal? AveragePercentage  { get; set; }
+    public decimal? BestPercentage     { get; set; }
+    public List<PerformanceAttemptDto> Attempts { get; set; } = [];
+}
+
 // ── Admin attempt summary ─────────────────────────────────────────────────
 
 public class AttemptSummaryDto

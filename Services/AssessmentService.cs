@@ -781,6 +781,57 @@ public class AssessmentService : IAssessmentService
         return await BuildResultDtoAsync(attemptId, studentId: Guid.Empty, adminMode: true);
     }
 
+    public async Task<MyPerformanceDto> GetMyPerformanceAsync(Guid studentId)
+    {
+        var attempts = await _db.TestAttempts
+            .Include(a => a.Assignment)
+                .ThenInclude(a => a.Test)
+            .Include(a => a.SectionResults)
+            .Where(a => a.StudentId == studentId
+                     && (a.Status == AttemptStatus.Submitted || a.Status == AttemptStatus.TimedOut))
+            .OrderByDescending(a => a.SubmittedAt)
+            .AsNoTracking()
+            .ToListAsync();
+
+        var dtos = attempts.Select(a => new PerformanceAttemptDto
+        {
+            AttemptId           = a.Id,
+            TestTitle           = a.Assignment?.Test?.Title ?? "(Unknown Test)",
+            SubmittedAt         = a.SubmittedAt ?? a.StartedAt,
+            DurationSecondsUsed = a.DurationSecondsUsed,
+            TotalMarksObtained  = a.TotalMarksObtained ?? 0m,
+            TotalMarksPossible  = a.TotalMarksPossible ?? 0m,
+            Percentage          = a.Percentage ?? 0m,
+            IsPassed            = a.IsPassed ?? false,
+            PassingPercent      = a.Assignment?.Test?.PassingPercent ?? 0m,
+            ViolationCount      = CountViolations(a.ViolationLog),
+            Sections            = a.SectionResults
+                .OrderBy(s => s.SectionIndex)
+                .Select(s => new SectionResultDto
+                {
+                    SectionName     = s.SectionName,
+                    SectionIndex    = s.SectionIndex,
+                    TotalQuestions  = s.TotalQuestions,
+                    Attempted       = s.Attempted,
+                    Correct         = s.Correct,
+                    Incorrect       = s.Incorrect,
+                    Unattempted     = s.Unattempted,
+                    MarksObtained   = s.MarksObtained,
+                    MaxMarks        = s.MaxMarks,
+                }).ToList(),
+        }).ToList();
+
+        return new MyPerformanceDto
+        {
+            TotalAttempts     = dtos.Count,
+            PassedCount       = dtos.Count(d => d.IsPassed),
+            FailedCount       = dtos.Count(d => !d.IsPassed),
+            AveragePercentage = dtos.Count > 0 ? Math.Round(dtos.Average(d => d.Percentage), 2) : null,
+            BestPercentage    = dtos.Count > 0 ? dtos.Max(d => d.Percentage) : null,
+            Attempts          = dtos,
+        };
+    }
+
     // ════════════════════════════════════════════════════════════════════════
     // PRIVATE HELPERS
     // ════════════════════════════════════════════════════════════════════════
