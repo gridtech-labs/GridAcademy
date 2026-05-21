@@ -1577,3 +1577,280 @@ body {
     /* Hide less important section columns on very small screens */
     .section-summary .col-hide-xs { display: none; }
 }
+
+/* ============================================================
+   Student Portal Sidebar Layout
+   (non-exam mode — mirrors admin panel sidebar style)
+   ============================================================ */
+
+/* Sidebar wrapper resets body overflow */
+#studentWrapper {
+    min-height: 100vh;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────── */
+#studentSidebar {
+    width: 230px;
+    min-height: 100vh;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    flex-shrink: 0;
+    z-index: 100;
+}
+
+#studentSidebar .nav-link {
+    font-size: .875rem;
+    padding: .5rem 1rem;
+    border-radius: 6px;
+    margin: 1px 8px;
+    transition: background .15s, color .15s;
+    color: rgba(255,255,255,.7);
+}
+
+#studentSidebar .nav-link:hover {
+    background: rgba(255,255,255,.08);
+    color: #fff;
+}
+
+#studentSidebar .nav-link.active {
+    background: var(--primary, #1760f4);
+    color: #fff !important;
+    font-weight: 600;
+}
+
+/* ── Top bar (inside content area) ─────────────────────── */
+.student-topbar {
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+
+/* ── Override: student-container inside sidebar layout ─── */
+#studentContent .student-container {
+    max-width: 100%;
+    padding: 0;
+}
+
+#studentContent main {
+    background: var(--gray-100);
+}
+
+/* ── Performance / Available Tests cards ────────────────── */
+.perf-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.perf-stat-card {
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+}
+
+.perf-stat-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    margin-bottom: .6rem;
+}
+
+.perf-stat-value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--gray-900);
+    line-height: 1;
+}
+
+.perf-stat-label {
+    font-size: .75rem;
+    color: var(--gray-500);
+    margin-top: .2rem;
+}
+
+.attempt-history-table {
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.attempt-history-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .875rem;
+}
+
+.attempt-history-table thead th {
+    background: var(--gray-100);
+    padding: .65rem 1rem;
+    font-size: .75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--gray-500);
+    border-bottom: 1px solid var(--gray-200);
+    white-space: nowrap;
+}
+
+.attempt-history-table tbody tr {
+    border-bottom: 1px solid var(--gray-200);
+    transition: background .12s;
+}
+
+.attempt-history-table tbody tr:last-child { border-bottom: none; }
+.attempt-history-table tbody tr:hover { background: var(--gray-100); }
+
+.attempt-history-table tbody td {
+    padding: .75rem 1rem;
+    color: var(--gray-700);
+    vertical-align: middle;
+}
+
+.badge-passed  { background: #dcfce7; color: #15803d; font-size:.75rem; padding:.25rem .6rem; border-radius:20px; font-weight:700; }
+.badge-failed  { background: #fee2e2; color: #dc2626; font-size:.75rem; padding:.25rem .6rem; border-radius:20px; font-weight:700; }
+
+/* Available Tests grid */
+.avail-exam-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1rem;
+}
+
+.avail-exam-card {
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: box-shadow .2s, border-color .2s;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+}
+
+.avail-exam-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,.1);
+    border-color: var(--primary, #1760f4);
+    color: inherit;
+    text-decoration: none;
+}
+
+.avail-exam-thumb {
+    height: 100px;
+    background: linear-gradient(135deg, #eff6ff 0%, #eef2ff 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+}
+
+.avail-exam-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avail-exam-body {
+    padding: .875rem 1rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.avail-exam-title {
+    font-weight: 700;
+    font-size: .9rem;
+    color: var(--gray-900);
+    margin-bottom: .4rem;
+    line-height: 1.35;
+}
+
+.avail-exam-meta {
+    font-size: .75rem;
+    color: var(--gray-500);
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: .6rem;
+    border-top: 1px solid var(--gray-200);
+    margin-top: .75rem;
+}
+
+/* ── Mobile: collapse sidebar to bottom tab bar ───────── */
+@media (max-width: 767px) {
+    #studentWrapper {
+        flex-direction: column;
+    }
+
+    #studentSidebar {
+        width: 100%;
+        min-height: unset;
+        height: auto;
+        position: fixed;
+        bottom: 0;
+        top: auto;
+        left: 0;
+        right: 0;
+        z-index: 200;
+        flex-direction: row !important;
+        align-items: stretch;
+        overflow: hidden;
+        border-top: 1px solid rgba(255,255,255,.1);
+    }
+
+    #studentSidebar > div.p-3.border-bottom,
+    #studentSidebar > div.p-3.border-top {
+        display: none !important;
+    }
+
+    #studentSidebar > ul.nav {
+        flex-direction: row !important;
+        padding: 0 !important;
+        width: 100%;
+    }
+
+    #studentSidebar .nav-item {
+        flex: 1;
+    }
+
+    #studentSidebar .nav-link {
+        flex-direction: column;
+        text-align: center;
+        padding: .5rem .25rem;
+        margin: 0;
+        border-radius: 0;
+        font-size: .7rem;
+        gap: .15rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #studentSidebar .nav-link i {
+        font-size: 1.1rem;
+        margin: 0 !important;
+        display: block;
+    }
+
+    #studentContent {
+        padding-bottom: 60px; /* space for fixed bottom nav */
+    }
+
+    .student-topbar {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+}

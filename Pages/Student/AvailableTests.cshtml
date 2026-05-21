@@ -1,0 +1,107 @@
+@page
+@model GridAcademy.Pages.Student.AvailableTestsModel
+@{
+    ViewData["Title"] = "Available Tests";
+}
+
+@if (!Model.Exams.Any())
+{
+    <div class="empty-state">
+        <i class="bi bi-grid-3x3-gap" style="font-size:3rem;color:var(--gray-300)"></i>
+        <h5 class="mt-3">No exam series available</h5>
+        <p class="text-muted">Check back later — new tests are added regularly.</p>
+    </div>
+}
+else
+{
+    <div class="avail-exam-grid">
+        @foreach (var e in Model.Exams)
+        {
+            @* icon emoji based on exam type *@
+            string icon = "📝";
+            if (e.ExamTypeName != null)
+            {
+                var n = e.ExamTypeName.ToLower();
+                if (n.Contains("railway") || n.Contains("rrb"))   icon = "🚂";
+                else if (n.Contains("bank"))                       icon = "🏦";
+                else if (n.Contains("upsc") || n.Contains("ias")) icon = "🏛️";
+                else if (n.Contains("ssc"))                        icon = "👮";
+                else if (n.Contains("gate"))                       icon = "🔬";
+                else if (n.Contains("defence") || n.Contains("nda")) icon = "📐";
+                else if (n.Contains("police"))                     icon = "🚔";
+                else if (n.Contains("teach") || n.Contains("tet")) icon = "📚";
+                else if (n.Contains("state") || n.Contains("psc")) icon = "🗺️";
+                else if (n.Contains("cuet"))                       icon = "🎓";
+                else if (n.Contains("jee") || n.Contains("neet")) icon = "⚗️";
+            }
+
+            string plainDesc = "";
+            if (!string.IsNullOrWhiteSpace(e.ShortDescription))
+            {
+                plainDesc = System.Text.RegularExpressions.Regex.Replace(e.ShortDescription, "<[^>]+>", "");
+                if (plainDesc.Length > 100) plainDesc = plainDesc[..100] + "…";
+            }
+
+            <a href="/exam/@e.Slug" class="avail-exam-card">
+                <div class="avail-exam-thumb">
+                    @if (!string.IsNullOrWhiteSpace(e.ThumbnailUrl))
+                    {
+                        <img src="@e.ThumbnailUrl" alt="@e.Title" />
+                    }
+                    else
+                    {
+                        <span>@icon</span>
+                    }
+                </div>
+                <div class="avail-exam-body">
+
+                    <div class="d-flex gap-1 flex-wrap mb-2">
+                        @if (e.PriceInr == 0)
+                        {
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                <i class="bi bi-lightning-fill me-1"></i>FREE
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                ₹@e.PriceInr.ToString("N0")
+                            </span>
+                        }
+                        @if (e.IsFeatured)
+                        {
+                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
+                                ⭐ Featured
+                            </span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(e.ExamTypeName))
+                        {
+                            <span class="badge bg-light text-muted border">@e.ExamTypeName</span>
+                        }
+                    </div>
+
+                    <div class="avail-exam-title">@e.Title</div>
+
+                    @if (!string.IsNullOrWhiteSpace(plainDesc))
+                    {
+                        <div class="text-muted mb-2" style="font-size:.8rem;line-height:1.45">@plainDesc</div>
+                    }
+
+                    <div class="avail-exam-meta">
+                        <span>
+                            <i class="bi bi-file-text me-1"></i>@e.TestCount test@(e.TestCount != 1 ? "s" : "")
+                            @if (e.FreeTestCount > 0)
+                            {
+                                <span class="text-success ms-1">(@e.FreeTestCount free)</span>
+                            }
+                        </span>
+                        <span class="text-primary fw-semibold">
+                            View Tests <i class="bi bi-chevron-right"></i>
+                        </span>
+                    </div>
+
+                </div>
+            </a>
+        }
+    </div>
+}

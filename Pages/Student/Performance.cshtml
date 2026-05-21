@@ -1,0 +1,161 @@
+@page
+@model GridAcademy.Pages.Student.PerformanceModel
+@{
+    ViewData["Title"] = "Test Performance";
+    var p         = Model.Performance;
+    var passRate  = p.TotalAttempts > 0 ? (int)Math.Round((double)p.PassedCount / p.TotalAttempts * 100) : 0;
+}
+
+<!-- ── Summary Stats ─────────────────────────────────────────────── -->
+<div class="perf-stat-grid mb-4">
+
+    <div class="perf-stat-card">
+        <div class="perf-stat-icon bg-primary-subtle text-primary">
+            <i class="bi bi-journal-check"></i>
+        </div>
+        <div class="perf-stat-value">@p.TotalAttempts</div>
+        <div class="perf-stat-label">Total Attempts</div>
+    </div>
+
+    <div class="perf-stat-card">
+        <div class="perf-stat-icon bg-success-subtle text-success">
+            <i class="bi bi-check-circle-fill"></i>
+        </div>
+        <div class="perf-stat-value text-success">@p.PassedCount</div>
+        <div class="perf-stat-label">Passed</div>
+    </div>
+
+    <div class="perf-stat-card">
+        <div class="perf-stat-icon bg-danger-subtle text-danger">
+            <i class="bi bi-x-circle-fill"></i>
+        </div>
+        <div class="perf-stat-value text-danger">@p.FailedCount</div>
+        <div class="perf-stat-label">Failed</div>
+    </div>
+
+    <div class="perf-stat-card">
+        <div class="perf-stat-icon bg-purple-subtle" style="background:#f3e8ff;color:#7c3aed">
+            <i class="bi bi-percent"></i>
+        </div>
+        <div class="perf-stat-value" style="color:#7c3aed">@passRate%</div>
+        <div class="perf-stat-label">Pass Rate</div>
+    </div>
+
+    <div class="perf-stat-card">
+        <div class="perf-stat-icon bg-warning-subtle text-warning">
+            <i class="bi bi-trophy-fill"></i>
+        </div>
+        <div class="perf-stat-value text-warning">
+            @(p.BestPercentage.HasValue ? $"{Math.Round(p.BestPercentage.Value)}%" : "—")
+        </div>
+        <div class="perf-stat-label">Best Score</div>
+    </div>
+
+    @if (p.AveragePercentage.HasValue)
+    {
+        <div class="perf-stat-card">
+            <div class="perf-stat-icon" style="background:#e0f2fe;color:#0369a1">
+                <i class="bi bi-graph-up-arrow"></i>
+            </div>
+            <div class="perf-stat-value" style="color:#0369a1">@p.AveragePercentage.Value.ToString("F1")%</div>
+            <div class="perf-stat-label">Avg. Score</div>
+        </div>
+    }
+
+</div>
+
+<!-- ── Attempt History ────────────────────────────────────────────── -->
+<div class="attempt-history-table">
+    <div class="px-4 py-3 border-bottom d-flex align-items-center justify-content-between bg-white">
+        <span class="fw-bold text-dark">
+            <i class="bi bi-clock-history me-2 text-primary"></i>Attempt History
+        </span>
+        <small class="text-muted">@p.Attempts.Count attempt@(p.Attempts.Count != 1 ? "s" : "")</small>
+    </div>
+
+    @if (!p.Attempts.Any())
+    {
+        <div class="text-center py-5">
+            <i class="bi bi-bar-chart text-muted" style="font-size:2.5rem"></i>
+            <p class="text-muted mt-2 mb-1 fw-semibold">No completed tests yet</p>
+            <p class="text-muted small">Your results will appear here after you finish a test.</p>
+            <a href="/Student/Dashboard" class="btn btn-primary btn-sm mt-2">
+                <i class="bi bi-journal-check me-1"></i>Go to My Tests
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Test</th>
+                        <th>Date</th>
+                        <th>Duration</th>
+                        <th class="text-center">Score</th>
+                        <th class="text-center">Result</th>
+                        <th class="text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < p.Attempts.Count; i++)
+                    {
+                        var a = p.Attempts[i];
+                        <tr>
+                            <td class="text-muted" style="width:40px">@(i + 1)</td>
+                            <td>
+                                <div class="fw-semibold text-dark" style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                                    @a.TestTitle
+                                </div>
+                                @if (a.Sections.Any())
+                                {
+                                    <div class="d-flex gap-2 flex-wrap mt-1">
+                                        @foreach (var sec in a.Sections)
+                                        {
+                                            <span class="badge bg-light text-muted border"
+                                                  title="@sec.SectionName: @sec.Correct correct, @sec.Incorrect wrong, @sec.Unattempted skipped"
+                                                  style="font-size:.7rem">
+                                                @sec.SectionName:
+                                                <span class="text-success">✓@sec.Correct</span>
+                                                <span class="text-danger">✗@sec.Incorrect</span>
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                            </td>
+                            <td style="white-space:nowrap;font-size:.82rem">
+                                @a.SubmittedAt.ToLocalTime().ToString("dd MMM yyyy")<br />
+                                <span class="text-muted">@a.SubmittedAt.ToLocalTime().ToString("hh:mm tt")</span>
+                            </td>
+                            <td style="white-space:nowrap;font-size:.85rem">
+                                <i class="bi bi-clock me-1 text-muted"></i>@PerformanceModel.FormatDuration(a.DurationSecondsUsed)
+                            </td>
+                            <td class="text-center" style="white-space:nowrap">
+                                <div class="fw-bold">@Math.Round(a.Percentage)%</div>
+                                <small class="text-muted">@a.TotalMarksObtained / @a.TotalMarksPossible</small>
+                            </td>
+                            <td class="text-center">
+                                @if (a.IsPassed)
+                                {
+                                    <span class="badge-passed">✓ Passed</span>
+                                }
+                                else
+                                {
+                                    <span class="badge-failed">✗ Failed</span>
+                                }
+                            </td>
+                            <td class="text-center">
+                                <a href="/Student/Assessment/Result?attemptId=@a.AttemptId"
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-bar-chart-fill me-1"></i>View Result
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
