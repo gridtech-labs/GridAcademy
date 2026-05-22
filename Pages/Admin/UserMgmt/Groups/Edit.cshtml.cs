@@ -126,7 +126,7 @@ public class EditModel : PageModel
         if (g is null) return false;
 
         Group = new GroupDetail(g.Id, g.Name, g.Description, g.IsActive,
-                                g.Client?.Name, g.CreatedAt);
+                                g.Client?.Name, g.ClientId, g.CreatedAt);
 
         Input = new GroupEditInput
         {
@@ -162,16 +162,16 @@ public class EditModel : PageModel
         var term          = MemberSearch!.Trim().ToLower();
         var memberUserIds = Members.Select(m => m.UserId).ToHashSet();
 
-        // Scope to current user's client unless SuperAdmin
+        // Always scope candidates to the group's own client.
+        // For a client-specific group every user added must belong to that same client,
+        // regardless of whether the current admin is SuperAdmin or a regular Admin.
+        // A group with no ClientId (global/platform group) is SuperAdmin-only and shows all users.
         var query = _db.Users.AsNoTracking().AsQueryable();
-        if (!IsSuperAdmin)
-        {
-            var cidClaim = User.FindFirst("ClientId")?.Value;
-            if (int.TryParse(cidClaim, out var cid))
-                query = query.Where(u => u.ClientId == cid);
-            else
-                query = query.Where(_ => false);
-        }
+        var groupClientId = Group?.ClientId;
+        if (groupClientId.HasValue)
+            query = query.Where(u => u.ClientId == groupClientId.Value);
+        else if (!IsSuperAdmin)
+            query = query.Where(_ => false); // non-SuperAdmin should never reach a client-less group
 
         SearchResults = await query
             .Where(u => u.IsActive &&
@@ -195,7 +195,7 @@ public class EditModel : PageModel
 // ── View models ───────────────────────────────────────────────────────────────
 
 public record GroupDetail(int Id, string Name, string? Description, bool IsActive,
-                          string? ClientName, DateTime CreatedAt);
+                          string? ClientName, int? ClientId, DateTime CreatedAt);
 
 public class GroupEditInput
 {
