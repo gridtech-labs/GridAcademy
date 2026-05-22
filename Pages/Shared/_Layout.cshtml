@@ -106,10 +106,10 @@
                             </span>
                         </li>
                         <li class="nav-item">
-                            <span class="nav-link py-1 text-white-50" style="cursor:default">
+                            <a asp-page="/Admin/UserMgmt/Groups/Index"
+                               class="nav-link py-1 @(Context.Request.Path.StartsWithSegments("/Admin/UserMgmt/Groups") ? "text-white active" : "text-white-50")">
                                 <i class="bi bi-diagram-3 me-2"></i>Groups
-                                <span class="badge bg-secondary ms-1" style="font-size:.65rem">soon</span>
-                            </span>
+                            </a>
                         </li>
                     </ul>
                 </div>

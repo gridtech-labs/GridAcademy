@@ -566,6 +566,99 @@ public static class DbSeeder
             WHERE  NOT EXISTS (SELECT 1 FROM system_roles WHERE name = 'SuperAdmin');
             """);
 
+        // ── 16-1. groups table ───────────────────────────────────────────────
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS groups (
+                id          integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                name        varchar(200) NOT NULL,
+                description text,
+                client_id   integer,
+                is_active   boolean     NOT NULL DEFAULT true,
+                created_at  timestamptz NOT NULL DEFAULT now(),
+                updated_at  timestamptz,
+                created_by  uuid
+            );
+            """);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS ix_groups_client_id ON groups (client_id);
+            """);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE  constraint_type = 'FOREIGN KEY'
+                    AND    table_name      = 'groups'
+                    AND    constraint_name = 'fk_groups_client_id'
+                ) THEN
+                    ALTER TABLE groups
+                        ADD CONSTRAINT fk_groups_client_id
+                        FOREIGN KEY (client_id) REFERENCES clients(id)
+                        ON DELETE SET NULL;
+                END IF;
+            END;
+            $$;
+            """);
+
+        // ── 16-2. user_groups junction table ─────────────────────────────────
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS user_groups (
+                id        integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                group_id  integer     NOT NULL,
+                user_id   uuid        NOT NULL,
+                added_at  timestamptz NOT NULL DEFAULT now(),
+                added_by  uuid
+            );
+            """);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS ix_user_groups_group_user
+                ON user_groups (group_id, user_id);
+            """);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS ix_user_groups_user_id
+                ON user_groups (user_id);
+            """);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE  constraint_type = 'FOREIGN KEY'
+                    AND    table_name      = 'user_groups'
+                    AND    constraint_name = 'fk_user_groups_group_id'
+                ) THEN
+                    ALTER TABLE user_groups
+                        ADD CONSTRAINT fk_user_groups_group_id
+                        FOREIGN KEY (group_id) REFERENCES groups(id)
+                        ON DELETE CASCADE;
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE  constraint_type = 'FOREIGN KEY'
+                    AND    table_name      = 'user_groups'
+                    AND    constraint_name = 'fk_user_groups_user_id'
+                ) THEN
+                    ALTER TABLE user_groups
+                        ADD CONSTRAINT fk_user_groups_user_id
+                        FOREIGN KEY (user_id) REFERENCES users(id)
+                        ON DELETE CASCADE;
+                END IF;
+            END;
+            $$;
+            """);
+
         // ── 16. Promote admin@gridacademy.com to SuperAdmin ──────────────────
         await db.Database.ExecuteSqlRawAsync(
             """

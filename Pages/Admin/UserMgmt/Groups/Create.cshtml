@@ -1,0 +1,98 @@
+@page
+@model GridAcademy.Pages.Admin.UserMgmt.Groups.CreateModel
+@{
+    ViewData["Title"] = "New Group";
+}
+
+<div class="d-flex align-items-center gap-2 mb-4">
+    <a asp-page="./Index" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+    <h5 class="fw-bold mb-0">Create Group</h5>
+</div>
+
+<div class="row">
+    <div class="col-12 col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <form method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="Input.Name" class="form-label fw-semibold">
+                                Group Name <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="Input.Name" class="form-control"
+                                   placeholder="e.g. Batch 2026 – Morning" />
+                            <span asp-validation-for="Input.Name" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-12">
+                            <label asp-for="Input.Description" class="form-label fw-semibold">Description</label>
+                            <textarea asp-for="Input.Description" class="form-control" rows="3"
+                                      placeholder="What is this group for?"></textarea>
+                            <span asp-validation-for="Input.Description" class="text-danger small"></span>
+                        </div>
+
+                        @if (Model.AvailableClients.Count > 0)
+                        {
+                            <div class="col-12">
+                                <label asp-for="Input.ClientId" class="form-label fw-semibold">Client / Organization</label>
+                                @if (Model.IsSuperAdmin && Model.AvailableClients.Count > 1)
+                                {
+                                    <select asp-for="Input.ClientId" class="form-select">
+                                        <option value="">— Select Client —</option>
+                                        @foreach (var c in Model.AvailableClients)
+                                        {
+                                            <option value="@c.Id">@c.Name</option>
+                                        }
+                                    </select>
+                                }
+                                else
+                                {
+                                    <input type="hidden" asp-for="Input.ClientId" value="@Model.AvailableClients[0].Id" />
+                                    <input type="text" class="form-control" value="@Model.AvailableClients[0].Name" readonly />
+                                }
+                            </div>
+                        }
+
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input asp-for="Input.IsActive" class="form-check-input" type="checkbox" />
+                                <label asp-for="Input.IsActive" class="form-check-label fw-semibold">Active</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4" />
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-plus-circle me-1"></i>Create Group
+                        </button>
+                        <a asp-page="./Index" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+        <div class="card shadow-sm border-0 bg-light">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold mb-3">
+                    <i class="bi bi-info-circle me-2 text-primary"></i>About Groups
+                </h6>
+                <p class="small text-muted mb-2">
+                    Groups let you organise users into batches — e.g. <em>Morning Batch</em>, <em>Batch 2026</em>.
+                </p>
+                <p class="small text-muted mb-0">
+                    After creating a group, use the <strong>Edit</strong> page to add members.
+                    Groups can then be batch-assigned to tests, assessments, or programs in one click.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
