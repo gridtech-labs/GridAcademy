@@ -83,6 +83,8 @@ public class AppDbContext : DbContext
     // ── User Management ─────────────────────────────────────────────────────
     public DbSet<SystemRole>   SystemRoles   => Set<SystemRole>();
     public DbSet<UserRoleMap>  UserRoleMaps  => Set<UserRoleMap>();
+    public DbSet<Group>        Groups        => Set<Group>();
+    public DbSet<UserGroup>    UserGroups    => Set<UserGroup>();
 
     // ── Career Guide ────────────────────────────────────────────
     public DbSet<CareerQuizQuestion> CareerQuizQuestions => Set<CareerQuizQuestion>();
@@ -181,6 +183,44 @@ public class AppDbContext : DbContext
             e.HasOne(m => m.User).WithMany().HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(m => m.Role).WithMany(r => r.UserRoleMaps).HasForeignKey(m => m.RoleId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(m => new { m.UserId, m.RoleId }).IsUnique().HasDatabaseName("ix_user_role_maps_user_role");
+        });
+
+        // ── Group ─────────────────────────────────────────────────────────────
+        modelBuilder.Entity<Group>(e =>
+        {
+            e.ToTable("groups");
+            e.HasKey(g => g.Id);
+            e.Property(g => g.Id).HasColumnName("id").UseIdentityAlwaysColumn();
+            e.Property(g => g.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            e.Property(g => g.Description).HasColumnName("description");
+            e.Property(g => g.ClientId).HasColumnName("client_id");
+            e.Property(g => g.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            e.Property(g => g.CreatedAt).HasColumnName("created_at");
+            e.Property(g => g.UpdatedAt).HasColumnName("updated_at");
+            e.Property(g => g.CreatedBy).HasColumnName("created_by");
+            e.HasOne(g => g.Client).WithMany()
+             .HasForeignKey(g => g.ClientId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(g => g.ClientId).HasDatabaseName("ix_groups_client_id");
+            e.HasIndex(g => g.IsActive).HasDatabaseName("ix_groups_is_active");
+        });
+
+        // ── UserGroup (junction) ──────────────────────────────────────────────
+        modelBuilder.Entity<UserGroup>(e =>
+        {
+            e.ToTable("user_groups");
+            e.HasKey(ug => ug.Id);
+            e.Property(ug => ug.Id).HasColumnName("id").UseIdentityAlwaysColumn();
+            e.Property(ug => ug.GroupId).HasColumnName("group_id");
+            e.Property(ug => ug.UserId).HasColumnName("user_id");
+            e.Property(ug => ug.AddedAt).HasColumnName("added_at");
+            e.Property(ug => ug.AddedBy).HasColumnName("added_by");
+            e.HasOne(ug => ug.Group).WithMany(g => g.UserGroups)
+             .HasForeignKey(ug => ug.GroupId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(ug => ug.User).WithMany()
+             .HasForeignKey(ug => ug.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(ug => new { ug.GroupId, ug.UserId }).IsUnique()
+             .HasDatabaseName("ix_user_groups_group_user");
+            e.HasIndex(ug => ug.UserId).HasDatabaseName("ix_user_groups_user_id");
         });
 
         // ── Master base helper ─────────────────────────────────────────────

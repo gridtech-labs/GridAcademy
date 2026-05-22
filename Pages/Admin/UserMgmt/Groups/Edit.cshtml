@@ -1,0 +1,235 @@
+@page "{id:int}"
+@model GridAcademy.Pages.Admin.UserMgmt.Groups.EditModel
+@{
+    ViewData["Title"] = "Edit Group";
+    var group = Model.Group!;
+}
+
+<!-- Header -->
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a asp-page="./Index" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+    <div>
+        <h5 class="fw-bold mb-0">
+            <i class="bi bi-people-fill text-primary me-2"></i>@group.Name
+        </h5>
+        <small class="text-muted">
+            @Model.Members.Count members
+            @if (group.ClientName is not null)
+            {
+                <span class="ms-2">· @group.ClientName</span>
+            }
+        </small>
+    </div>
+    @if (!group.IsActive)
+    {
+        <span class="badge bg-secondary">Inactive</span>
+    }
+</div>
+
+<div class="row g-4">
+
+    <!-- ── LEFT COLUMN ──────────────────────────────────────── -->
+    <div class="col-12 col-xl-7">
+
+        <!-- Group Details -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white fw-semibold py-3">
+                <i class="bi bi-pencil-square me-2 text-primary"></i>Group Details
+            </div>
+            <div class="card-body p-4">
+                <form method="post" asp-page-handler="SaveDetails">
+                    <input type="hidden" asp-for="Input.Id" />
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="Input.Name" class="form-label fw-semibold">Group Name</label>
+                            <input asp-for="Input.Name" class="form-control" />
+                            <span asp-validation-for="Input.Name" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Input.Description" class="form-label fw-semibold">Description</label>
+                            <textarea asp-for="Input.Description" class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input asp-for="Input.IsActive" class="form-check-input" type="checkbox" />
+                                <label asp-for="Input.IsActive" class="form-check-label fw-semibold">Active</label>
+                            </div>
+                        </div>
+                    </div>
+                    <hr class="my-3" />
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-check-lg me-1"></i>Save Details
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ── MEMBERS ─────────────────────────────────── -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                <span class="fw-semibold">
+                    <i class="bi bi-person-lines-fill me-2 text-primary"></i>
+                    Members
+                    <span class="badge bg-primary ms-1">@Model.Members.Count</span>
+                </span>
+            </div>
+
+            <!-- Add-member search -->
+            <div class="card-body border-bottom pb-3">
+                <form method="get" asp-page="Edit" asp-route-id="@group.Id" class="d-flex gap-2">
+                    <input type="text" name="memberSearch" value="@Model.MemberSearch"
+                           class="form-control form-control-sm"
+                           placeholder="Search users by name or email to add…" />
+                    <button type="submit" class="btn btn-sm btn-outline-primary flex-shrink-0">
+                        <i class="bi bi-search me-1"></i>Search
+                    </button>
+                    @if (!string.IsNullOrWhiteSpace(Model.MemberSearch))
+                    {
+                        <a asp-page="Edit" asp-route-id="@group.Id"
+                           class="btn btn-sm btn-outline-secondary flex-shrink-0">Clear</a>
+                    }
+                </form>
+            </div>
+
+            <!-- Search results (shown when memberSearch is set) -->
+            @if (!string.IsNullOrWhiteSpace(Model.MemberSearch))
+            {
+                <div class="card-body border-bottom py-3 bg-light-subtle">
+                    @if (!Model.SearchResults.Any())
+                    {
+                        <p class="text-muted small mb-0">No users found matching "<strong>@Model.MemberSearch</strong>".</p>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-2">
+                            @Model.SearchResults.Count result(s) for "<strong>@Model.MemberSearch</strong>"
+                        </p>
+                        <div class="list-group list-group-flush">
+                            @foreach (var u in Model.SearchResults)
+                            {
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                                    <div>
+                                        <span class="fw-semibold small">@u.FullName</span>
+                                        <span class="text-muted small ms-2">@u.Email</span>
+                                        <span class="badge bg-secondary ms-1" style="font-size:.65rem">@u.Role</span>
+                                    </div>
+                                    @if (u.AlreadyMember)
+                                    {
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                            <i class="bi bi-check-circle me-1"></i>Member
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <form method="post" asp-page-handler="AddMember">
+                                            <input type="hidden" name="groupId" value="@group.Id" />
+                                            <input type="hidden" name="userId"  value="@u.Id" />
+                                            <input type="hidden" name="memberSearch" value="@Model.MemberSearch" />
+                                            <button type="submit" class="btn btn-sm btn-success">
+                                                <i class="bi bi-person-plus me-1"></i>Add
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            <!-- Current members list -->
+            @if (!Model.Members.Any())
+            {
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-people text-muted" style="font-size:2rem;opacity:.35"></i>
+                    <p class="text-muted small mt-2 mb-0">No members yet. Use the search above to add users.</p>
+                </div>
+            }
+            else
+            {
+                <div class="list-group list-group-flush">
+                    @foreach (var m in Model.Members)
+                    {
+                        <div class="list-group-item d-flex justify-content-between align-items-center px-4 py-2">
+                            <div>
+                                <div class="fw-semibold small">@m.FullName</div>
+                                <div class="text-muted" style="font-size:.78rem">@m.Email</div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                @{
+                                    var roleBadge = m.Role switch
+                                    {
+                                        "SuperAdmin" => "bg-dark",
+                                        "Admin"      => "bg-danger",
+                                        "Instructor" => "bg-warning text-dark",
+                                        _            => "bg-secondary"
+                                    };
+                                }
+                                <span class="badge @roleBadge" style="font-size:.65rem">@m.Role</span>
+                                <span class="text-muted" style="font-size:.72rem">
+                                    Added @m.AddedAt.ToString("dd MMM")
+                                </span>
+                                <form method="post" asp-page-handler="RemoveMember">
+                                    <input type="hidden" name="groupId"      value="@group.Id" />
+                                    <input type="hidden" name="membershipId" value="@m.MembershipId" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                            title="Remove from group"
+                                            onclick="return confirm('Remove @m.FullName from this group?')">
+                                        <i class="bi bi-person-dash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+    </div>
+
+    <!-- ── RIGHT COLUMN ─────────────────────────────────────── -->
+    <div class="col-12 col-xl-5">
+        <div class="card shadow-sm border-0 bg-light sticky-top" style="top:80px">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold mb-3">
+                    <i class="bi bi-bar-chart-line me-2 text-primary"></i>Group Stats
+                </h6>
+                <div class="row text-center g-3 mb-3">
+                    <div class="col-4">
+                        <div class="fs-4 fw-bold text-primary">@Model.Members.Count</div>
+                        <small class="text-muted">Members</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="fs-5 fw-bold @(group.IsActive ? "text-success" : "text-secondary")">
+                            @(group.IsActive ? "Active" : "Inactive")
+                        </div>
+                        <small class="text-muted">Status</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="fw-semibold small text-muted">@group.CreatedAt.ToString("dd MMM yy")</div>
+                        <small class="text-muted">Created</small>
+                    </div>
+                </div>
+                @if (group.ClientName is not null)
+                {
+                    <div class="d-flex align-items-center gap-2 p-2 bg-white rounded border mb-3">
+                        <i class="bi bi-building text-primary"></i>
+                        <span class="small fw-semibold">@group.ClientName</span>
+                    </div>
+                }
+                <hr />
+                <p class="small text-muted mb-0">
+                    <i class="bi bi-rocket me-1 text-warning"></i>
+                    <strong>Coming soon:</strong> Assign this group to a test or program in one click —
+                    all members will be enrolled automatically.
+                </p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

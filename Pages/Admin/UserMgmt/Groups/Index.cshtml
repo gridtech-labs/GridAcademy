@@ -1,0 +1,97 @@
+@page
+@model GridAcademy.Pages.Admin.UserMgmt.Groups.IndexModel
+@{
+    ViewData["Title"] = "Groups";
+}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h5 class="fw-bold mb-1">Groups</h5>
+        <p class="text-muted small mb-0">
+            @Model.Groups.Count group(s) — batch users for bulk test/program assignment
+        </p>
+    </div>
+    <a asp-page="./Create" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>New Group
+    </a>
+</div>
+
+@if (!Model.Groups.Any())
+{
+    <div class="card shadow-sm">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-people text-muted" style="font-size:2.5rem;opacity:.35"></i>
+            <p class="text-muted mt-3 mb-2 fw-semibold">No groups yet</p>
+            <p class="text-muted small mb-3">Create a group to batch-organise users for test or program assignments.</p>
+            <a asp-page="./Create" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-circle me-1"></i>Create First Group
+            </a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Group Name</th>
+                            <th>Description</th>
+                            @if (Model.IsSuperAdmin)
+                            {
+                                <th>Client</th>
+                            }
+                            <th class="text-center">Members</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var g in Model.Groups)
+                        {
+                            <tr class="@(g.IsActive ? "" : "opacity-50")">
+                                <td class="fw-semibold">
+                                    <i class="bi bi-people-fill text-primary me-2" style="font-size:.85rem"></i>
+                                    @g.Name
+                                </td>
+                                <td class="text-muted small">
+                                    @(string.IsNullOrEmpty(g.Description) ? "—" : g.Description)
+                                </td>
+                                @if (Model.IsSuperAdmin)
+                                {
+                                    <td class="text-muted small">@(g.ClientName ?? "—")</td>
+                                }
+                                <td class="text-center">
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                        @g.MemberCount
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (g.IsActive)
+                                    {
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Inactive</span>
+                                    }
+                                </td>
+                                <td class="text-muted small">@g.CreatedAt.ToString("dd MMM yyyy")</td>
+                                <td class="text-end">
+                                    <a asp-page="./Edit" asp-route-id="@g.Id"
+                                       class="btn btn-sm btn-outline-primary" title="Edit / Manage Members">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
