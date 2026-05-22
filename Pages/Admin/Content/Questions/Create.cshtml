@@ -612,7 +612,7 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
     const miniToolbar = [
         ['bold', 'italic'],
         [{ script: 'sub' }, { script: 'super' }],
-        ['formula'],
+        ['formula', 'image'],
         ['clean']
     ];
 
@@ -703,6 +703,13 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
         });
     }
     setupImageUpload(qText);
+    setupImageUpload(qSolution);
+    setupImageUpload(qOptA);
+    setupImageUpload(qOptB);
+    setupImageUpload(qOptC);
+    setupImageUpload(qOptD);
+    setupImageUpload(qAssertion);
+    setupImageUpload(qReason);
     // qPassage image upload is wired in applyType(8) after lazy init
 
     // ── Question type toggle ──────────────────────────────────────────────────
