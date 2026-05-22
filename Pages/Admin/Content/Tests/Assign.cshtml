@@ -5,8 +5,11 @@
     var t = Model.Test!;
 }
 
+<!-- Header -->
 <div class="d-flex align-items-center gap-2 mb-4">
-    <a asp-page="Edit" asp-route-id="@t.Id" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+    <a asp-page="Edit" asp-route-id="@t.Id" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+    </a>
     <div>
         <h4 class="fw-bold mb-0"><i class="bi bi-person-plus me-2 text-success"></i>Assign Test</h4>
         <p class="text-muted small mb-0">@t.Title</p>
@@ -15,11 +18,17 @@
 
 @if (TempData["Success"] != null)
 {
-    <div class="alert alert-success alert-dismissible fade show"><i class="bi bi-check-circle me-2"></i>@TempData["Success"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    <div class="alert alert-success alert-dismissible fade show py-2">
+        <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
 }
 @if (TempData["Error"] != null)
 {
-    <div class="alert alert-danger alert-dismissible fade show"><i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    <div class="alert alert-danger alert-dismissible fade show py-2">
+        <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
 }
 
 @if (t.Status != GridAcademy.Data.Entities.Assessment.TestStatus.Published)
@@ -31,118 +40,246 @@
 }
 
 <div class="row g-4">
-    <!-- Assign Form -->
+
+    <!-- ── LEFT: Assignment Forms ─────────────────────────────────────── -->
     <div class="col-lg-6">
         <div class="card shadow-sm">
-            <div class="card-header bg-white fw-semibold py-3">Assign to Students</div>
-            <div class="card-body">
-                <form method="post" asp-page-handler="Assign">
-                    @Html.AntiForgeryToken()
-
-                    <!-- Student search -->
-                    <div class="mb-2">
-                        <input type="text" id="studentSearch" class="form-control form-control-sm"
-                               placeholder="Search students by name or email…" />
-                    </div>
-
-                    <!-- Student list -->
-                    <div class="border rounded mb-3" style="max-height:280px;overflow-y:auto;">
-                        @if (!Model.Students.Any())
-                        {
-                            <div class="text-center py-3 text-muted small">No students found.</div>
-                        }
-                        else
-                        {
-                            <ul class="list-group list-group-flush" id="studentList">
-                                @foreach (var s in Model.Students)
-                                {
-                                    <li class="list-group-item py-2 student-item" data-name="@s.FullName.ToLower()" data-email="@s.Email.ToLower()">
-                                        <div class="form-check">
-                                            <input class="form-check-input student-cb" type="checkbox"
-                                                   name="studentIds" value="@s.Id" id="s-@s.Id" />
-                                            <label class="form-check-label w-100" for="s-@s.Id">
-                                                <span class="fw-semibold">@s.FullName</span>
-                                                <small class="text-muted d-block">@s.Email</small>
-                                            </label>
-                                        </div>
-                                    </li>
-                                }
-                            </ul>
-                        }
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label fw-semibold small">Select All</label>
-                        <div>
-                            <button type="button" class="btn btn-xs btn-outline-secondary" onclick="toggleAll(true)">Select All</button>
-                            <button type="button" class="btn btn-xs btn-outline-secondary ms-1" onclick="toggleAll(false)">Deselect All</button>
-                            <span id="selectedCount" class="ms-2 text-muted small">0 selected</span>
-                        </div>
-                    </div>
-
-                    <div class="row g-2 mb-3 mt-2">
-                        <div class="col-6">
-                            <label class="form-label fw-semibold small">Available From <span class="text-danger">*</span></label>
-                            <input type="datetime-local" name="availableFrom" class="form-control form-control-sm" required />
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label fw-semibold small">Available To <span class="text-danger">*</span></label>
-                            <input type="datetime-local" name="availableTo" class="form-control form-control-sm" required />
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label fw-semibold small">Max Attempts</label>
-                            <input type="number" name="maxAttempts" class="form-control form-control-sm" min="1" max="5" value="1" />
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn btn-success btn-sm">
-                        <i class="bi bi-person-check me-1"></i>Assign
-                    </button>
-                </form>
+            <div class="card-header bg-white py-3">
+                <!-- Tab Pills -->
+                <ul class="nav nav-pills nav-fill gap-1" id="assignTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-semibold" id="group-tab"
+                                data-bs-toggle="pill" data-bs-target="#groupPanel"
+                                type="button" role="tab">
+                            <i class="bi bi-diagram-3 me-1"></i>By Group
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold" id="individual-tab"
+                                data-bs-toggle="pill" data-bs-target="#individualPanel"
+                                type="button" role="tab">
+                            <i class="bi bi-person me-1"></i>By Individual
+                        </button>
+                    </li>
+                </ul>
             </div>
+            <div class="card-body tab-content" id="assignTabsContent">
+
+                <!-- ── TAB 1: By Group ──────────────────────────────── -->
+                <div class="tab-pane fade show active" id="groupPanel" role="tabpanel">
+                    @if (!Model.Groups.Any())
+                    {
+                        <div class="text-center py-4 text-muted small">
+                            <i class="bi bi-diagram-3 d-block mb-2" style="font-size:2rem;opacity:.3"></i>
+                            No active groups found for this client.<br />
+                            <a asp-page="/Admin/UserMgmt/Groups/Create">Create a group</a> first.
+                        </div>
+                    }
+                    else
+                    {
+                        <form method="post" asp-page-handler="AssignGroup">
+                            @Html.AntiForgeryToken()
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small">Select Group <span class="text-danger">*</span></label>
+                                <select name="groupId" id="groupSelect" class="form-select" required
+                                        onchange="updateMemberCount(this)">
+                                    <option value="">— Choose a group —</option>
+                                    @foreach (var g in Model.Groups)
+                                    {
+                                        <option value="@g.Id" data-count="@g.MemberCount">
+                                            @g.Name (@g.MemberCount member@(g.MemberCount == 1 ? "" : "s"))
+                                        </option>
+                                    }
+                                </select>
+                                <div id="groupMemberHint" class="form-text text-muted mt-1" style="display:none">
+                                    <i class="bi bi-people me-1"></i>
+                                    <span id="groupMemberCount"></span> student(s) will be assigned.
+                                    Already-assigned members will be skipped automatically.
+                                </div>
+                            </div>
+
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <label class="form-label fw-semibold small">Available From <span class="text-danger">*</span></label>
+                                    <input type="datetime-local" name="availableFrom" class="form-control form-control-sm" required />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label fw-semibold small">Available To <span class="text-danger">*</span></label>
+                                    <input type="datetime-local" name="availableTo" class="form-control form-control-sm" required />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label fw-semibold small">Max Attempts</label>
+                                    <input type="number" name="maxAttempts" class="form-control form-control-sm"
+                                           min="1" max="5" value="1" />
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-success btn-sm w-100">
+                                <i class="bi bi-diagram-3-fill me-1"></i>Assign to Group
+                            </button>
+                        </form>
+                    }
+                </div>
+
+                <!-- ── TAB 2: By Individual ─────────────────────────── -->
+                <div class="tab-pane fade" id="individualPanel" role="tabpanel">
+                    <form method="post" asp-page-handler="Assign">
+                        @Html.AntiForgeryToken()
+
+                        <!-- Search box -->
+                        <div class="mb-2">
+                            <input type="text" id="studentSearch" class="form-control form-control-sm"
+                                   placeholder="Search by name or email…" />
+                        </div>
+
+                        <!-- Student list -->
+                        <div class="border rounded mb-2" style="max-height:260px;overflow-y:auto;">
+                            @if (!Model.Students.Any())
+                            {
+                                <div class="text-center py-3 text-muted small">No students found.</div>
+                            }
+                            else
+                            {
+                                <ul class="list-group list-group-flush" id="studentList">
+                                    @foreach (var s in Model.Students)
+                                    {
+                                        <li class="list-group-item py-2 student-item"
+                                            data-name="@s.FullName.ToLower()" data-email="@s.Email.ToLower()">
+                                            <div class="form-check">
+                                                <input class="form-check-input student-cb" type="checkbox"
+                                                       name="studentIds" value="@s.Id" id="s-@s.Id" />
+                                                <label class="form-check-label w-100" for="s-@s.Id">
+                                                    <span class="fw-semibold small">@s.FullName</span>
+                                                    <small class="text-muted d-block" style="font-size:.75rem">@s.Email</small>
+                                                </label>
+                                            </div>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <button type="button" class="btn btn-xs btn-outline-secondary"
+                                    onclick="toggleAll(true)">Select All</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary"
+                                    onclick="toggleAll(false)">Deselect All</button>
+                            <span id="selectedCount" class="text-muted small ms-1">0 selected</span>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold small">Available From <span class="text-danger">*</span></label>
+                                <input type="datetime-local" name="availableFrom" class="form-control form-control-sm" required />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-semibold small">Available To <span class="text-danger">*</span></label>
+                                <input type="datetime-local" name="availableTo" class="form-control form-control-sm" required />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-semibold small">Max Attempts</label>
+                                <input type="number" name="maxAttempts" class="form-control form-control-sm"
+                                       min="1" max="5" value="1" />
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success btn-sm w-100">
+                            <i class="bi bi-person-check me-1"></i>Assign to Selected
+                        </button>
+                    </form>
+                </div>
+
+            </div><!-- /tab-content -->
         </div>
     </div>
 
-    <!-- Existing Assignments -->
+    <!-- ── RIGHT: Existing Assignments ─────────────────────────────────── -->
     <div class="col-lg-6">
         <div class="card shadow-sm">
-            <div class="card-header bg-white fw-semibold py-3">
-                Existing Assignments <span class="badge bg-secondary ms-1">@Model.Assignments.Count</span>
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                <span class="fw-semibold">
+                    <i class="bi bi-list-check me-2 text-primary"></i>
+                    Assignments
+                </span>
+                <span class="badge bg-primary">@Model.Assignments.Count</span>
             </div>
-            <div class="card-body p-0" style="max-height:450px;overflow-y:auto;">
-                @if (!Model.Assignments.Any())
+
+            @if (!Model.Assignments.Any())
+            {
+                <div class="card-body text-center py-4 text-muted small">
+                    <i class="bi bi-inbox d-block mb-2" style="font-size:2rem;opacity:.3"></i>
+                    No assignments yet.
+                </div>
+            }
+            else
+            {
+                <!-- Group summary chips -->
+                var byGroup = Model.Assignments
+                    .Where(a => a.GroupId.HasValue)
+                    .GroupBy(a => new { a.GroupId, a.GroupName })
+                    .ToList();
+
+                @if (byGroup.Any())
                 {
-                    <div class="text-center py-4 text-muted small">No assignments yet.</div>
+                    <div class="card-body border-bottom py-2 bg-light-subtle">
+                        <small class="text-muted fw-semibold d-block mb-1">Groups assigned</small>
+                        <div class="d-flex flex-wrap gap-1">
+                            @foreach (var grp in byGroup)
+                            {
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                    <i class="bi bi-diagram-3 me-1"></i>@grp.Key.GroupName
+                                    <span class="ms-1">(@grp.Count())</span>
+                                </span>
+                            }
+                        </div>
+                    </div>
                 }
-                else
-                {
+
+                <!-- Individual assignment list -->
+                <div style="max-height:420px;overflow-y:auto;">
                     <ul class="list-group list-group-flush">
                         @foreach (var a in Model.Assignments)
                         {
-                            var now    = DateTime.UtcNow;
-                            var active = a.IsActive;
-                            <li class="list-group-item py-2">
+                            <li class="list-group-item py-2 px-3">
                                 <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <span class="fw-semibold small">@a.StudentName</span>
-                                        <small class="text-muted d-block">@a.StudentEmail</small>
-                                        <small class="text-muted">
+                                    <div class="me-2" style="min-width:0">
+                                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                                            <span class="fw-semibold small">@a.StudentName</span>
+                                            @if (a.GroupId.HasValue)
+                                            {
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle"
+                                                      style="font-size:.65rem">
+                                                    <i class="bi bi-diagram-3 me-1"></i>@a.GroupName
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle"
+                                                      style="font-size:.65rem">
+                                                    <i class="bi bi-person me-1"></i>Individual
+                                                </span>
+                                            }
+                                        </div>
+                                        <small class="text-muted d-block" style="font-size:.73rem">@a.StudentEmail</small>
+                                        <small class="text-muted" style="font-size:.73rem">
                                             @a.AvailableFrom.ToLocalTime().ToString("dd MMM hh:mm tt") —
                                             @a.AvailableTo.ToLocalTime().ToString("dd MMM hh:mm tt")
                                         </small>
                                         <br />
-                                        <small>
-                                            Attempts: @a.AttemptsUsed / @a.MaxAttempts
-                                            &nbsp;
-                                            <span class="badge @(active ? "bg-success" : "bg-secondary") bg-opacity-75">
-                                                @(active ? "Active" : "Inactive")
+                                        <small style="font-size:.73rem">
+                                            Attempts: @a.AttemptsUsed / @a.MaxAttempts &nbsp;
+                                            <span class="badge @(a.IsActive ? "bg-success" : "bg-secondary") bg-opacity-75"
+                                                  style="font-size:.65rem">
+                                                @(a.IsActive ? "Active" : "Inactive")
                                             </span>
                                         </small>
                                     </div>
                                     <form method="post" asp-page-handler="Revoke"
-                                          onsubmit="return confirm('Revoke assignment for @a.StudentName?')">
+                                          onsubmit="return confirm('Revoke this assignment for @a.StudentName?')">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="assignmentId" value="@a.Id" />
-                                        <button type="submit" class="btn btn-xs btn-outline-danger" title="Revoke">
+                                        <button type="submit" class="btn btn-xs btn-outline-danger flex-shrink-0" title="Revoke">
                                             <i class="bi bi-x-lg"></i>
                                         </button>
                                     </form>
@@ -150,21 +287,38 @@
                             </li>
                         }
                     </ul>
-                }
-            </div>
+                </div>
+            }
         </div>
     </div>
+
 </div>
 
 @section Scripts {
 <script>
-document.getElementById('studentSearch').addEventListener('input', function () {
-    const q = this.value.toLowerCase();
-    document.querySelectorAll('.student-item').forEach(function (li) {
-        const match = li.dataset.name.includes(q) || li.dataset.email.includes(q);
-        li.style.display = match ? '' : 'none';
+// ── Group member count hint ────────────────────────────────────────────────
+function updateMemberCount(sel) {
+    const opt   = sel.options[sel.selectedIndex];
+    const hint  = document.getElementById('groupMemberHint');
+    const count = document.getElementById('groupMemberCount');
+    if (sel.value) {
+        count.textContent = opt.dataset.count;
+        hint.style.display = '';
+    } else {
+        hint.style.display = 'none';
+    }
+}
+
+// ── Individual student search ──────────────────────────────────────────────
+const searchInput = document.getElementById('studentSearch');
+if (searchInput) {
+    searchInput.addEventListener('input', function () {
+        const q = this.value.toLowerCase();
+        document.querySelectorAll('.student-item').forEach(li => {
+            li.style.display = (li.dataset.name.includes(q) || li.dataset.email.includes(q)) ? '' : 'none';
+        });
     });
-});
+}
 
 function toggleAll(check) {
     document.querySelectorAll('.student-cb').forEach(cb => cb.checked = check);

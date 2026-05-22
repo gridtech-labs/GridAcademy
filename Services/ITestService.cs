@@ -37,6 +37,7 @@ public interface ITestService
 
     // ── Assignments ───────────────────────────────────────────────────────
     Task<List<TestAssignmentDto>> AssignTestAsync(Guid testId, AssignTestRequest request, Guid assignedBy);
+    Task<(int Assigned, int Skipped)> AssignToGroupAsync(Guid testId, int groupId, DateTime availableFrom, DateTime availableTo, int maxAttempts, Guid assignedBy);
     Task<List<TestAssignmentDto>> GetAssignmentsAsync(Guid testId);
     Task<List<TestAssignmentDto>> GetStudentAssignmentsAsync(Guid studentId);
     Task                          RevokeAssignmentAsync(Guid assignmentId);

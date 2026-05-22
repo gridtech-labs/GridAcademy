@@ -104,6 +104,10 @@ public class TestAssignmentDto
     public int MaxAttempts { get; set; }
     public int AttemptsUsed { get; set; }
     public bool IsActive { get; set; }  // AvailableFrom <= now <= AvailableTo
+
+    /// <summary>Set when this assignment was created via a group batch; null for individually assigned.</summary>
+    public int? GroupId { get; set; }
+    public string? GroupName { get; set; }
 }
 
 // ── Manual question mapping ───────────────────────────────────────────────

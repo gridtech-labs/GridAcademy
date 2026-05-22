@@ -332,9 +332,10 @@ public class TestService : ITestService
             .Include(a => a.Test)
             .Include(a => a.Student)
             .Include(a => a.Attempts)
+            .Include(a => a.Group)
             .AsNoTracking()
             .Where(a => a.TestId == testId)
-            .OrderBy(a => a.AssignedAt)
+            .OrderBy(a => a.Group!.Name).ThenBy(a => a.Student.FirstName)
             .Select(a => MapToAssignmentDto(a, now))
             .ToListAsync();
     }
@@ -631,7 +632,58 @@ public class TestService : ITestService
             AvailableTo    = a.AvailableTo,
             MaxAttempts    = a.MaxAttempts,
             AttemptsUsed   = a.Attempts?.Count ?? 0,
-            IsActive       = a.AvailableFrom <= now && now <= a.AvailableTo
+            IsActive       = a.AvailableFrom <= now && now <= a.AvailableTo,
+            GroupId        = a.GroupId,
+            GroupName      = a.Group?.Name
         };
+    }
+
+    public async Task<(int Assigned, int Skipped)> AssignToGroupAsync(
+        Guid testId, int groupId,
+        DateTime availableFrom, DateTime availableTo,
+        int maxAttempts, Guid assignedBy)
+    {
+        var test = await _db.Tests.FindAsync(testId)
+            ?? throw new KeyNotFoundException($"Test {testId} not found.");
+
+        if (test.Status != TestStatus.Published)
+            throw new InvalidOperationException("Only Published tests can be assigned.");
+
+        // Get all active members of the group
+        var memberIds = await _db.UserGroups
+            .Where(ug => ug.GroupId == groupId)
+            .Select(ug => ug.UserId)
+            .ToListAsync();
+
+        if (!memberIds.Any())
+            throw new InvalidOperationException("This group has no members to assign.");
+
+        // Avoid duplicating existing assignments
+        var existingStudentIds = (await _db.TestAssignments
+            .Where(a => a.TestId == testId)
+            .Select(a => a.StudentId)
+            .ToListAsync()).ToHashSet();
+
+        int assigned = 0, skipped = 0;
+        foreach (var studentId in memberIds)
+        {
+            if (existingStudentIds.Contains(studentId)) { skipped++; continue; }
+
+            _db.TestAssignments.Add(new TestAssignment
+            {
+                TestId        = testId,
+                StudentId     = studentId,
+                GroupId       = groupId,
+                AvailableFrom = availableFrom,
+                AvailableTo   = availableTo,
+                MaxAttempts   = maxAttempts,
+                AssignedAt    = DateTime.UtcNow,
+                AssignedBy    = assignedBy
+            });
+            assigned++;
+        }
+
+        await _db.SaveChangesAsync();
+        return (assigned, skipped);
     }
 }

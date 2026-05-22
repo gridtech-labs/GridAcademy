@@ -515,10 +515,13 @@ public class AppDbContext : DbContext
             e.Property(a => a.MaxAttempts).HasColumnName("max_attempts").HasDefaultValue(1);
             e.Property(a => a.AssignedAt).HasColumnName("assigned_at");
             e.Property(a => a.AssignedBy).HasColumnName("assigned_by");
+            e.Property(a => a.GroupId).HasColumnName("group_id");
             e.HasOne(a => a.Test).WithMany(t => t.Assignments).HasForeignKey(a => a.TestId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(a => a.Student).WithMany().HasForeignKey(a => a.StudentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(a => a.Group).WithMany().HasForeignKey(a => a.GroupId).OnDelete(DeleteBehavior.SetNull).IsRequired(false);
             e.HasIndex(a => new { a.TestId, a.StudentId }).IsUnique().HasDatabaseName("ix_test_assignments_test_student");
             e.HasIndex(a => a.StudentId).HasDatabaseName("ix_test_assignments_student_id");
+            e.HasIndex(a => a.GroupId).HasDatabaseName("ix_test_assignments_group_id");
         });
 
         // ── TestAttempt ────────────────────────────────────────────────────────────

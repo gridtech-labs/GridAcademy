@@ -21,10 +21,18 @@ public class TestAssignment
     /// <summary>Nullable FK → users.id; tracks which admin/instructor created the assignment.</summary>
     public Guid? AssignedBy { get; set; }
 
+    /// <summary>
+    /// When the assignment was created via a group batch, this stores the source group.
+    /// Null for individually-assigned students.
+    /// </summary>
+    public int? GroupId { get; set; }
+
     // ── Navigations ────────────────────────────────────────────────────────
     public Test Test { get; set; } = null!;
 
     public User Student { get; set; } = null!;
+
+    public Group? Group { get; set; }
 
     public ICollection<TestAttempt> Attempts { get; set; } = [];
 }

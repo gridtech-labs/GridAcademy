@@ -659,6 +659,34 @@ public static class DbSeeder
             $$;
             """);
 
+        // ── 17. group_id column on test_assignments ───────────────────────────
+        await db.Database.ExecuteSqlRawAsync("""
+            ALTER TABLE test_assignments
+                ADD COLUMN IF NOT EXISTS group_id INT;
+            """);
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE INDEX IF NOT EXISTS ix_test_assignments_group_id
+                ON test_assignments (group_id)
+                WHERE group_id IS NOT NULL;
+            """);
+        await db.Database.ExecuteSqlRawAsync("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                     WHERE table_schema    = 'public'
+                       AND table_name      = 'test_assignments'
+                       AND constraint_name = 'fk_test_assignments_group_id'
+                ) THEN
+                    ALTER TABLE test_assignments
+                        ADD CONSTRAINT fk_test_assignments_group_id
+                        FOREIGN KEY (group_id) REFERENCES groups(id)
+                        ON DELETE SET NULL;
+                END IF;
+            END;
+            $$;
+            """);
+
         // ── 16. Promote admin@gridacademy.com to SuperAdmin ──────────────────
         await db.Database.ExecuteSqlRawAsync(
             """
