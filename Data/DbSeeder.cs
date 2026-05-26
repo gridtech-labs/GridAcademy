@@ -26,6 +26,10 @@ public static class DbSeeder
         // already listening; longer retries are fine but 5 s is sufficient.
         const int maxRetries  = 20;
         const int retryDelaySec = 5;
+        // NOTE: we capture the last exception rather than letting it propagate so that
+        // the independent EnsureXxx calls below ALWAYS run, even when MigrateAsync
+        // keeps failing (e.g. migration conflicts on Railway).
+        Exception? migrationLastEx = null;
         for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
             try
@@ -33,16 +37,25 @@ public static class DbSeeder
                 await db.Database.MigrateAsync();
                 await EnsureExamContentTablesAsync(db);
                 await EnsureManualMigrationColumnsAsync(db);
+                migrationLastEx = null;
                 break; // success
             }
-            catch (Exception ex) when (attempt < maxRetries)
+            catch (Exception ex)
             {
-                logger.LogWarning(
-                    "Database not ready (attempt {Attempt}/{Max}): {Message}. Retrying in {Delay}s…",
-                    attempt, maxRetries, ex.Message, retryDelaySec);
-                await Task.Delay(TimeSpan.FromSeconds(retryDelaySec));
+                migrationLastEx = ex;
+                if (attempt < maxRetries)
+                {
+                    logger.LogWarning(
+                        "Database not ready (attempt {Attempt}/{Max}): {Message}. Retrying in {Delay}s…",
+                        attempt, maxRetries, ex.Message, retryDelaySec);
+                    await Task.Delay(TimeSpan.FromSeconds(retryDelaySec));
+                }
             }
         }
+        if (migrationLastEx is not null)
+            logger.LogError(migrationLastEx,
+                "DB migration failed after {Max} attempts — independent table creation will still proceed",
+                maxRetries);
 
         // ── Payment tables — run independently so they are applied even when
         //    MigrateAsync fails (e.g. migration conflicts on Railway).
@@ -957,11 +970,18 @@ public static class DbSeeder
     // This mirrors the EnsurePaymentTablesAsync pattern.
     private static async Task EnsureAiGenerationTablesAsync(AppDbContext db)
     {
-        // Helper: execute a single SQL string, swallow any error.
+        // Helper: execute a single SQL string; swallow errors but log them so Railway
+        // logs show exactly which statement (if any) fails in production.
         static async Task TryExec(AppDbContext db, string sql)
         {
             try { await db.Database.ExecuteSqlRawAsync(sql); }
-            catch { /* already exists, name collision, or unsupported feature — continue */ }
+            catch (Exception ex)
+            {
+                var snippet = sql.Trim();
+                if (snippet.Length > 80) snippet = snippet[..80];
+                Console.Error.WriteLine(
+                    $"[AiTables] Swallowed ({ex.GetType().Name}): {ex.Message.Replace('\n', ' ')} | SQL: {snippet}");
+            }
         }
 
         // ── 18. Enable pgvector extension ─────────────────────────────────────

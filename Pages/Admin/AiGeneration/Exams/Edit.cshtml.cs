@@ -43,9 +43,19 @@ public class EditModel : PageModel
     // ── Bind prompt form ───────────────────────────────────────────────────
     [BindProperty] public string PromptText { get; set; } = "";
 
+    public bool TablesReady { get; private set; } = true;
+
     public async Task<IActionResult> OnGetAsync()
     {
-        await LoadAsync();
+        try
+        {
+            await LoadAsync();
+        }
+        catch (Exception ex) when (IsSchemaNotReady(ex))
+        {
+            TablesReady = false;
+            return Page(); // page shows "initializing" banner
+        }
         return Config is null && !ExamPageId.HasValue ? NotFound() : Page();
     }
 
@@ -214,5 +224,13 @@ public class EditModel : PageModel
         await LoadAsync();
         if (Config is null)
             throw new InvalidOperationException("Config not found.");
+    }
+
+    private static bool IsSchemaNotReady(Exception ex)
+    {
+        for (var e = ex; e is not null; e = e.InnerException)
+            if (e is Npgsql.PostgresException pg && pg.SqlState is "42P01" or "42703")
+                return true;
+        return false;
     }
 }

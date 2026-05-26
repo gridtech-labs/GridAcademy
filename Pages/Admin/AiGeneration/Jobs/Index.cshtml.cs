@@ -27,6 +27,7 @@ public class IndexModel : PageModel
 
     public int TotalCount { get; private set; }
     public List<JobRow> Jobs { get; private set; } = [];
+    public bool TablesReady { get; private set; } = true;
 
     // ── "New Job" form ─────────────────────────────────────────────────────
     [BindProperty] public Guid?  SelectedExamPageId    { get; set; }
@@ -43,21 +44,28 @@ public class IndexModel : PageModel
 
     public async Task OnGetAsync()
     {
-        await LoadReferenceDataAsync();
+        try
+        {
+            await LoadReferenceDataAsync();
 
-        var query = _db.GenerationJobs.AsQueryable();
-        if (StatusFilter.HasValue)
-            query = query.Where(j => (int)j.Status == StatusFilter.Value);
+            var query = _db.GenerationJobs.AsQueryable();
+            if (StatusFilter.HasValue)
+                query = query.Where(j => (int)j.Status == StatusFilter.Value);
 
-        TotalCount = await query.CountAsync();
-        Jobs = await query
-            .OrderByDescending(j => j.CreatedAt)
-            .Skip((PageNum - 1) * PageSize)
-            .Take(PageSize)
-            .Select(j => new JobRow(
-                j.Id, j.Difficulty, j.Language, j.Count, j.Generated, j.AutoFlagged,
-                j.Status, j.ErrorMessage, j.CreatedAt, j.CompletedAt))
-            .ToListAsync();
+            TotalCount = await query.CountAsync();
+            Jobs = await query
+                .OrderByDescending(j => j.CreatedAt)
+                .Skip((PageNum - 1) * PageSize)
+                .Take(PageSize)
+                .Select(j => new JobRow(
+                    j.Id, j.Difficulty, j.Language, j.Count, j.Generated, j.AutoFlagged,
+                    j.Status, j.ErrorMessage, j.CreatedAt, j.CompletedAt))
+                .ToListAsync();
+        }
+        catch (Exception ex) when (IsSchemaNotReady(ex))
+        {
+            TablesReady = false;
+        }
     }
 
     public async Task<IActionResult> OnPostEnqueueAsync()
@@ -135,4 +143,12 @@ public class IndexModel : PageModel
         int Count, int Generated, int AutoFlagged,
         GenerationJobStatus Status, string? ErrorMessage,
         DateTime CreatedAt, DateTime? CompletedAt);
+
+    private static bool IsSchemaNotReady(Exception ex)
+    {
+        for (var e = ex; e is not null; e = e.InnerException)
+            if (e is Npgsql.PostgresException pg && pg.SqlState is "42P01" or "42703")
+                return true;
+        return false;
+    }
 }

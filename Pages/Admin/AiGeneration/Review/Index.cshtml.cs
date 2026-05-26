@@ -29,6 +29,7 @@ public class IndexModel : PageModel
 
     public int TotalCount  { get; private set; }
     public List<DraftRow> Drafts { get; private set; } = [];
+    public bool TablesReady { get; private set; } = true;
 
     // ── Reference data ─────────────────────────────────────────────────────
     public List<(int Id, string Name)> SubjectOptions   { get; private set; } = [];
@@ -51,38 +52,45 @@ public class IndexModel : PageModel
 
     public async Task OnGetAsync()
     {
-        await LoadReferenceDataAsync();
+        try
+        {
+            await LoadReferenceDataAsync();
 
-        var query = _db.QuestionDrafts.AsQueryable();
-        if (JobId.HasValue) query = query.Where(d => d.GenerationJobId == JobId.Value);
+            var query = _db.QuestionDrafts.AsQueryable();
+            if (JobId.HasValue) query = query.Where(d => d.GenerationJobId == JobId.Value);
 
-        var statusEnum = (DraftStatus)StatusTab;
-        query = query.Where(d => d.Status == statusEnum);
+            var statusEnum = (DraftStatus)StatusTab;
+            query = query.Where(d => d.Status == statusEnum);
 
-        PendingCount  = await _db.QuestionDrafts.CountAsync(d => d.Status == DraftStatus.PendingReview);
-        ApprovedCount = await _db.QuestionDrafts.CountAsync(d => d.Status == DraftStatus.Approved || d.Status == DraftStatus.EditedApproved);
-        RejectedCount = await _db.QuestionDrafts.CountAsync(d => d.Status == DraftStatus.Rejected);
+            PendingCount  = await _db.QuestionDrafts.CountAsync(d => d.Status == DraftStatus.PendingReview);
+            ApprovedCount = await _db.QuestionDrafts.CountAsync(d => d.Status == DraftStatus.Approved || d.Status == DraftStatus.EditedApproved);
+            RejectedCount = await _db.QuestionDrafts.CountAsync(d => d.Status == DraftStatus.Rejected);
 
-        TotalCount = await query.CountAsync();
-        var raw = await query
-            .OrderBy(d => d.Id)
-            .Skip((PageNum - 1) * PageSize)
-            .Take(PageSize)
-            .Select(d => new
-            {
+            TotalCount = await query.CountAsync();
+            var raw = await query
+                .OrderBy(d => d.Id)
+                .Skip((PageNum - 1) * PageSize)
+                .Take(PageSize)
+                .Select(d => new
+                {
+                    d.Id, d.QuestionText, d.OptionsJson, d.CorrectIndex,
+                    d.Explanation, d.FlagsJson, d.Status, d.DifficultyEstimate,
+                    d.EstimatedSeconds, d.Model, d.CreatedAt, d.ReviewedAt,
+                    d.SubjectId, d.TopicId, d.DifficultyLevelId, d.GenerationJobId
+                })
+                .ToListAsync();
+
+            Drafts = raw.Select(d => new DraftRow(
                 d.Id, d.QuestionText, d.OptionsJson, d.CorrectIndex,
                 d.Explanation, d.FlagsJson, d.Status, d.DifficultyEstimate,
-                d.EstimatedSeconds, d.Model, d.CreatedAt, d.ReviewedAt,
+                d.EstimatedSeconds, d.Model ?? "", d.CreatedAt, d.ReviewedAt,
                 d.SubjectId, d.TopicId, d.DifficultyLevelId, d.GenerationJobId
-            })
-            .ToListAsync();
-
-        Drafts = raw.Select(d => new DraftRow(
-            d.Id, d.QuestionText, d.OptionsJson, d.CorrectIndex,
-            d.Explanation, d.FlagsJson, d.Status, d.DifficultyEstimate,
-            d.EstimatedSeconds, d.Model ?? "", d.CreatedAt, d.ReviewedAt,
-            d.SubjectId, d.TopicId, d.DifficultyLevelId, d.GenerationJobId
-        )).ToList();
+            )).ToList();
+        }
+        catch (Exception ex) when (IsSchemaNotReady(ex))
+        {
+            TablesReady = false;
+        }
     }
 
     // ── Approve ────────────────────────────────────────────────────────────
@@ -192,4 +200,12 @@ public class IndexModel : PageModel
     }
 
     public record OptionItem(string Label, string Text, bool IsCorrect);
+
+    private static bool IsSchemaNotReady(Exception ex)
+    {
+        for (var e = ex; e is not null; e = e.InnerException)
+            if (e is Npgsql.PostgresException pg && pg.SqlState is "42P01" or "42703")
+                return true;
+        return false;
+    }
 }

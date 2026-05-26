@@ -17,30 +17,38 @@ public class IndexModel : PageModel
     public string? Search { get; set; }
 
     public List<ExamRow> ExamRows { get; private set; } = [];
+    public bool TablesReady { get; private set; } = true;
 
     public async Task OnGetAsync()
     {
-        // All exam pages joined with their AI config (if any)
-        var query = _db.ExamPages
-            .GroupJoin(
-                _db.AiExamConfigs,
-                ep => ep.Id,
-                cfg => cfg.ExamPageId,
-                (ep, cfgs) => new { ep, cfg = cfgs.FirstOrDefault() })
-            .Where(x => string.IsNullOrEmpty(Search) || x.ep.Title.Contains(Search));
+        try
+        {
+            // All exam pages joined with their AI config (if any)
+            var query = _db.ExamPages
+                .GroupJoin(
+                    _db.AiExamConfigs,
+                    ep => ep.Id,
+                    cfg => cfg.ExamPageId,
+                    (ep, cfgs) => new { ep, cfg = cfgs.FirstOrDefault() })
+                .Where(x => string.IsNullOrEmpty(Search) || x.ep.Title.Contains(Search));
 
-        var rows = await query
-            .OrderBy(x => x.ep.Title)
-            .Take(100)
-            .Select(x => new ExamRow(
-                x.ep.Id,
-                x.ep.Title,
-                x.cfg != null ? x.cfg.Id     : (int?)null,
-                x.cfg != null ? x.cfg.IsAiEnabled : false,
-                x.cfg != null ? _db.AiExamSections.Count(s => s.AiExamConfigId == x.cfg.Id) : 0))
-            .ToListAsync();
+            var rows = await query
+                .OrderBy(x => x.ep.Title)
+                .Take(100)
+                .Select(x => new ExamRow(
+                    x.ep.Id,
+                    x.ep.Title,
+                    x.cfg != null ? x.cfg.Id     : (int?)null,
+                    x.cfg != null ? x.cfg.IsAiEnabled : false,
+                    x.cfg != null ? _db.AiExamSections.Count(s => s.AiExamConfigId == x.cfg.Id) : 0))
+                .ToListAsync();
 
-        ExamRows = rows;
+            ExamRows = rows;
+        }
+        catch (Exception ex) when (IsSchemaNotReady(ex))
+        {
+            TablesReady = false;
+        }
     }
 
     public async Task<IActionResult> OnPostToggleAsync(Guid examPageId)
@@ -62,4 +70,12 @@ public class IndexModel : PageModel
     }
 
     public record ExamRow(Guid ExamPageId, string Title, int? ConfigId, bool IsEnabled, int SectionCount);
+
+    private static bool IsSchemaNotReady(Exception ex)
+    {
+        for (var e = ex; e is not null; e = e.InnerException)
+            if (e is Npgsql.PostgresException pg && pg.SqlState is "42P01" or "42703")
+                return true;
+        return false;
+    }
 }
