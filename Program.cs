@@ -10,6 +10,7 @@ using GridAcademy.Services.ExamContent.Options;
 using GridAcademy.Services.ExamContent.Scraping;
 using GridAcademy.Services.ExamContent.Scraping.Options;
 using GridAcademy.Services.ExamContent.Scraping.Scrapers;
+using GridAcademy.Modules.AiGeneration;
 using GridAcademy.Services.Marketplace;
 using GridAcademy.Services.Payment;
 using GridAcademy.Repositories.ExamContent;
@@ -219,34 +220,16 @@ builder.Services.AddScoped<Microsoft.AspNetCore.Authentication.IClaimsTransforma
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 3. HANGFIRE — Background jobs
-//    Hangfire.PostgreSql.UsePostgreSqlStorage() opens a SYNCHRONOUS connection
-//    inside a DI lazy factory — the exception escapes try/catch because it fires
-//    when the DI container resolves IJobStorage (inside UseHangfireDashboard).
-//    On Railway, postgres.railway.internal requires Private Networking (off by
-//    default). Safest solution: use InMemoryStorage in Production so the app
-//    always starts. Jobs still run; they just don't persist across restarts
-//    (acceptable — Railway has no persistent filesystem either).
+//    Both prod and dev use PostgreSQL storage so AI generation jobs survive
+//    Railway restarts. DATABASE_PUBLIC_URL is always DNS-resolvable (no
+//    private networking required).
 // ═══════════════════════════════════════════════════════════════════════════
-var isProduction = builder.Environment.IsProduction();
-if (isProduction)
-{
-    // InMemory — always safe, no DB connection at startup
-    Console.WriteLine("[Hangfire] Production: using InMemory storage (no DB needed at startup).");
-    builder.Services.AddHangfire(cfg => cfg
-        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-        .UseSimpleAssemblyNameTypeSerializer()
-        .UseRecommendedSerializerSettings()
-        .UseInMemoryStorage());
-}
-else
-{
-    // Local dev: use PostgreSQL storage
-    builder.Services.AddHangfire(cfg => cfg
-        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-        .UseSimpleAssemblyNameTypeSerializer()
-        .UseRecommendedSerializerSettings()
-        .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString)));
-}
+Console.WriteLine("[Hangfire] Using PostgreSQL storage.");
+builder.Services.AddHangfire(cfg => cfg
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString)));
 
 builder.Services.AddHangfireServer(options =>
 {
@@ -339,6 +322,9 @@ builder.Services.AddScoped<GridAcademy.Services.VideoLearning.ICouponService,   
 builder.Services.AddScoped<GridAcademy.Services.VideoLearning.ISalesChannelService,  GridAcademy.Services.VideoLearning.SalesChannelService>();
 builder.Services.AddScoped<GridAcademy.Services.VideoLearning.IEnrollmentService,    GridAcademy.Services.VideoLearning.EnrollmentService>();
 builder.Services.AddScoped<GridAcademy.Services.VideoLearning.IContentFileService, GridAcademy.Services.VideoLearning.ContentFileService>();
+
+// ── AI Question Generation Module ──────────────────────────────────────────
+builder.Services.AddAiGenerationModule(builder.Configuration);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 5. CONTROLLERS, RAZOR PAGES & API

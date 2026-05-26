@@ -1,0 +1,171 @@
+@page
+@model GridAcademy.Pages.Admin.AiGeneration.IndexModel
+@{ ViewData["Title"] = "AI Generation Dashboard"; }
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-robot me-2 text-primary"></i>AI Question Generation</h4>
+        <p class="text-muted small mb-0">Generate, verify and review AI-generated questions</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-page="Review/Index" class="btn btn-warning btn-sm">
+            <i class="bi bi-eye me-1"></i>Review Queue
+            @if (Model.PendingReview > 0)
+            {
+                <span class="badge bg-danger ms-1">@Model.PendingReview</span>
+            }
+        </a>
+        <a asp-page="Jobs/Index" class="btn btn-primary btn-sm">
+            <i class="bi bi-play-circle me-1"></i>Generation Jobs
+        </a>
+    </div>
+</div>
+
+<!-- Stats cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <div class="fs-1 fw-bold text-warning">@Model.PendingReview</div>
+                <div class="small text-muted">Pending Review</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <div class="fs-1 fw-bold text-success">@Model.ApprovedToday</div>
+                <div class="small text-muted">Approved Today</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <div class="fs-1 fw-bold text-primary">@Model.AiQuestionsTotal</div>
+                <div class="small text-muted">AI Questions (Live)</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <div class="fs-1 fw-bold text-info">@Model.JobsToday</div>
+                <div class="small text-muted">Jobs Today</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick nav -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <a asp-page="Exams/Index" class="card border-0 shadow-sm text-decoration-none h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <i class="bi bi-mortarboard fs-2 text-primary"></i>
+                <div>
+                    <div class="fw-semibold">Exam Config</div>
+                    <div class="small text-muted">@Model.ExamsWithAiEnabled exams with AI enabled</div>
+                </div>
+                <i class="bi bi-chevron-right ms-auto text-muted"></i>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a asp-page="Jobs/Index" class="card border-0 shadow-sm text-decoration-none h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <i class="bi bi-gear-wide-connected fs-2 text-success"></i>
+                <div>
+                    <div class="fw-semibold">Generation Jobs</div>
+                    <div class="small text-muted">Run &amp; monitor generation batches</div>
+                </div>
+                <i class="bi bi-chevron-right ms-auto text-muted"></i>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a asp-page="Review/Index" class="card border-0 shadow-sm text-decoration-none h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <i class="bi bi-clipboard2-check fs-2 text-warning"></i>
+                <div>
+                    <div class="fw-semibold">Review Queue</div>
+                    <div class="small text-muted">@Model.PendingReview drafts awaiting review</div>
+                </div>
+                <i class="bi bi-chevron-right ms-auto text-muted"></i>
+            </div>
+        </a>
+    </div>
+</div>
+
+<!-- Recent jobs table -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-2">
+        <span class="fw-semibold"><i class="bi bi-clock-history me-2"></i>Recent Generation Jobs</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Difficulty</th>
+                    <th>Lang</th>
+                    <th>Requested</th>
+                    <th>Generated</th>
+                    <th>Flagged</th>
+                    <th>Status</th>
+                    <th>Started</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var j in Model.RecentJobs)
+                {
+                    <tr>
+                        <td class="text-muted small">#@j.Id</td>
+                        <td><span class="badge bg-secondary">@j.Difficulty</span></td>
+                        <td><span class="badge bg-light text-dark border">@j.Language.ToUpper()</span></td>
+                        <td>@j.Count</td>
+                        <td>@j.Generated</td>
+                        <td>@(j.AutoFlagged > 0 ? j.AutoFlagged.ToString() : "-")</td>
+                        <td>
+                            @switch (j.Status)
+                            {
+                                case GridAcademy.Modules.AiGeneration.Domain.Entities.GenerationJobStatus.Queued:
+                                    <span class="badge bg-secondary">Queued</span>
+                                    break;
+                                case GridAcademy.Modules.AiGeneration.Domain.Entities.GenerationJobStatus.Running:
+                                    <span class="badge bg-info"><i class="bi bi-arrow-repeat spin-animation me-1"></i>Running</span>
+                                    break;
+                                case GridAcademy.Modules.AiGeneration.Domain.Entities.GenerationJobStatus.Completed:
+                                    <span class="badge bg-success">Done</span>
+                                    break;
+                                case GridAcademy.Modules.AiGeneration.Domain.Entities.GenerationJobStatus.Failed:
+                                    <span class="badge bg-danger">Failed</span>
+                                    break;
+                                default:
+                                    <span class="badge bg-warning">@j.Status</span>
+                                    break;
+                            }
+                        </td>
+                        <td class="small text-muted">@j.CreatedAt.ToString("dd MMM HH:mm")</td>
+                        <td>
+                            <a asp-page="Review/Index" asp-route-jobId="@j.Id" class="btn btn-xs btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.RecentJobs.Any())
+                {
+                    <tr><td colspan="9" class="text-center text-muted py-4">No jobs yet. <a asp-page="Jobs/Index">Start one →</a></td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    @@keyframes spin { to { transform: rotate(360deg); } }
+    .spin-animation { display: inline-block; animation: spin 1s linear infinite; }
+    .btn-xs { padding: 1px 6px; font-size: .75rem; }
+</style>

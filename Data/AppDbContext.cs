@@ -6,6 +6,7 @@ using GridAcademy.Data.Entities.Exam;
 using GridAcademy.Data.Entities.Marketplace;
 using GridAcademy.Data.Entities.Payment;
 using GridAcademy.Data.Entities.VideoLearning;
+using GridAcademy.Modules.AiGeneration.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace GridAcademy.Data;
@@ -85,6 +86,17 @@ public class AppDbContext : DbContext
     public DbSet<UserRoleMap>  UserRoleMaps  => Set<UserRoleMap>();
     public DbSet<Group>        Groups        => Set<Group>();
     public DbSet<UserGroup>    UserGroups    => Set<UserGroup>();
+
+    // ── AI Generation Module ───────────────────────────────────────────────
+    public DbSet<QuestionTranslation>      QuestionTranslations      => Set<QuestionTranslation>();
+    public DbSet<AiExamConfig>             AiExamConfigs             => Set<AiExamConfig>();
+    public DbSet<AiExamSection>            AiExamSections            => Set<AiExamSection>();
+    public DbSet<AiExamTopic>              AiExamTopics              => Set<AiExamTopic>();
+    public DbSet<GenerationPromptTemplate> GenerationPromptTemplates => Set<GenerationPromptTemplate>();
+    public DbSet<GenerationJob>            GenerationJobs            => Set<GenerationJob>();
+    public DbSet<QuestionDraft>            QuestionDrafts            => Set<QuestionDraft>();
+    public DbSet<LlmUsage>                 LlmUsages                 => Set<LlmUsage>();
+    public DbSet<QuestionReport>           QuestionReports           => Set<QuestionReport>();
 
     // ── Career Guide ────────────────────────────────────────────
     public DbSet<CareerQuizQuestion> CareerQuizQuestions => Set<CareerQuizQuestion>();
@@ -342,6 +354,9 @@ public class AppDbContext : DbContext
             e.Property(q => q.AssertionText).HasColumnName("assertion_text");
             e.Property(q => q.ReasonText).HasColumnName("reason_text");
             e.Property(q => q.PassageId).HasColumnName("passage_id");
+
+            // AI provenance
+            e.Property(q => q.IsAiGenerated).HasColumnName("is_ai_generated").HasDefaultValue(false);
 
             // Audit
             e.Property(q => q.CreatedAt).HasColumnName("created_at");
@@ -1129,7 +1144,203 @@ public class AppDbContext : DbContext
             e.Property(x => x.SortOrder).HasColumnName("sort_order");
             e.HasIndex(x => x.QuestionId).HasDatabaseName("ix_career_quiz_options_question_id");
         });
-    }
+
+        // ══════════════════════════════════════════════════════════════════════
+        // AI GENERATION MODULE
+        // ══════════════════════════════════════════════════════════════════════
+
+        // ── QuestionTranslation ────────────────────────────────────────────
+        modelBuilder.Entity<QuestionTranslation>(e =>
+        {
+            e.ToTable("question_translations");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").UseIdentityAlwaysColumn();
+            e.Property(x => x.SourceQuestionId).HasColumnName("source_question_id");
+            e.Property(x => x.Language).HasColumnName("language").HasMaxLength(10);
+            e.Property(x => x.Text).HasColumnName("text").IsRequired();
+            e.Property(x => x.Solution).HasColumnName("solution");
+            e.Property(x => x.OptionsJson).HasColumnName("options_json").HasColumnType("jsonb");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+            e.Property(x => x.CreatedBy).HasColumnName("created_by");
+            e.HasOne(x => x.SourceQuestion).WithMany().HasForeignKey(x => x.SourceQuestionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.SourceQuestionId, x.Language }).IsUnique().HasDatabaseName("ix_question_translations_source_lang");
+        });
+
+        // ── AiExamConfig ───────────────────────────────────────────────────
+        modelBuilder.Entity<AiExamConfig>(e =>
+        {
+            e.ToTable("ai_exam_configs");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").UseIdentityAlwaysColumn();
+            e.Property(x => x.ExamPageId).HasColumnName("exam_page_id");
+            e.Property(x => x.IsAiEnabled).HasColumnName("is_ai_enabled").HasDefaultValue(false);
+            e.Property(x => x.Notes).HasColumnName("notes");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+            e.HasOne(x => x.ExamPage).WithMany().HasForeignKey(x => x.ExamPageId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.ExamPageId).IsUnique().HasDatabaseName("ix_ai_exam_configs_exam_page_id");
+        });
+
+        // ── AiExamSection ──────────────────────────────────────────────────
+        modelBuilder.Entity<AiExamSection>(e =>
+        {
+            e.ToTable("ai_exam_sections");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").UseIdentityAlwaysColumn();
+            e.Property(x => x.AiExamConfigId).HasColumnName("ai_exam_config_id");
+            e.Property(x => x.SectionName).HasColumnName("section_name").HasMaxLength(200);
+            e.Property(x => x.SubjectId).HasColumnName("subject_id");
+            e.Property(x => x.WeightagePercent).HasColumnName("weightage_percent").HasColumnType("numeric(5,2)");
+            e.Property(x => x.NumberOfQuestions).HasColumnName("number_of_questions").HasDefaultValue(25);
+            e.Property(x => x.SortOrder).HasColumnName("sort_order").HasDefaultValue(0);
+            e.Property(x => x.MarksId).HasColumnName("marks_id");
+            e.Property(x => x.NegativeMarksId).HasColumnName("negative_marks_id");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+            e.HasOne(x => x.AiExamConfig).WithMany(c => c.Sections).HasForeignKey(x => x.AiExamConfigId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Subject).WithMany().HasForeignKey(x => x.SubjectId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(x => x.AiExamConfigId).HasDatabaseName("ix_ai_exam_sections_config_id");
+        });
+
+        // ── AiExamTopic ────────────────────────────────────────────────────
+        modelBuilder.Entity<AiExamTopic>(e =>
+        {
+            e.ToTable("ai_exam_topics");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").UseIdentityAlwaysColumn();
+            e.Property(x => x.AiExamSectionId).HasColumnName("ai_exam_section_id");
+            e.Property(x => x.TopicId).HasColumnName("topic_id");
+            e.Property(x => x.TopicName).HasColumnName("topic_name").HasMaxLength(200);
+            e.Property(x => x.SyllabusText).HasColumnName("syllabus_text");
+            e.Property(x => x.ReferenceQuestionsJson).HasColumnName("reference_questions_json").HasColumnType("jsonb");
+            e.Property(x => x.SortOrder).HasColumnName("sort_order").HasDefaultValue(0);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+            e.HasOne(x => x.AiExamSection).WithMany(s => s.Topics).HasForeignKey(x => x.AiExamSectionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Topic).WithMany().HasForeignKey(x => x.TopicId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(x => x.AiExamSectionId).HasDatabaseName("ix_ai_exam_topics_section_id");
+        });
+
+        // ── GenerationPromptTemplate ───────────────────────────────────────
+        modelBuilder.Entity<GenerationPromptTemplate>(e =>
+        {
+            e.ToTable("generation_prompt_templates");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").UseIdentityAlwaysColumn();
+            e.Property(x => x.AiExamConfigId).HasColumnName("ai_exam_config_id");
+            e.Property(x => x.AiExamSectionId).HasColumnName("ai_exam_section_id");
+            e.Property(x => x.Version).HasColumnName("version");
+            e.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            e.Property(x => x.PromptText).HasColumnName("prompt_text");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+            e.Property(x => x.CreatedBy).HasColumnName("created_by");
+            e.HasOne(x => x.AiExamConfig).WithMany(c => c.PromptTemplates).HasForeignKey(x => x.AiExamConfigId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.AiExamSection).WithMany(s => s.PromptTemplates).HasForeignKey(x => x.AiExamSectionId).IsRequired(false).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.AiExamConfigId, x.AiExamSectionId, x.Version }).HasDatabaseName("ix_generation_prompt_templates_config_section_ver");
+        });
+
+        // ── GenerationJob ──────────────────────────────────────────────────
+        modelBuilder.Entity<GenerationJob>(e =>
+        {
+            e.ToTable("generation_jobs");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").UseIdentityAlwaysColumn();
+            e.Property(x => x.ExamPageId).HasColumnName("exam_page_id");
+            e.Property(x => x.AiExamSectionId).HasColumnName("ai_exam_section_id");
+            e.Property(x => x.AiExamTopicId).HasColumnName("ai_exam_topic_id");
+            e.Property(x => x.Difficulty).HasColumnName("difficulty").HasMaxLength(20);
+            e.Property(x => x.Language).HasColumnName("language").HasMaxLength(10);
+            e.Property(x => x.Count).HasColumnName("count");
+            e.Property(x => x.Notes).HasColumnName("notes");
+            e.Property(x => x.Status).HasColumnName("status").HasConversion<int>();
+            e.Property(x => x.Generated).HasColumnName("generated").HasDefaultValue(0);
+            e.Property(x => x.AutoFlagged).HasColumnName("auto_flagged").HasDefaultValue(0);
+            e.Property(x => x.AutoRejected).HasColumnName("auto_rejected").HasDefaultValue(0);
+            e.Property(x => x.ErrorMessage).HasColumnName("error_message");
+            e.Property(x => x.HangfireJobId).HasColumnName("hangfire_job_id").HasMaxLength(100);
+            e.Property(x => x.PromptTemplateVersion).HasColumnName("prompt_template_version");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+            e.Property(x => x.CompletedAt).HasColumnName("completed_at");
+            e.Property(x => x.CreatedBy).HasColumnName("created_by");
+            e.HasOne(x => x.ExamPage).WithMany().HasForeignKey(x => x.ExamPageId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.AiExamSection).WithMany().HasForeignKey(x => x.AiExamSectionId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.AiExamTopic).WithMany().HasForeignKey(x => x.AiExamTopicId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(x => x.Status).HasDatabaseName("ix_generation_jobs_status");
+            e.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_generation_jobs_created_at");
+        });
+
+        // ── QuestionDraft ──────────────────────────────────────────────────
+        modelBuilder.Entity<QuestionDraft>(e =>
+        {
+            e.ToTable("question_drafts");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").UseIdentityAlwaysColumn();
+            e.Property(x => x.GenerationJobId).HasColumnName("generation_job_id");
+            e.Property(x => x.SubjectId).HasColumnName("subject_id");
+            e.Property(x => x.TopicId).HasColumnName("topic_id");
+            e.Property(x => x.DifficultyLevelId).HasColumnName("difficulty_level_id");
+            e.Property(x => x.Language).HasColumnName("language").HasMaxLength(10);
+            e.Property(x => x.QuestionText).HasColumnName("question_text");
+            e.Property(x => x.OptionsJson).HasColumnName("options_json").HasColumnType("jsonb");
+            e.Property(x => x.CorrectIndex).HasColumnName("correct_index");
+            e.Property(x => x.Explanation).HasColumnName("explanation");
+            e.Property(x => x.CalculationStepsJson).HasColumnName("calculation_steps_json").HasColumnType("jsonb");
+            e.Property(x => x.DifficultyEstimate).HasColumnName("difficulty_estimate").HasMaxLength(20);
+            e.Property(x => x.EstimatedSeconds).HasColumnName("estimated_seconds");
+            e.Property(x => x.FlagsJson).HasColumnName("flags_json").HasColumnType("jsonb").HasDefaultValue("{}");
+            e.Property(x => x.Status).HasColumnName("status").HasConversion<int>();
+            e.Property(x => x.ReviewerId).HasColumnName("reviewer_id");
+            e.Property(x => x.ReviewNotes).HasColumnName("review_notes");
+            e.Property(x => x.ReviewedAt).HasColumnName("reviewed_at");
+            e.Property(x => x.ApprovedQuestionId).HasColumnName("approved_question_id");
+            e.Property(x => x.SourceQuestionId).HasColumnName("source_question_id");
+            e.Property(x => x.Model).HasColumnName("model").HasMaxLength(100);
+            e.Property(x => x.PromptTemplateVersion).HasColumnName("prompt_template_version");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+            e.HasOne(x => x.GenerationJob).WithMany(j => j.Drafts).HasForeignKey(x => x.GenerationJobId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Subject).WithMany().HasForeignKey(x => x.SubjectId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.Topic).WithMany().HasForeignKey(x => x.TopicId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.DifficultyLevel).WithMany().HasForeignKey(x => x.DifficultyLevelId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(x => x.Status).HasDatabaseName("ix_question_drafts_status");
+            e.HasIndex(x => x.GenerationJobId).HasDatabaseName("ix_question_drafts_job_id");
+        });
+
+        // ── LlmUsage ───────────────────────────────────────────────────────
+        modelBuilder.Entity<LlmUsage>(e =>
+        {
+            e.ToTable("llm_usage");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").UseIdentityAlwaysColumn();
+            e.Property(x => x.Date).HasColumnName("date");
+            e.Property(x => x.Provider).HasColumnName("provider").HasMaxLength(50);
+            e.Property(x => x.Model).HasColumnName("model").HasMaxLength(100);
+            e.Property(x => x.PromptTokens).HasColumnName("prompt_tokens").HasDefaultValue(0);
+            e.Property(x => x.CompletionTokens).HasColumnName("completion_tokens").HasDefaultValue(0);
+            e.Property(x => x.TotalTokens).HasColumnName("total_tokens").HasDefaultValue(0);
+            e.Property(x => x.RequestCount).HasColumnName("request_count").HasDefaultValue(0);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+            e.HasIndex(x => new { x.Date, x.Provider, x.Model }).IsUnique().HasDatabaseName("ix_llm_usage_date_provider_model");
+        });
+
+        // ── QuestionReport ─────────────────────────────────────────────────
+        modelBuilder.Entity<QuestionReport>(e =>
+        {
+            e.ToTable("question_reports");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").UseIdentityAlwaysColumn();
+            e.Property(x => x.QuestionId).HasColumnName("question_id");
+            e.Property(x => x.ReporterId).HasColumnName("reporter_id");
+            e.Property(x => x.ReportType).HasColumnName("report_type").HasMaxLength(50);
+            e.Property(x => x.ReportText).HasColumnName("report_text");
+            e.Property(x => x.Status).HasColumnName("status").HasConversion<int>();
+            e.Property(x => x.ResolvedBy).HasColumnName("resolved_by");
+            e.Property(x => x.ResolvedAt).HasColumnName("resolved_at");
+            e.Property(x => x.Resolution).HasColumnName("resolution");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+            e.HasIndex(x => x.QuestionId).HasDatabaseName("ix_question_reports_question_id");
+            e.HasIndex(x => x.Status).HasDatabaseName("ix_question_reports_status");
+        });
+    } // end OnModelCreating
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

@@ -68,6 +68,10 @@ public class Question
     /// <summary>[MatchTheFollowing / MatrixMatch] Correct pair / cell links.</summary>
     public ICollection<QuestionMatchCorrect> MatchCorrect { get; set; } = [];
 
+    // ── AI provenance ─────────────────────────────────────────────────────
+    /// <summary>True when created by the AI generation pipeline and approved by a reviewer.</summary>
+    public bool IsAiGenerated { get; set; } = false;
+
     // ── Audit ──────────────────────────────────────────────────────────────
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

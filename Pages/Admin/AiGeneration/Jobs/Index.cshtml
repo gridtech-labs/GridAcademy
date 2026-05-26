@@ -1,0 +1,200 @@
+@page
+@model GridAcademy.Pages.Admin.AiGeneration.Jobs.IndexModel
+@{ ViewData["Title"] = "Generation Jobs"; }
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-play-circle me-2 text-primary"></i>Generation Jobs</h4>
+        <p class="text-muted small mb-0">Enqueue and monitor AI question generation batches</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-page="/Admin/AiGeneration/Index" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-house me-1"></i>Dashboard
+        </a>
+        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newJobModal">
+            <i class="bi bi-plus-lg me-1"></i>New Job
+        </button>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show py-2">@TempData["Success"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2">@TempData["Error"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+<!-- Filter bar -->
+<form method="get" class="row g-2 mb-3">
+    <div class="col-auto">
+        <select name="StatusFilter" class="form-select form-select-sm">
+            <option value="">All Statuses</option>
+            <option value="1" selected="@(Model.StatusFilter == 1)">Queued</option>
+            <option value="2" selected="@(Model.StatusFilter == 2)">Running</option>
+            <option value="3" selected="@(Model.StatusFilter == 3)">Completed</option>
+            <option value="4" selected="@(Model.StatusFilter == 4)">Failed</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-funnel"></i></button>
+    </div>
+</form>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Difficulty</th>
+                    <th>Lang</th>
+                    <th>Req</th>
+                    <th>Gen</th>
+                    <th>⚑ Flagged</th>
+                    <th>Status</th>
+                    <th>Started</th>
+                    <th>Duration</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var j in Model.Jobs)
+                {
+                    var duration = j.CompletedAt.HasValue
+                        ? (j.CompletedAt.Value - j.CreatedAt).TotalMinutes < 1
+                            ? "<1m"
+                            : (j.CompletedAt.Value - j.CreatedAt).TotalMinutes.ToString("F0") + "m"
+                        : "–";
+                    <tr>
+                        <td class="small text-muted">#@j.Id</td>
+                        <td><span class="badge bg-secondary">@j.Difficulty</span></td>
+                        <td><span class="badge bg-light text-dark border">@j.Language.ToUpper()</span></td>
+                        <td>@j.Count</td>
+                        <td>@j.Generated</td>
+                        <td>@(j.AutoFlagged > 0 ? j.AutoFlagged.ToString() : "–")</td>
+                        <td>
+                            @switch (j.Status)
+                            {
+                                case GridAcademy.Modules.AiGeneration.Domain.Entities.GenerationJobStatus.Queued:
+                                    <span class="badge bg-secondary">Queued</span>
+                                    break;
+                                case GridAcademy.Modules.AiGeneration.Domain.Entities.GenerationJobStatus.Running:
+                                    <span class="badge bg-info">Running</span>
+                                    break;
+                                case GridAcademy.Modules.AiGeneration.Domain.Entities.GenerationJobStatus.Completed:
+                                    <span class="badge bg-success">Done</span>
+                                    break;
+                                case GridAcademy.Modules.AiGeneration.Domain.Entities.GenerationJobStatus.Failed:
+                                    <span class="badge bg-danger" title="@j.ErrorMessage">Failed</span>
+                                    break;
+                                case GridAcademy.Modules.AiGeneration.Domain.Entities.GenerationJobStatus.Cancelled:
+                                    <span class="badge bg-warning text-dark">Cancelled</span>
+                                    break;
+                            }
+                        </td>
+                        <td class="small text-muted">@j.CreatedAt.ToString("dd MMM HH:mm")</td>
+                        <td class="small text-muted">@duration</td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a asp-page="/Admin/AiGeneration/Review/Index" asp-route-jobId="@j.Id"
+                                   class="btn btn-xs btn-outline-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                @if (j.Status is GridAcademy.Modules.AiGeneration.Domain.Entities.GenerationJobStatus.Queued
+                                             or GridAcademy.Modules.AiGeneration.Domain.Entities.GenerationJobStatus.Running)
+                                {
+                                    <form method="post" asp-page-handler="Cancel" style="display:inline">
+                                        <input type="hidden" name="jobId" value="@j.Id" />
+                                        <button type="submit" class="btn btn-xs btn-outline-danger"
+                                                onclick="return confirm('Cancel this job?')">
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                    </form>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Jobs.Any())
+                {
+                    <tr><td colspan="10" class="text-center text-muted py-4">No jobs found.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- New Job Modal -->
+<div class="modal fade" id="newJobModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-robot me-2"></i>New Generation Job</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" asp-page-handler="Enqueue">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Exam <span class="text-danger">*</span></label>
+                        <select asp-for="SelectedExamPageId" class="form-select" required>
+                            <option value="">— Select exam —</option>
+                            @foreach (var e in Model.ExamOptions)
+                            {
+                                <option value="@e.Id">@e.Title</option>
+                            }
+                        </select>
+                        @if (!Model.ExamOptions.Any())
+                        {
+                            <div class="form-text text-danger">No AI-enabled exams. <a asp-page="Exams/Index">Enable one first →</a></div>
+                        }
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Section (optional)</label>
+                        <select asp-for="SelectedSectionId" class="form-select">
+                            <option value="">— All sections —</option>
+                            @foreach (var s in Model.SectionOptions)
+                            {
+                                <option value="@s.Id">@s.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Difficulty</label>
+                            <select asp-for="Difficulty" class="form-select">
+                                <option value="easy">Easy</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Language</label>
+                            <select asp-for="Language" class="form-select">
+                                <option value="en">English</option>
+                                <option value="hi">Hindi</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Count</label>
+                            <input asp-for="Count" type="number" min="1" max="100" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label">Notes (optional)</label>
+                        <input asp-for="Notes" class="form-control" placeholder="e.g. SSC mock test batch 1" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-play-fill me-1"></i>Enqueue Job
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>.btn-xs { padding: 1px 8px; font-size: .75rem; }</style>

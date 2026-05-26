@@ -237,6 +237,47 @@
                 </div>
             </li>
 
+            <!-- ── AI GENERATION ─────────────────────── -->
+            @{
+                var inAiGen = Context.Request.Path.StartsWithSegments("/Admin/AiGeneration");
+            }
+            <li class="nav-item mt-1">
+                <a href="#aiGenMenu" data-bs-toggle="collapse"
+                   class="nav-link text-white d-flex justify-content-between align-items-center @(inAiGen ? "" : "collapsed")"
+                   aria-expanded="@(inAiGen ? "true" : "false")">
+                    <span><i class="bi bi-robot me-2"></i>AI Generation</span>
+                    <i class="bi bi-chevron-down small"></i>
+                </a>
+                <div class="collapse @(inAiGen ? "show" : "")" id="aiGenMenu">
+                    <ul class="nav flex-column ms-3 mt-1">
+                        <li class="nav-item">
+                            <a asp-page="/Admin/AiGeneration/Index"
+                               class="nav-link py-1 @(Context.Request.Path == "/Admin/AiGeneration" ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-speedometer2 me-2"></i>Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a asp-page="/Admin/AiGeneration/Exams/Index"
+                               class="nav-link py-1 @(Context.Request.Path.StartsWithSegments("/Admin/AiGeneration/Exams") ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-mortarboard me-2"></i>Exam Config
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a asp-page="/Admin/AiGeneration/Jobs/Index"
+                               class="nav-link py-1 @(Context.Request.Path.StartsWithSegments("/Admin/AiGeneration/Jobs") ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-play-circle me-2"></i>Jobs
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a asp-page="/Admin/AiGeneration/Review/Index"
+                               class="nav-link py-1 @(Context.Request.Path.StartsWithSegments("/Admin/AiGeneration/Review") ? "text-white active" : "text-white-50")">
+                                <i class="bi bi-clipboard2-check me-2"></i>Review Queue
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
             <!-- ── CAREER GUIDE ──────────────────────── -->
             @{
                 var inCareerGuide = Context.Request.Path.StartsWithSegments("/Admin/CareerGuide");

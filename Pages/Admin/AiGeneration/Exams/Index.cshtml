@@ -1,0 +1,96 @@
+@page
+@model GridAcademy.Pages.Admin.AiGeneration.Exams.IndexModel
+@{ ViewData["Title"] = "AI Exam Config"; }
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-mortarboard me-2 text-primary"></i>Exam AI Configuration</h4>
+        <p class="text-muted small mb-0">Enable AI generation and configure sections per exam</p>
+    </div>
+    <a asp-page="/Admin/AiGeneration/Index" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Dashboard
+    </a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show py-2">
+        <i class="bi bi-check-circle me-1"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-4">
+        <input type="text" name="Search" value="@Model.Search" class="form-control form-control-sm"
+               placeholder="Search exams…" />
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-search"></i>
+        </button>
+    </div>
+</form>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Exam</th>
+                    <th class="text-center">AI Enabled</th>
+                    <th class="text-center">Sections</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.ExamRows)
+                {
+                    <tr>
+                        <td class="fw-semibold">@row.Title</td>
+                        <td class="text-center">
+                            <form method="post" asp-page-handler="Toggle" style="display:inline">
+                                <input type="hidden" name="examPageId" value="@row.ExamPageId" />
+                                <button type="submit" class="btn btn-xs @(row.IsEnabled ? "btn-success" : "btn-outline-secondary")"
+                                        title="@(row.IsEnabled ? "Disable AI" : "Enable AI")">
+                                    <i class="bi @(row.IsEnabled ? "bi-check-circle-fill" : "bi-circle")"></i>
+                                    @(row.IsEnabled ? "Enabled" : "Disabled")
+                                </button>
+                            </form>
+                        </td>
+                        <td class="text-center">
+                            @if (row.SectionCount > 0)
+                            {
+                                <span class="badge bg-primary">@row.SectionCount</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">–</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            @if (row.ConfigId.HasValue)
+                            {
+                                <a asp-page="Edit" asp-route-id="@row.ConfigId" class="btn btn-xs btn-outline-primary">
+                                    <i class="bi bi-pencil"></i> Configure
+                                </a>
+                            }
+                            else if (row.IsEnabled)
+                            {
+                                <a asp-page="Edit" asp-route-examPageId="@row.ExamPageId" class="btn btn-xs btn-primary">
+                                    <i class="bi bi-gear"></i> Set Up
+                                </a>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (!Model.ExamRows.Any())
+                {
+                    <tr><td colspan="4" class="text-center text-muted py-4">No exams found.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>.btn-xs { padding: 1px 8px; font-size: .75rem; }</style>

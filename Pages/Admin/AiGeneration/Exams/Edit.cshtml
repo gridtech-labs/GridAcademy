@@ -1,0 +1,201 @@
+@page "{id:int?}"
+@model GridAcademy.Pages.Admin.AiGeneration.Exams.EditModel
+@{ ViewData["Title"] = "AI Exam Config — " + Model.ExamTitle; }
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-gear me-2 text-primary"></i>@Model.ExamTitle</h4>
+        <p class="text-muted small mb-0">AI generation configuration</p>
+    </div>
+    <a asp-page="Index" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show py-2">@TempData["Success"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2">@TempData["Error"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+@if (Model.Config is null)
+{
+    <p class="text-danger">Configuration not found.</p>
+    return;
+}
+
+<!-- 3-tab interface -->
+<ul class="nav nav-pills mb-3" id="aiConfigTabs">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="pill" href="#tab-config"><i class="bi bi-sliders me-1"></i>Config</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#tab-sections"><i class="bi bi-list-ul me-1"></i>Sections &amp; Topics</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#tab-prompt"><i class="bi bi-file-earmark-text me-1"></i>Prompt Template</a></li>
+</ul>
+
+<div class="tab-content">
+
+    <!-- ── Tab 1: Config ──────────────────────────────────────────────── -->
+    <div class="tab-pane fade show active" id="tab-config">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <form method="post" asp-page-handler="SaveConfig">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Notes (internal)</label>
+                        <textarea name="notes" class="form-control" rows="3">@Model.Config.Notes</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Config ID</label>
+                        <input type="text" class="form-control" value="@Model.Config.Id" readonly />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Created</label>
+                        <input type="text" class="form-control" value="@Model.Config.CreatedAt.ToString("dd MMM yyyy HH:mm")" readonly />
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-save me-1"></i>Save
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Tab 2: Sections & Topics ──────────────────────────────────── -->
+    <div class="tab-pane fade" id="tab-sections">
+        <!-- Add Section -->
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white py-2 fw-semibold">Add Section</div>
+            <div class="card-body">
+                <form method="post" asp-page-handler="AddSection" class="row g-2 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label small">Section Name</label>
+                        <input asp-for="SectionName" class="form-control form-control-sm" placeholder="e.g. Reasoning" required />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small">Subject</label>
+                        <select asp-for="SectionSubjectId" class="form-select form-select-sm">
+                            <option value="">— None —</option>
+                            @foreach (var s in Model.SubjectOptions)
+                            {
+                                <option value="@s.Id">@s.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Questions</label>
+                        <input asp-for="SectionNumQuestions" type="number" min="1" max="200" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg"></i> Add</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Sections list -->
+        @foreach (var sec in Model.Sections)
+        {
+            var sectionTopics = Model.Topics.Where(t => t.AiExamSectionId == sec.Id).ToList();
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                    <span class="fw-semibold"><i class="bi bi-layers me-1 text-primary"></i>@sec.SectionName
+                        @if (sec.SubjectId.HasValue)
+                        {
+                            var subjectName = Model.SubjectOptions.FirstOrDefault(s => s.Id == sec.SubjectId).Name;
+                            <span class="badge bg-info ms-2">@subjectName</span>
+                        }
+                        <span class="badge bg-secondary ms-1">@sec.NumberOfQuestions q</span>
+                    </span>
+                    <form method="post" asp-page-handler="DeleteSection" style="display:inline">
+                        <input type="hidden" name="sectionId" value="@sec.Id" />
+                        <button type="submit" class="btn btn-xs btn-outline-danger"
+                                onclick="return confirm('Delete this section and all its topics?')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
+                <div class="card-body pt-2 pb-2">
+                    <!-- Topics in this section -->
+                    @if (sectionTopics.Any())
+                    {
+                        <table class="table table-sm mb-2">
+                            <tbody>
+                                @foreach (var t in sectionTopics)
+                                {
+                                    <tr>
+                                        <td>@t.TopicName</td>
+                                        <td class="text-muted small">
+                                            @(string.IsNullOrEmpty(t.SyllabusText) ? "No syllabus" : "Has syllabus")
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    <!-- Add topic to this section -->
+                    <form method="post" asp-page-handler="AddTopic" class="row g-2 align-items-end mt-1">
+                        <input type="hidden" asp-for="TopicSectionId" value="@sec.Id" />
+                        <div class="col-md-3">
+                            <input asp-for="TopicName" class="form-control form-control-sm" placeholder="Topic name" required />
+                        </div>
+                        <div class="col-md-3">
+                            <select asp-for="TopicTopicId" class="form-select form-select-sm">
+                                <option value="">— Map to topic —</option>
+                                @foreach (var t in Model.TopicOptions)
+                                {
+                                    <option value="@t.Id">@t.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <input asp-for="TopicSyllabus" class="form-control form-control-sm" placeholder="Syllabus (optional)" />
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-xs btn-outline-primary"><i class="bi bi-plus-lg"></i></button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        }
+        @if (!Model.Sections.Any())
+        {
+            <p class="text-muted">No sections yet. Add one above.</p>
+        }
+    </div>
+
+    <!-- ── Tab 3: Prompt Template ──────────────────────────────────────── -->
+    <div class="tab-pane fade" id="tab-prompt">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-2 d-flex justify-content-between">
+                <span class="fw-semibold"><i class="bi bi-file-earmark-text me-1"></i>Prompt Template</span>
+                @if (Model.ActiveTemplate is not null)
+                {
+                    <span class="badge bg-success">Active: v@(Model.ActiveTemplate.Version)</span>
+                }
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-2">
+                    Available placeholders: <code>&#123;&#123;SECTION&#125;&#125;</code>,
+                    <code>&#123;&#123;TOPIC&#125;&#125;</code>,
+                    <code>&#123;&#123;DIFFICULTY&#125;&#125;</code>,
+                    <code>&#123;&#123;COUNT&#125;&#125;</code>,
+                    <code>&#123;&#123;LANGUAGE&#125;&#125;</code>,
+                    <code>&#123;&#123;SYLLABUS_BLOCK&#125;&#125;</code>,
+                    <code>&#123;&#123;REFERENCE_BLOCK&#125;&#125;</code>.
+                    Leave blank to use the built-in default.
+                </p>
+                <form method="post" asp-page-handler="SavePrompt">
+                    <textarea asp-for="PromptText" class="form-control font-monospace small" rows="20"
+                              placeholder="Leave blank to use built-in default…">@(Model.ActiveTemplate?.PromptText ?? "")</textarea>
+                    <div class="mt-2">
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="bi bi-save me-1"></i>Save as New Version
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<style>.btn-xs { padding: 1px 8px; font-size: .75rem; }</style>

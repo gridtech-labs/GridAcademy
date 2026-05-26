@@ -57,6 +57,10 @@ public static class DbSeeder
         try { await EnsureCareerGuideTablesAsync(db); }
         catch (Exception ex) { logger.LogError(ex, "EnsureCareerGuideTablesAsync failed"); }
 
+        // ── AI Generation tables ───────────────────────────────────────────
+        try { await EnsureAiGenerationTablesAsync(db); }
+        catch (Exception ex) { logger.LogError(ex, "EnsureAiGenerationTablesAsync failed"); }
+
         // ── Migrate VlDomain → exam_categories, VlVideoCategory → exam_sub_categories
         try { await MigrateVlCategoriesToExamMastersAsync(db); }
         catch (Exception ex) { logger.LogError(ex, "MigrateVlCategoriesToExamMastersAsync failed"); }
@@ -946,6 +950,428 @@ public static class DbSeeder
 
         // ── Seed 5 default quiz questions (only if table is empty) ────────────
         await SeedCareerQuizQuestionsAsync(db);
+    }
+
+    // ── AI Generation tables ─────────────────────────────────────────────────
+    // Each statement is individually guarded so one failure never blocks the rest.
+    private static async Task EnsureAiGenerationTablesAsync(AppDbContext db)
+    {
+        // ── 18. Enable pgvector extension ─────────────────────────────────────
+        // Wrapped in a try/catch — on Railway the superuser role is needed.
+        // If it fails the rest of the tables still work; embeddings just stay off.
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS vector;");
+        }
+        catch { /* pgvector not available — embeddings feature disabled */ }
+
+        // ── 19. is_ai_generated column on questions ───────────────────────────
+        await db.Database.ExecuteSqlRawAsync("""
+            ALTER TABLE questions
+                ADD COLUMN IF NOT EXISTS is_ai_generated boolean NOT NULL DEFAULT false;
+            """);
+
+        // ── 20. question_translations ─────────────────────────────────────────
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS question_translations (
+                id                  integer     GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                source_question_id  uuid        NOT NULL,
+                language            varchar(10) NOT NULL DEFAULT 'hi',
+                text                text        NOT NULL DEFAULT '',
+                solution            text,
+                options_json        text        NOT NULL DEFAULT '[]',
+                created_at          timestamptz NOT NULL DEFAULT now(),
+                updated_at          timestamptz NOT NULL DEFAULT now(),
+                created_by          uuid
+            );
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE UNIQUE INDEX IF NOT EXISTS ix_question_translations_source_lang
+                ON question_translations (source_question_id, language);
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE  constraint_type = 'FOREIGN KEY'
+                    AND    table_name      = 'question_translations'
+                    AND    constraint_name = 'fk_question_translations_source_question'
+                ) THEN
+                    ALTER TABLE question_translations
+                        ADD CONSTRAINT fk_question_translations_source_question
+                        FOREIGN KEY (source_question_id) REFERENCES questions(id)
+                        ON DELETE CASCADE;
+                END IF;
+            END; $$;
+            """);
+
+        // ── 21. ai_exam_configs ───────────────────────────────────────────────
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS ai_exam_configs (
+                id              integer     GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                exam_page_id    uuid        NOT NULL,
+                is_ai_enabled   boolean     NOT NULL DEFAULT false,
+                notes           text,
+                created_at      timestamptz NOT NULL DEFAULT now(),
+                updated_at      timestamptz NOT NULL DEFAULT now()
+            );
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE UNIQUE INDEX IF NOT EXISTS ix_ai_exam_configs_exam_page_id
+                ON ai_exam_configs (exam_page_id);
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE  constraint_type = 'FOREIGN KEY'
+                    AND    table_name      = 'ai_exam_configs'
+                    AND    constraint_name = 'fk_ai_exam_configs_exam_page_id'
+                ) THEN
+                    ALTER TABLE ai_exam_configs
+                        ADD CONSTRAINT fk_ai_exam_configs_exam_page_id
+                        FOREIGN KEY (exam_page_id) REFERENCES exam_pages(id)
+                        ON DELETE CASCADE;
+                END IF;
+            END; $$;
+            """);
+
+        // ── 22. ai_exam_sections ──────────────────────────────────────────────
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS ai_exam_sections (
+                id                  integer      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                ai_exam_config_id   integer      NOT NULL,
+                section_name        varchar(200) NOT NULL DEFAULT '',
+                subject_id          integer,
+                weightage_percent   numeric(5,2),
+                number_of_questions integer      NOT NULL DEFAULT 25,
+                sort_order          integer      NOT NULL DEFAULT 0,
+                marks_id            integer,
+                negative_marks_id   integer,
+                created_at          timestamptz  NOT NULL DEFAULT now()
+            );
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE INDEX IF NOT EXISTS ix_ai_exam_sections_config_id
+                ON ai_exam_sections (ai_exam_config_id);
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE  constraint_type = 'FOREIGN KEY'
+                    AND    table_name      = 'ai_exam_sections'
+                    AND    constraint_name = 'fk_ai_exam_sections_config_id'
+                ) THEN
+                    ALTER TABLE ai_exam_sections
+                        ADD CONSTRAINT fk_ai_exam_sections_config_id
+                        FOREIGN KEY (ai_exam_config_id) REFERENCES ai_exam_configs(id)
+                        ON DELETE CASCADE;
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE  constraint_type = 'FOREIGN KEY'
+                    AND    table_name      = 'ai_exam_sections'
+                    AND    constraint_name = 'fk_ai_exam_sections_subject_id'
+                ) THEN
+                    ALTER TABLE ai_exam_sections
+                        ADD CONSTRAINT fk_ai_exam_sections_subject_id
+                        FOREIGN KEY (subject_id) REFERENCES subjects(id)
+                        ON DELETE SET NULL;
+                END IF;
+            END; $$;
+            """);
+
+        // ── 23. ai_exam_topics ────────────────────────────────────────────────
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS ai_exam_topics (
+                id                       integer      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                ai_exam_section_id       integer      NOT NULL,
+                topic_id                 integer,
+                topic_name               varchar(200) NOT NULL DEFAULT '',
+                syllabus_text            text,
+                reference_questions_json jsonb,
+                sort_order               integer      NOT NULL DEFAULT 0,
+                created_at               timestamptz  NOT NULL DEFAULT now()
+            );
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE INDEX IF NOT EXISTS ix_ai_exam_topics_section_id
+                ON ai_exam_topics (ai_exam_section_id);
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE  constraint_type = 'FOREIGN KEY'
+                    AND    table_name      = 'ai_exam_topics'
+                    AND    constraint_name = 'fk_ai_exam_topics_section_id'
+                ) THEN
+                    ALTER TABLE ai_exam_topics
+                        ADD CONSTRAINT fk_ai_exam_topics_section_id
+                        FOREIGN KEY (ai_exam_section_id) REFERENCES ai_exam_sections(id)
+                        ON DELETE CASCADE;
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE  constraint_type = 'FOREIGN KEY'
+                    AND    table_name      = 'ai_exam_topics'
+                    AND    constraint_name = 'fk_ai_exam_topics_topic_id'
+                ) THEN
+                    ALTER TABLE ai_exam_topics
+                        ADD CONSTRAINT fk_ai_exam_topics_topic_id
+                        FOREIGN KEY (topic_id) REFERENCES topics(id)
+                        ON DELETE SET NULL;
+                END IF;
+            END; $$;
+            """);
+
+        // ── 24. generation_prompt_templates ───────────────────────────────────
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS generation_prompt_templates (
+                id                  integer     GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                ai_exam_config_id   integer     NOT NULL,
+                ai_exam_section_id  integer,
+                version             integer     NOT NULL DEFAULT 1,
+                is_active           boolean     NOT NULL DEFAULT true,
+                prompt_text         text        NOT NULL DEFAULT '',
+                created_at          timestamptz NOT NULL DEFAULT now(),
+                created_by          uuid
+            );
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE INDEX IF NOT EXISTS ix_generation_prompt_templates_config_id
+                ON generation_prompt_templates (ai_exam_config_id);
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE  constraint_type = 'FOREIGN KEY'
+                    AND    table_name      = 'generation_prompt_templates'
+                    AND    constraint_name = 'fk_generation_prompt_templates_config_id'
+                ) THEN
+                    ALTER TABLE generation_prompt_templates
+                        ADD CONSTRAINT fk_generation_prompt_templates_config_id
+                        FOREIGN KEY (ai_exam_config_id) REFERENCES ai_exam_configs(id)
+                        ON DELETE CASCADE;
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE  constraint_type = 'FOREIGN KEY'
+                    AND    table_name      = 'generation_prompt_templates'
+                    AND    constraint_name = 'fk_generation_prompt_templates_section_id'
+                ) THEN
+                    ALTER TABLE generation_prompt_templates
+                        ADD CONSTRAINT fk_generation_prompt_templates_section_id
+                        FOREIGN KEY (ai_exam_section_id) REFERENCES ai_exam_sections(id)
+                        ON DELETE SET NULL;
+                END IF;
+            END; $$;
+            """);
+
+        // ── 25. generation_jobs ───────────────────────────────────────────────
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS generation_jobs (
+                id                       integer      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                exam_page_id             uuid         NOT NULL,
+                ai_exam_section_id       integer,
+                ai_exam_topic_id         integer,
+                difficulty               varchar(20)  NOT NULL DEFAULT 'medium',
+                language                 varchar(10)  NOT NULL DEFAULT 'en',
+                count                    integer      NOT NULL DEFAULT 10,
+                notes                    text,
+                status                   integer      NOT NULL DEFAULT 1,
+                generated                integer      NOT NULL DEFAULT 0,
+                auto_flagged             integer      NOT NULL DEFAULT 0,
+                auto_rejected            integer      NOT NULL DEFAULT 0,
+                error_message            text,
+                hangfire_job_id          varchar(100),
+                prompt_template_version  integer,
+                created_at               timestamptz  NOT NULL DEFAULT now(),
+                completed_at             timestamptz,
+                created_by               uuid
+            );
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE INDEX IF NOT EXISTS ix_generation_jobs_exam_page_id ON generation_jobs (exam_page_id);
+            CREATE INDEX IF NOT EXISTS ix_generation_jobs_status       ON generation_jobs (status);
+            CREATE INDEX IF NOT EXISTS ix_generation_jobs_created_at   ON generation_jobs (created_at DESC);
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE  constraint_type = 'FOREIGN KEY'
+                    AND    table_name      = 'generation_jobs'
+                    AND    constraint_name = 'fk_generation_jobs_exam_page_id'
+                ) THEN
+                    ALTER TABLE generation_jobs
+                        ADD CONSTRAINT fk_generation_jobs_exam_page_id
+                        FOREIGN KEY (exam_page_id) REFERENCES exam_pages(id)
+                        ON DELETE CASCADE;
+                END IF;
+            END; $$;
+            """);
+
+        // ── 26. question_drafts ───────────────────────────────────────────────
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS question_drafts (
+                id                       integer     GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                generation_job_id        integer     NOT NULL,
+                subject_id               integer,
+                topic_id                 integer,
+                difficulty_level_id      integer,
+                language                 varchar(10) NOT NULL DEFAULT 'en',
+                question_text            text        NOT NULL DEFAULT '',
+                options_json             jsonb       NOT NULL DEFAULT '[]',
+                correct_index            integer     NOT NULL DEFAULT 0,
+                explanation              text,
+                calculation_steps_json   jsonb,
+                difficulty_estimate      varchar(20),
+                estimated_seconds        integer,
+                flags_json               jsonb       NOT NULL DEFAULT '{}',
+                status                   integer     NOT NULL DEFAULT 1,
+                reviewer_id              uuid,
+                review_notes             text,
+                reviewed_at              timestamptz,
+                approved_question_id     uuid,
+                source_question_id       uuid,
+                model                    varchar(100),
+                prompt_template_version  integer,
+                created_at               timestamptz NOT NULL DEFAULT now()
+            );
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE INDEX IF NOT EXISTS ix_question_drafts_job_id ON question_drafts (generation_job_id);
+            CREATE INDEX IF NOT EXISTS ix_question_drafts_status ON question_drafts (status);
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE  constraint_type = 'FOREIGN KEY'
+                    AND    table_name      = 'question_drafts'
+                    AND    constraint_name = 'fk_question_drafts_generation_job_id'
+                ) THEN
+                    ALTER TABLE question_drafts
+                        ADD CONSTRAINT fk_question_drafts_generation_job_id
+                        FOREIGN KEY (generation_job_id) REFERENCES generation_jobs(id)
+                        ON DELETE CASCADE;
+                END IF;
+            END; $$;
+            """);
+
+        // ── 27. question_embeddings (raw SQL only — no EF entity) ─────────────
+        // Uses pgvector. If the extension is not installed, wrapped in DO block.
+        await db.Database.ExecuteSqlRawAsync("""
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector') THEN
+                    -- Create table only when vector type is available
+                    EXECUTE $q$
+                        CREATE TABLE IF NOT EXISTS question_embeddings (
+                            id          integer     GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                            source_id   uuid        NOT NULL,
+                            source      smallint    NOT NULL DEFAULT 1,
+                            embedding   vector(768),
+                            created_at  timestamptz NOT NULL DEFAULT now()
+                        )
+                    $q$;
+                    -- HNSW index for fast cosine similarity search
+                    EXECUTE $q$
+                        CREATE INDEX IF NOT EXISTS ix_question_embeddings_vector
+                        ON question_embeddings USING hnsw (embedding vector_cosine_ops)
+                        WITH (m = 16, ef_construction = 64)
+                    $q$;
+                    -- Lookup index
+                    EXECUTE $q$
+                        CREATE INDEX IF NOT EXISTS ix_question_embeddings_source
+                        ON question_embeddings (source_id, source)
+                    $q$;
+                END IF;
+            END; $$;
+            """);
+
+        // ── 28. llm_usage ─────────────────────────────────────────────────────
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS llm_usage (
+                id                integer      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                date              date         NOT NULL,
+                provider          varchar(50)  NOT NULL DEFAULT 'gemini',
+                model             varchar(100) NOT NULL DEFAULT '',
+                prompt_tokens     integer      NOT NULL DEFAULT 0,
+                completion_tokens integer      NOT NULL DEFAULT 0,
+                total_tokens      integer      NOT NULL DEFAULT 0,
+                request_count     integer      NOT NULL DEFAULT 0,
+                created_at        timestamptz  NOT NULL DEFAULT now(),
+                updated_at        timestamptz  NOT NULL DEFAULT now()
+            );
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE UNIQUE INDEX IF NOT EXISTS ix_llm_usage_date_provider_model
+                ON llm_usage (date, provider, model);
+            """);
+
+        // ── 29. question_reports ──────────────────────────────────────────────
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS question_reports (
+                id          integer     GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                question_id uuid        NOT NULL,
+                reporter_id uuid,
+                report_type varchar(50) NOT NULL DEFAULT 'other',
+                report_text text        NOT NULL DEFAULT '',
+                status      integer     NOT NULL DEFAULT 1,
+                resolved_by uuid,
+                resolved_at timestamptz,
+                resolution  text,
+                created_at  timestamptz NOT NULL DEFAULT now()
+            );
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE INDEX IF NOT EXISTS ix_question_reports_question_id ON question_reports (question_id);
+            CREATE INDEX IF NOT EXISTS ix_question_reports_status       ON question_reports (status);
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE  constraint_type = 'FOREIGN KEY'
+                    AND    table_name      = 'question_reports'
+                    AND    constraint_name = 'fk_question_reports_question_id'
+                ) THEN
+                    ALTER TABLE question_reports
+                        ADD CONSTRAINT fk_question_reports_question_id
+                        FOREIGN KEY (question_id) REFERENCES questions(id)
+                        ON DELETE CASCADE;
+                END IF;
+            END; $$;
+            """);
     }
 
     private static async Task SeedCareerQuizQuestionsAsync(AppDbContext db)
