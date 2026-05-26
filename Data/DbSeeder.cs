@@ -953,26 +953,28 @@ public static class DbSeeder
     }
 
     // ── AI Generation tables ─────────────────────────────────────────────────
-    // Each statement is individually guarded so one failure never blocks the rest.
+    // EVERY statement is individually guarded — one failure never blocks the rest.
+    // This mirrors the EnsurePaymentTablesAsync pattern.
     private static async Task EnsureAiGenerationTablesAsync(AppDbContext db)
     {
-        // ── 18. Enable pgvector extension ─────────────────────────────────────
-        // Wrapped in a try/catch — on Railway the superuser role is needed.
-        // If it fails the rest of the tables still work; embeddings just stay off.
-        try
+        // Helper: execute a single SQL string, swallow any error.
+        static async Task TryExec(AppDbContext db, string sql)
         {
-            await db.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS vector;");
+            try { await db.Database.ExecuteSqlRawAsync(sql); }
+            catch { /* already exists, name collision, or unsupported feature — continue */ }
         }
-        catch { /* pgvector not available — embeddings feature disabled */ }
+
+        // ── 18. Enable pgvector extension ─────────────────────────────────────
+        await TryExec(db, "CREATE EXTENSION IF NOT EXISTS vector;");
 
         // ── 19. is_ai_generated column on questions ───────────────────────────
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             ALTER TABLE questions
                 ADD COLUMN IF NOT EXISTS is_ai_generated boolean NOT NULL DEFAULT false;
             """);
 
         // ── 20. question_translations ─────────────────────────────────────────
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             CREATE TABLE IF NOT EXISTS question_translations (
                 id                  integer     GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                 source_question_id  uuid        NOT NULL,
@@ -986,12 +988,12 @@ public static class DbSeeder
             );
             """);
 
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             CREATE UNIQUE INDEX IF NOT EXISTS ix_question_translations_source_lang
                 ON question_translations (source_question_id, language);
             """);
 
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             DO $$
             BEGIN
                 IF NOT EXISTS (
@@ -1009,7 +1011,7 @@ public static class DbSeeder
             """);
 
         // ── 21. ai_exam_configs ───────────────────────────────────────────────
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             CREATE TABLE IF NOT EXISTS ai_exam_configs (
                 id              integer     GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                 exam_page_id    uuid        NOT NULL,
@@ -1020,12 +1022,12 @@ public static class DbSeeder
             );
             """);
 
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             CREATE UNIQUE INDEX IF NOT EXISTS ix_ai_exam_configs_exam_page_id
                 ON ai_exam_configs (exam_page_id);
             """);
 
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             DO $$
             BEGIN
                 IF NOT EXISTS (
@@ -1036,14 +1038,14 @@ public static class DbSeeder
                 ) THEN
                     ALTER TABLE ai_exam_configs
                         ADD CONSTRAINT fk_ai_exam_configs_exam_page_id
-                        FOREIGN KEY (exam_page_id) REFERENCES exam_pages(id)
+                        FOREIGN KEY (exam_page_id) REFERENCES exam_pages
                         ON DELETE CASCADE;
                 END IF;
             END; $$;
             """);
 
         // ── 22. ai_exam_sections ──────────────────────────────────────────────
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             CREATE TABLE IF NOT EXISTS ai_exam_sections (
                 id                  integer      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                 ai_exam_config_id   integer      NOT NULL,
@@ -1058,12 +1060,12 @@ public static class DbSeeder
             );
             """);
 
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             CREATE INDEX IF NOT EXISTS ix_ai_exam_sections_config_id
                 ON ai_exam_sections (ai_exam_config_id);
             """);
 
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             DO $$
             BEGIN
                 IF NOT EXISTS (
@@ -1092,7 +1094,7 @@ public static class DbSeeder
             """);
 
         // ── 23. ai_exam_topics ────────────────────────────────────────────────
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             CREATE TABLE IF NOT EXISTS ai_exam_topics (
                 id                       integer      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                 ai_exam_section_id       integer      NOT NULL,
@@ -1105,12 +1107,12 @@ public static class DbSeeder
             );
             """);
 
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             CREATE INDEX IF NOT EXISTS ix_ai_exam_topics_section_id
                 ON ai_exam_topics (ai_exam_section_id);
             """);
 
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             DO $$
             BEGIN
                 IF NOT EXISTS (
@@ -1139,7 +1141,7 @@ public static class DbSeeder
             """);
 
         // ── 24. generation_prompt_templates ───────────────────────────────────
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             CREATE TABLE IF NOT EXISTS generation_prompt_templates (
                 id                  integer     GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                 ai_exam_config_id   integer     NOT NULL,
@@ -1152,12 +1154,12 @@ public static class DbSeeder
             );
             """);
 
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             CREATE INDEX IF NOT EXISTS ix_generation_prompt_templates_config_id
                 ON generation_prompt_templates (ai_exam_config_id);
             """);
 
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             DO $$
             BEGIN
                 IF NOT EXISTS (
@@ -1186,7 +1188,7 @@ public static class DbSeeder
             """);
 
         // ── 25. generation_jobs ───────────────────────────────────────────────
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             CREATE TABLE IF NOT EXISTS generation_jobs (
                 id                       integer      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                 exam_page_id             uuid         NOT NULL,
@@ -1209,13 +1211,13 @@ public static class DbSeeder
             );
             """);
 
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             CREATE INDEX IF NOT EXISTS ix_generation_jobs_exam_page_id ON generation_jobs (exam_page_id);
             CREATE INDEX IF NOT EXISTS ix_generation_jobs_status       ON generation_jobs (status);
             CREATE INDEX IF NOT EXISTS ix_generation_jobs_created_at   ON generation_jobs (created_at DESC);
             """);
 
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             DO $$
             BEGIN
                 IF NOT EXISTS (
@@ -1226,14 +1228,14 @@ public static class DbSeeder
                 ) THEN
                     ALTER TABLE generation_jobs
                         ADD CONSTRAINT fk_generation_jobs_exam_page_id
-                        FOREIGN KEY (exam_page_id) REFERENCES exam_pages(id)
+                        FOREIGN KEY (exam_page_id) REFERENCES exam_pages
                         ON DELETE CASCADE;
                 END IF;
             END; $$;
             """);
 
         // ── 26. question_drafts ───────────────────────────────────────────────
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             CREATE TABLE IF NOT EXISTS question_drafts (
                 id                       integer     GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                 generation_job_id        integer     NOT NULL,
@@ -1261,12 +1263,12 @@ public static class DbSeeder
             );
             """);
 
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             CREATE INDEX IF NOT EXISTS ix_question_drafts_job_id ON question_drafts (generation_job_id);
             CREATE INDEX IF NOT EXISTS ix_question_drafts_status ON question_drafts (status);
             """);
 
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             DO $$
             BEGIN
                 IF NOT EXISTS (
@@ -1284,8 +1286,8 @@ public static class DbSeeder
             """);
 
         // ── 27. question_embeddings (raw SQL only — no EF entity) ─────────────
-        // Uses pgvector. If the extension is not installed, wrapped in DO block.
-        await db.Database.ExecuteSqlRawAsync("""
+        // Uses pgvector. If the extension is not installed, the DO block is a no-op.
+        await TryExec(db, """
             DO $$
             BEGIN
                 IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector') THEN
@@ -1315,7 +1317,7 @@ public static class DbSeeder
             """);
 
         // ── 28. llm_usage ─────────────────────────────────────────────────────
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             CREATE TABLE IF NOT EXISTS llm_usage (
                 id                integer      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                 date              date         NOT NULL,
@@ -1330,13 +1332,13 @@ public static class DbSeeder
             );
             """);
 
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             CREATE UNIQUE INDEX IF NOT EXISTS ix_llm_usage_date_provider_model
                 ON llm_usage (date, provider, model);
             """);
 
         // ── 29. question_reports ──────────────────────────────────────────────
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             CREATE TABLE IF NOT EXISTS question_reports (
                 id          integer     GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                 question_id uuid        NOT NULL,
@@ -1351,12 +1353,12 @@ public static class DbSeeder
             );
             """);
 
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             CREATE INDEX IF NOT EXISTS ix_question_reports_question_id ON question_reports (question_id);
             CREATE INDEX IF NOT EXISTS ix_question_reports_status       ON question_reports (status);
             """);
 
-        await db.Database.ExecuteSqlRawAsync("""
+        await TryExec(db, """
             DO $$
             BEGIN
                 IF NOT EXISTS (
