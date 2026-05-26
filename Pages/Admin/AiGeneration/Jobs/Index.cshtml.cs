@@ -123,19 +123,30 @@ public class IndexModel : PageModel
 
     private async Task LoadReferenceDataAsync()
     {
-        ExamOptions = await _db.AiExamConfigs
+        // Project to anonymous type (EF Core can translate that), convert to ValueTuple client-side.
+        ExamOptions = (await _db.AiExamConfigs
             .Where(c => c.IsAiEnabled)
             .Join(_db.ExamPages, c => c.ExamPageId, ep => ep.Id,
-                (c, ep) => new ValueTuple<Guid, string>(ep.Id, ep.Title))
-            .OrderBy(x => x.Item2)
+                  (c, ep) => new { ep.Id, ep.Title })
+            .OrderBy(x => x.Title)
+            .ToListAsync())
+            .Select(x => (x.Id, x.Title))
+            .ToList();
+
+        // Resolve which config IDs correspond to the enabled exams, then fetch their sections.
+        var enabledExamPageIds = ExamOptions.Select(e => e.Id).ToList();
+        var enabledConfigIds   = await _db.AiExamConfigs
+            .Where(c => enabledExamPageIds.Contains(c.ExamPageId))
+            .Select(c => c.Id)
             .ToListAsync();
 
-        SectionOptions = await _db.AiExamSections
-            .Where(s => ExamOptions.Select(e => e.Id).Contains(
-                _db.AiExamConfigs.Where(c => c.Id == s.AiExamConfigId).Select(c => c.ExamPageId).FirstOrDefault()))
+        SectionOptions = (await _db.AiExamSections
+            .Where(s => enabledConfigIds.Contains(s.AiExamConfigId))
             .OrderBy(s => s.SectionName)
-            .Select(s => new ValueTuple<int, string>(s.Id, s.SectionName))
-            .ToListAsync();
+            .Select(s => new { s.Id, s.SectionName })
+            .ToListAsync())
+            .Select(s => (s.Id, s.SectionName))
+            .ToList();
     }
 
     public record JobRow(

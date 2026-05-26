@@ -155,9 +155,23 @@ public class IndexModel : PageModel
 
     private async Task LoadReferenceDataAsync()
     {
-        SubjectOptions    = await _db.Subjects.OrderBy(s => s.Name).Select(s => new ValueTuple<int, string>(s.Id, s.Name)).ToListAsync();
-        TopicOptions      = await _db.Topics.OrderBy(t => t.Name).Select(t => new ValueTuple<int, string>(t.Id, t.Name)).ToListAsync();
-        DifficultyOptions = await _db.DifficultyLevels.OrderBy(d => d.SortOrder).Select(d => new ValueTuple<int, string>(d.Id, d.Name)).ToListAsync();
+        SubjectOptions = (await _db.Subjects
+            .OrderBy(s => s.Name)
+            .Select(s => new { s.Id, s.Name })
+            .ToListAsync())
+            .Select(s => (s.Id, s.Name)).ToList();
+
+        TopicOptions = (await _db.Topics
+            .OrderBy(t => t.Name)
+            .Select(t => new { t.Id, t.Name })
+            .ToListAsync())
+            .Select(t => (t.Id, t.Name)).ToList();
+
+        DifficultyOptions = (await _db.DifficultyLevels
+            .OrderBy(d => d.SortOrder)
+            .Select(d => new { d.Id, d.Name })
+            .ToListAsync())
+            .Select(d => (d.Id, d.Name)).ToList();
     }
 
     // ── View model ──────────────────────────────────────────────────────────

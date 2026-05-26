@@ -23,27 +23,33 @@ public class IndexModel : PageModel
     {
         try
         {
-            // All exam pages joined with their AI config (if any)
-            var query = _db.ExamPages
-                .GroupJoin(
-                    _db.AiExamConfigs,
-                    ep => ep.Id,
-                    cfg => cfg.ExamPageId,
-                    (ep, cfgs) => new { ep, cfg = cfgs.FirstOrDefault() })
-                .Where(x => string.IsNullOrEmpty(Search) || x.ep.Title.Contains(Search));
-
-            var rows = await query
-                .OrderBy(x => x.ep.Title)
+            // Fetch each set independently — avoids complex GroupJoin/correlated-subquery
+            // translation issues across EF Core versions.
+            var examPages = await _db.ExamPages
+                .Where(ep => string.IsNullOrEmpty(Search) || ep.Title.Contains(Search))
+                .OrderBy(ep => ep.Title)
                 .Take(100)
-                .Select(x => new ExamRow(
-                    x.ep.Id,
-                    x.ep.Title,
-                    x.cfg != null ? x.cfg.Id     : (int?)null,
-                    x.cfg != null ? x.cfg.IsAiEnabled : false,
-                    x.cfg != null ? _db.AiExamSections.Count(s => s.AiExamConfigId == x.cfg.Id) : 0))
+                .Select(ep => new { ep.Id, ep.Title })
                 .ToListAsync();
 
-            ExamRows = rows;
+            var configs = await _db.AiExamConfigs
+                .Select(c => new { c.Id, c.ExamPageId, c.IsAiEnabled })
+                .ToListAsync();
+
+            var sectionCounts = await _db.AiExamSections
+                .GroupBy(s => s.AiExamConfigId)
+                .Select(g => new { ConfigId = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            var configByPage    = configs.ToDictionary(c => c.ExamPageId);
+            var countByConfigId = sectionCounts.ToDictionary(s => s.ConfigId, s => s.Count);
+
+            ExamRows = examPages.Select(ep =>
+            {
+                configByPage.TryGetValue(ep.Id, out var cfg);
+                var sections = cfg is not null && countByConfigId.TryGetValue(cfg.Id, out var n) ? n : 0;
+                return new ExamRow(ep.Id, ep.Title, cfg?.Id, cfg?.IsAiEnabled ?? false, sections);
+            }).ToList();
         }
         catch (Exception ex) when (IsSchemaNotReady(ex))
         {
