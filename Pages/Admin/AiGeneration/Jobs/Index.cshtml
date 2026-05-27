@@ -126,14 +126,13 @@
                                         </button>
                                     </form>
                                 }
-                                @if (j.Status == GridAcademy.Modules.AiGeneration.Domain.Entities.GenerationJobStatus.Running
-                                     && (DateTime.UtcNow - j.CreatedAt).TotalMinutes > 30)
+                                @if (j.Status == GridAcademy.Modules.AiGeneration.Domain.Entities.GenerationJobStatus.Running)
                                 {
                                     <form method="post" asp-page-handler="ForceReset" style="display:inline">
                                         <input type="hidden" name="jobId" value="@j.Id" />
                                         <button type="submit" class="btn btn-xs btn-warning text-dark"
                                                 onclick="return confirm('Force-reset this stuck job to Failed? Any drafts already generated will remain in the Review queue.')"
-                                                title="Force Reset — job appears stuck">
+                                                title="Force Reset stuck job">
                                             <i class="bi bi-arrow-counterclockwise"></i>
                                         </button>
                                     </form>
