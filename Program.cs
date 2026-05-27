@@ -413,6 +413,37 @@ _ = Task.Run(async () =>
         Console.WriteLine("[Migration] Starting DB migration in background…");
         await DbSeeder.SeedAsync(db, logger);
         Console.WriteLine("[Migration] DB migration + seed completed successfully.");
+
+        // ── Reset orphaned Running jobs ──────────────────────────────────────
+        // If the server was restarted (Railway redeploy) while a job was running,
+        // generation_jobs.status stays "Running" forever because the process was
+        // killed before RunJobAsync could write the final status.
+        // On every startup, flip those orphaned Running jobs to Failed so the
+        // user can see them and re-queue if needed.
+        try
+        {
+            var orphaned = await db.GenerationJobs
+                .Where(j => j.Status == GridAcademy.Modules.AiGeneration.Domain.Entities.GenerationJobStatus.Running)
+                .ToListAsync();
+            if (orphaned.Count > 0)
+            {
+                foreach (var j in orphaned)
+                {
+                    j.Status       = GridAcademy.Modules.AiGeneration.Domain.Entities.GenerationJobStatus.Failed;
+                    j.ErrorMessage = "Job interrupted — server restarted while this job was running. " +
+                                     "Any questions generated before the restart are in the Review queue. " +
+                                     "Re-queue this job to generate the remainder.";
+                    j.CompletedAt  = j.CompletedAt ?? DateTime.UtcNow;
+                }
+                await db.SaveChangesAsync();
+                Console.WriteLine($"[Migration] Reset {orphaned.Count} orphaned Running job(s) to Failed.");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Non-fatal — orphaned jobs are cosmetic, don't crash startup.
+            Console.Error.WriteLine($"[Migration] Orphan-cleanup skipped: {ex.Message}");
+        }
     }
     catch (Exception ex)
     {

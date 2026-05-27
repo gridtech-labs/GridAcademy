@@ -20,6 +20,9 @@ public sealed class GenerationWorkerJob
     }
 
     /// <summary>Entry point called by Hangfire. jobId = generation_jobs.id.</summary>
+    // AutomaticRetry(0) — retries at the LLM level (GeminiLlmProvider) are sufficient.
+    // Hangfire retries would re-run from scratch and duplicate already-saved drafts.
+    [AutomaticRetry(Attempts = 0)]
     [Queue("default")]
     public async Task ExecuteAsync(int jobId, CancellationToken ct)
     {
