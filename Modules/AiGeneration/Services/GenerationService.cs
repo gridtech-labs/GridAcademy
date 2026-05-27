@@ -107,21 +107,28 @@ public sealed class GenerationService
         int remaining = Math.Min(job.Count, 200); // safety cap
         int batchSize = Math.Min(remaining, _maxPerBatch);
 
-        while (remaining > 0 && !ct.IsCancellationRequested)
+        while (remaining > 0)
         {
+            // Check cancellation only between batches — never mid-call.
+            // Once a Gemini call starts, Google has already received it and will
+            // charge for it regardless of whether we cancel on our side.
+            // Cancelling mid-call means we pay but save nothing.
+            ct.ThrowIfCancellationRequested();
+
             int thisBatch = Math.Min(remaining, batchSize);
             var jobCopy   = CloneJobWithCount(job, thisBatch);
-
-            var topic = job.AiExamTopic;
+            var topic     = job.AiExamTopic;
 
             // 1. Build prompt
-            var prompt = await _promptBuilder.BuildAsync(jobCopy, topic, ct);
+            var prompt = await _promptBuilder.BuildAsync(jobCopy, topic, CancellationToken.None);
 
-            // 2. LLM call
+            // 2. LLM call — use CancellationToken.None so we always read the response.
+            //    Cancelling mid-HTTP means Gemini processed the request (billed) but
+            //    we discard the result and save nothing. Always complete the call.
             LlmCompletion completion;
             try
             {
-                completion = await _llm.CompleteAsync(prompt, ct);
+                completion = await _llm.CompleteAsync(prompt, CancellationToken.None);
             }
             catch (Exception ex)
             {
@@ -129,8 +136,8 @@ public sealed class GenerationService
                 throw;
             }
 
-            await _usageTracker.RecordAsync(completion, ct);
-            job.PromptTemplateVersion = await GetActiveTemplateVersionAsync(job, ct);
+            await _usageTracker.RecordAsync(completion, CancellationToken.None);
+            job.PromptTemplateVersion = await GetActiveTemplateVersionAsync(job, CancellationToken.None);
 
             // 3. Parse JSON array
             List<GeneratedQuestion> questions;
@@ -145,17 +152,16 @@ public sealed class GenerationService
                 throw;
             }
 
-            // 4. Process each question
+            // 4. Process and persist each question immediately.
+            //    Save after each question (not the whole batch) so a restart
+            //    only loses the current in-flight question, not the entire batch.
             foreach (var q in questions)
             {
-                ct.ThrowIfCancellationRequested();
-                await ProcessOneAsync(job, q, ct);
+                await ProcessOneAsync(job, q, CancellationToken.None);
+                await _db.SaveChangesAsync(CancellationToken.None); // never cancel a save
             }
 
             remaining -= thisBatch;
-
-            // Refresh progress
-            await _db.SaveChangesAsync(ct);
         }
     }
 
