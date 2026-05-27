@@ -33,14 +33,25 @@ public sealed class GeminiLlmProvider : ILLMProvider
         _baseUrl  = cfg["Ai:Gemini:BaseUrl"] ?? "https://generativelanguage.googleapis.com/v1beta";
         ModelName = cfg["Ai:Gemini:GenerationModel"] ?? "gemini-2.0-flash";
 
+        // NOTE: do NOT throw here — constructor exceptions prevent Hangfire from
+        // ever running the job, so generation_jobs.status stays "Queued" forever.
+        // Validation happens in CompleteAsync so RunJobAsync can catch and persist
+        // the error with status = Failed.
         if (string.IsNullOrWhiteSpace(_apiKey))
-            throw new InvalidOperationException(
-                "Ai:Gemini:ApiKey is not configured. " +
-                "Set the environment variable  Ai__Gemini__ApiKey  in Railway → Variables.");
+            _log.LogWarning(
+                "Ai:Gemini:ApiKey is empty — LLM calls will fail. " +
+                "Set env var  Ai__Gemini__ApiKey  in Railway → Variables.");
     }
 
     public async Task<LlmCompletion> CompleteAsync(string prompt, CancellationToken ct = default)
     {
+        // Validate here (not in constructor) so Hangfire can resolve the service
+        // and RunJobAsync can catch this and write status = Failed to the DB.
+        if (string.IsNullOrWhiteSpace(_apiKey))
+            throw new InvalidOperationException(
+                "Ai:Gemini:ApiKey is not configured. " +
+                "Set the environment variable  Ai__Gemini__ApiKey  in Railway → Variables.");
+
         var url = $"{_baseUrl}/models/{ModelName}:generateContent?key={_apiKey}";
 
         var body = new
