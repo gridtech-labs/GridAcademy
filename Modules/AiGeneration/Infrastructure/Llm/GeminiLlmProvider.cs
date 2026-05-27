@@ -29,8 +29,8 @@ public sealed class GeminiLlmProvider : ILLMProvider
     public string ProviderName => "gemini";
     public string ModelName    { get; }
 
-    // Max number of 429 retries before giving up.
-    private const int MaxRetries = 3;
+    // Max attempts for retryable errors (429 rate-limit, 503 overload).
+    private const int MaxRetries = 5;
 
     private static readonly JsonSerializerOptions _json = new()
     {
@@ -90,7 +90,7 @@ public sealed class GeminiLlmProvider : ILLMProvider
 
         var bodyJson = JsonSerializer.Serialize(bodyObj, _json);
 
-        // ── Retry loop for 429 rate-limit responses ───────────────────────────
+        // ── Retry loop: handles 429 (rate-limit) and 503 (overload) ─────────
         for (int attempt = 1; attempt <= MaxRetries; attempt++)
         {
             var content = new StringContent(bodyJson, Encoding.UTF8, "application/json");
@@ -131,6 +131,28 @@ public sealed class GeminiLlmProvider : ILLMProvider
                     "Gemini 429 (attempt {Attempt}/{Max}, model {Model}) — waiting {Delay}s…",
                     attempt, MaxRetries, ModelName, delaySec);
 
+                await Task.Delay(TimeSpan.FromSeconds(delaySec), ct);
+                continue; // retry
+            }
+
+            // ── 503 Service Unavailable (transient overload) ──────────────────
+            if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
+            {
+                if (attempt == MaxRetries)
+                {
+                    _log.LogError(
+                        "Gemini 503 after {Max} attempts for model {Model}. Giving up.",
+                        MaxRetries, ModelName);
+                    throw new HttpRequestException(
+                        $"Gemini 503 — service temporarily unavailable after {MaxRetries} retries. " +
+                        "Re-queue the job in a few minutes.");
+                }
+
+                // Exponential backoff: 10s, 20s, 40s, 80s
+                var delaySec = (int)Math.Pow(2, attempt) * 5;
+                _log.LogWarning(
+                    "Gemini 503 overload (attempt {Attempt}/{Max}, model {Model}) — waiting {Delay}s…",
+                    attempt, MaxRetries, ModelName, delaySec);
                 await Task.Delay(TimeSpan.FromSeconds(delaySec), ct);
                 continue; // retry
             }
