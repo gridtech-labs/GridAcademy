@@ -9,12 +9,15 @@ namespace GridAcademy.Modules.AiGeneration.Infrastructure.Llm;
 
 /// <summary>
 /// Calls Google Gemini generateContent REST API.
-/// Default model: gemini-1.5-flash (configurable via Ai:Gemini:GenerationModel).
+/// Default model: gemini-2.0-flash-lite (configurable via Ai:Gemini:GenerationModel).
 ///
 /// IMPORTANT — API key source:
 ///   Use a key from https://aistudio.google.com/apikey (AI Studio), NOT from
 ///   Google Cloud Console. AI Studio keys include the free tier.
 ///   Cloud Console keys default to limit=0 free-tier quota and return 429.
+///
+/// To list models available for your key:
+///   GET https://generativelanguage.googleapis.com/v1beta/models?key=YOUR_KEY
 /// </summary>
 public sealed class GeminiLlmProvider : ILLMProvider
 {
@@ -41,9 +44,10 @@ public sealed class GeminiLlmProvider : ILLMProvider
         _apiKey   = cfg["Ai:Gemini:ApiKey"] ?? "";
         _baseUrl  = cfg["Ai:Gemini:BaseUrl"] ?? "https://generativelanguage.googleapis.com/v1beta";
 
-        // Default changed to gemini-1.5-flash — it has a generous free tier.
-        // gemini-2.0-flash requires billing on Cloud Console keys (returns 429 limit=0).
-        ModelName = cfg["Ai:Gemini:GenerationModel"] ?? "gemini-1.5-flash";
+        // Default: gemini-2.0-flash-lite — designed for free-tier / low-cost usage.
+        // gemini-1.5-flash is deprecated (404). gemini-2.0-flash needs billing (429 limit=0).
+        // Override via Railway Variable: Ai__Gemini__GenerationModel
+        ModelName = cfg["Ai:Gemini:GenerationModel"] ?? "gemini-2.0-flash-lite";
 
         // NOTE: do NOT throw here — constructor exceptions prevent Hangfire from
         // resolving the job, so generation_jobs.status stays "Queued" forever.
@@ -129,6 +133,18 @@ public sealed class GeminiLlmProvider : ILLMProvider
 
                 await Task.Delay(TimeSpan.FromSeconds(delaySec), ct);
                 continue; // retry
+            }
+
+            // ── 404 Model Not Found ────────────────────────────────────────────
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                var errBody = await response.Content.ReadAsStringAsync(ct);
+                _log.LogError("Gemini 404 for model {Model}: {Body}", ModelName, errBody);
+                throw new HttpRequestException(
+                    $"Gemini model '{ModelName}' not found (404). " +
+                    $"To see available models for your key, open: " +
+                    $"{_baseUrl}/models?key=<your-key> — then set " +
+                    $"Ai__Gemini__GenerationModel in Railway Variables to a working model name.");
             }
 
             // ── Other HTTP error ───────────────────────────────────────────────
