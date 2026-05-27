@@ -111,12 +111,38 @@ public class IndexModel : PageModel
         if (job is not null && job.Status is GenerationJobStatus.Queued or GenerationJobStatus.Running)
         {
             if (!string.IsNullOrEmpty(job.HangfireJobId))
-                BackgroundJob.Delete(job.HangfireJobId);
+            {
+                try { BackgroundJob.Delete(job.HangfireJobId); }
+                catch { /* Hangfire job already gone — still update our DB status */ }
+            }
 
             job.Status      = GenerationJobStatus.Cancelled;
             job.CompletedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
             TempData["Success"] = $"Job #{jobId} cancelled.";
+        }
+        return RedirectToPage();
+    }
+
+    // Force-resets a job that is stuck in Running (e.g. after a server restart).
+    public async Task<IActionResult> OnPostForceResetAsync(int jobId)
+    {
+        var job = await _db.GenerationJobs.FindAsync(jobId);
+        if (job is not null && job.Status == GenerationJobStatus.Running)
+        {
+            if (!string.IsNullOrEmpty(job.HangfireJobId))
+            {
+                try { BackgroundJob.Delete(job.HangfireJobId); }
+                catch { /* already gone */ }
+            }
+
+            job.Status       = GenerationJobStatus.Failed;
+            job.ErrorMessage = "Manually reset — job was stuck in Running state " +
+                               "(server was likely restarted while job was executing). " +
+                               "Any drafts generated before the restart are in the Review queue.";
+            job.CompletedAt  = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+            TempData["Success"] = $"Job #{jobId} has been force-reset to Failed.";
         }
         return RedirectToPage();
     }

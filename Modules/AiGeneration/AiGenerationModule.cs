@@ -59,8 +59,9 @@ public static class AiGenerationModule
         services.AddTransient<GenerationService>();
         services.AddTransient<ReviewService>();
 
-        // ── Hangfire job ─────────────────────────────────────────────────────
+        // ── Hangfire jobs ────────────────────────────────────────────────────
         services.AddTransient<GenerationWorkerJob>();
+        services.AddTransient<OrphanedJobCleanerJob>();
 
         return services;
     }

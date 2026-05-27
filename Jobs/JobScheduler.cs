@@ -1,3 +1,4 @@
+using GridAcademy.Modules.AiGeneration.Jobs;
 using Hangfire;
 
 namespace GridAcademy.Jobs;
@@ -37,6 +38,13 @@ public static class JobScheduler
             {
                 TimeZone = TimeZoneInfo.Utc
             });
+
+        // Reset GenerationJobs stuck in Running state for > 2 hours (server restart orphans)
+        RecurringJob.AddOrUpdate<OrphanedJobCleanerJob>(
+            recurringJobId: "ai-orphaned-job-cleaner",
+            methodCall:     job => job.RunAsync(),
+            cronExpression: "*/15 * * * *",   // every 15 minutes
+            options: new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 
         // Add more recurring jobs here as the product grows:
         // RecurringJob.AddOrUpdate<ReportJob>("weekly-report", j => j.RunAsync(), "0 7 * * 1");
