@@ -21,7 +21,9 @@ public static class AiGenerationModule
         // Separate named HttpClient per provider so timeouts/retry policies differ.
         services.AddHttpClient<GeminiLlmProvider>(c =>
         {
-            c.Timeout = TimeSpan.FromSeconds(60);
+            // 90s — thinking is disabled (thinkingBudget=0) so responses are fast.
+            // Extra headroom for large batches or transient slowness.
+            c.Timeout = TimeSpan.FromSeconds(90);
         });
 
         services.AddHttpClient<AnthropicLlmProvider>(c =>

@@ -83,8 +83,12 @@ public sealed class GeminiLlmProvider : ILLMProvider
             generationConfig = new
             {
                 temperature      = 0.7,
-                maxOutputTokens  = 16384,  // gemini-2.5-flash supports up to 65536
-                responseMimeType = "application/json"
+                maxOutputTokens  = 16384,   // gemini-2.5-flash supports up to 65536
+                responseMimeType = "application/json",
+                // Disable thinking — gemini-2.5-flash has thinking=true by default.
+                // For MCQ generation the thinking trace adds 5–15 min of latency
+                // with no quality benefit. thinkingBudget=0 gives instant responses.
+                thinkingConfig   = new { thinkingBudget = 0 }
             }
         };
 
@@ -182,8 +186,23 @@ public sealed class GeminiLlmProvider : ILLMProvider
             var json = await response.Content.ReadAsStringAsync(ct);
             var root = JsonNode.Parse(json)!;
 
-            var text = root["candidates"]?[0]?["content"]?["parts"]?[0]?["text"]?.GetValue<string>()
-                       ?? throw new InvalidOperationException($"Unexpected Gemini response: {json}");
+            // Gemini 2.5+ thinking models return multiple parts:
+            //   parts[0] = thinking trace  (has "thought": true)  ← skip this
+            //   parts[1] = actual response (no "thought" field)   ← use this
+            // With thinkingBudget=0 there is only one part, but we search defensively.
+            var parts = root["candidates"]?[0]?["content"]?["parts"]?.AsArray();
+            string? text = null;
+            if (parts != null)
+            {
+                foreach (var part in parts)
+                {
+                    if (part?["thought"]?.GetValue<bool>() == true) continue; // skip thinking trace
+                    text = part?["text"]?.GetValue<string>();
+                    if (text != null) break;
+                }
+            }
+            if (text == null)
+                throw new InvalidOperationException($"No text part found in Gemini response: {json[..Math.Min(500, json.Length)]}");
 
             var usage        = root["usageMetadata"];
             var promptTokens = usage?["promptTokenCount"]?.GetValue<int>()     ?? 0;
