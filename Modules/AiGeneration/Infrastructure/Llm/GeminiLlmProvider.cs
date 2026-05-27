@@ -27,11 +27,16 @@ public sealed class GeminiLlmProvider : ILLMProvider
 
     public GeminiLlmProvider(HttpClient http, IConfiguration cfg, ILogger<GeminiLlmProvider> log)
     {
-        _http    = http;
-        _log     = log;
-        _apiKey  = cfg["Ai:Gemini:ApiKey"]           ?? throw new InvalidOperationException("Ai:Gemini:ApiKey not configured");
-        _baseUrl = cfg["Ai:Gemini:BaseUrl"]           ?? "https://generativelanguage.googleapis.com/v1beta";
-        ModelName = cfg["Ai:Gemini:GenerationModel"]  ?? "gemini-2.0-flash";
+        _http     = http;
+        _log      = log;
+        _apiKey   = cfg["Ai:Gemini:ApiKey"] ?? "";
+        _baseUrl  = cfg["Ai:Gemini:BaseUrl"] ?? "https://generativelanguage.googleapis.com/v1beta";
+        ModelName = cfg["Ai:Gemini:GenerationModel"] ?? "gemini-2.0-flash";
+
+        if (string.IsNullOrWhiteSpace(_apiKey))
+            throw new InvalidOperationException(
+                "Ai:Gemini:ApiKey is not configured. " +
+                "Set the environment variable  Ai__Gemini__ApiKey  in Railway → Variables.");
     }
 
     public async Task<LlmCompletion> CompleteAsync(string prompt, CancellationToken ct = default)

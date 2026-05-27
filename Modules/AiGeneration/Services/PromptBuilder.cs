@@ -21,12 +21,15 @@ public sealed class PromptBuilder
         AiExamTopic?  topic,
         CancellationToken ct = default)
     {
-        // 1. Try to find the most recent active template for this section/exam
-        var template = await _db.GenerationPromptTemplates
-            .Where(t => t.AiExamConfigId == job.AiExamSection!.AiExamConfigId
-                     && t.IsActive)
-            .OrderByDescending(t => t.Version)
-            .FirstOrDefaultAsync(ct);
+        // 1. Try to find the most recent active template for this section/exam.
+        //    AiExamSection is optional — jobs can be created without a specific section.
+        var configId = job.AiExamSection?.AiExamConfigId;
+        var template = configId.HasValue
+            ? await _db.GenerationPromptTemplates
+                .Where(t => t.AiExamConfigId == configId.Value && t.IsActive)
+                .OrderByDescending(t => t.Version)
+                .FirstOrDefaultAsync(ct)
+            : null;
 
         var basePrompt = template?.PromptText ?? DefaultTemplate();
 

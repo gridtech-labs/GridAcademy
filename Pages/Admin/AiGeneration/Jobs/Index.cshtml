@@ -78,7 +78,8 @@
                             ? "<1m"
                             : (j.CompletedAt.Value - j.CreatedAt).TotalMinutes.ToString("F0") + "m"
                         : "–";
-                    <tr>
+                    var isFailed = j.Status == GridAcademy.Modules.AiGeneration.Domain.Entities.GenerationJobStatus.Failed;
+                    <tr class="@(isFailed ? "table-danger" : "")">
                         <td class="small text-muted">#@j.Id</td>
                         <td><span class="badge bg-secondary">@j.Difficulty</span></td>
                         <td><span class="badge bg-light text-dark border">@j.Language.ToUpper()</span></td>
@@ -98,7 +99,7 @@
                                     <span class="badge bg-success">Done</span>
                                     break;
                                 case GridAcademy.Modules.AiGeneration.Domain.Entities.GenerationJobStatus.Failed:
-                                    <span class="badge bg-danger" title="@j.ErrorMessage">Failed</span>
+                                    <span class="badge bg-danger">Failed</span>
                                     break;
                                 case GridAcademy.Modules.AiGeneration.Domain.Entities.GenerationJobStatus.Cancelled:
                                     <span class="badge bg-warning text-dark">Cancelled</span>
@@ -127,6 +128,16 @@
                             </div>
                         </td>
                     </tr>
+                    @if (isFailed && !string.IsNullOrEmpty(j.ErrorMessage))
+                    {
+                        <tr class="table-danger">
+                            <td colspan="10" class="px-3 py-2">
+                                <i class="bi bi-exclamation-triangle-fill me-1 text-danger"></i>
+                                <strong>Error:</strong>
+                                <code class="small ms-1 text-danger">@j.ErrorMessage</code>
+                            </td>
+                        </tr>
+                    }
                 }
                 @if (!Model.Jobs.Any())
                 {
