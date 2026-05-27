@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -8,7 +9,12 @@ namespace GridAcademy.Modules.AiGeneration.Infrastructure.Llm;
 
 /// <summary>
 /// Calls Google Gemini generateContent REST API.
-/// Model: gemini-2.0-flash (configurable via Ai:Gemini:GenerationModel).
+/// Default model: gemini-1.5-flash (configurable via Ai:Gemini:GenerationModel).
+///
+/// IMPORTANT — API key source:
+///   Use a key from https://aistudio.google.com/apikey (AI Studio), NOT from
+///   Google Cloud Console. AI Studio keys include the free tier.
+///   Cloud Console keys default to limit=0 free-tier quota and return 429.
 /// </summary>
 public sealed class GeminiLlmProvider : ILLMProvider
 {
@@ -19,6 +25,9 @@ public sealed class GeminiLlmProvider : ILLMProvider
 
     public string ProviderName => "gemini";
     public string ModelName    { get; }
+
+    // Max number of 429 retries before giving up.
+    private const int MaxRetries = 3;
 
     private static readonly JsonSerializerOptions _json = new()
     {
@@ -31,30 +40,34 @@ public sealed class GeminiLlmProvider : ILLMProvider
         _log      = log;
         _apiKey   = cfg["Ai:Gemini:ApiKey"] ?? "";
         _baseUrl  = cfg["Ai:Gemini:BaseUrl"] ?? "https://generativelanguage.googleapis.com/v1beta";
-        ModelName = cfg["Ai:Gemini:GenerationModel"] ?? "gemini-2.0-flash";
+
+        // Default changed to gemini-1.5-flash — it has a generous free tier.
+        // gemini-2.0-flash requires billing on Cloud Console keys (returns 429 limit=0).
+        ModelName = cfg["Ai:Gemini:GenerationModel"] ?? "gemini-1.5-flash";
 
         // NOTE: do NOT throw here — constructor exceptions prevent Hangfire from
-        // ever running the job, so generation_jobs.status stays "Queued" forever.
-        // Validation happens in CompleteAsync so RunJobAsync can catch and persist
-        // the error with status = Failed.
+        // resolving the job, so generation_jobs.status stays "Queued" forever.
+        // Validation is in CompleteAsync so RunJobAsync can catch and persist status=Failed.
         if (string.IsNullOrWhiteSpace(_apiKey))
             _log.LogWarning(
                 "Ai:Gemini:ApiKey is empty — LLM calls will fail. " +
-                "Set env var  Ai__Gemini__ApiKey  in Railway → Variables.");
+                "Set env var  Ai__Gemini__ApiKey  in Railway → Variables. " +
+                "Get a free key at https://aistudio.google.com/apikey");
     }
 
     public async Task<LlmCompletion> CompleteAsync(string prompt, CancellationToken ct = default)
     {
-        // Validate here (not in constructor) so Hangfire can resolve the service
-        // and RunJobAsync can catch this and write status = Failed to the DB.
+        // Validate here (not constructor) so Hangfire can resolve the service and
+        // RunJobAsync can catch this and write status = Failed to the DB.
         if (string.IsNullOrWhiteSpace(_apiKey))
             throw new InvalidOperationException(
                 "Ai:Gemini:ApiKey is not configured. " +
-                "Set the environment variable  Ai__Gemini__ApiKey  in Railway → Variables.");
+                "Get a FREE key at https://aistudio.google.com/apikey and set env var " +
+                "Ai__Gemini__ApiKey in Railway → Variables.");
 
         var url = $"{_baseUrl}/models/{ModelName}:generateContent?key={_apiKey}";
 
-        var body = new
+        var bodyObj = new
         {
             contents = new[]
             {
@@ -71,42 +84,98 @@ public sealed class GeminiLlmProvider : ILLMProvider
             }
         };
 
-        var content = new StringContent(
-            JsonSerializer.Serialize(body, _json),
-            Encoding.UTF8,
-            "application/json");
+        var bodyJson = JsonSerializer.Serialize(bodyObj, _json);
 
-        HttpResponseMessage response;
-        try
+        // ── Retry loop for 429 rate-limit responses ───────────────────────────
+        for (int attempt = 1; attempt <= MaxRetries; attempt++)
         {
-            response = await _http.PostAsync(url, content, ct);
+            var content = new StringContent(bodyJson, Encoding.UTF8, "application/json");
+
+            HttpResponseMessage response;
+            try
+            {
+                response = await _http.PostAsync(url, content, ct);
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "Gemini HTTP request failed for model {Model}", ModelName);
+                throw;
+            }
+
+            // ── 429 Rate Limited ──────────────────────────────────────────────
+            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            {
+                var errBody = await response.Content.ReadAsStringAsync(ct);
+
+                if (attempt == MaxRetries)
+                {
+                    // Surface a clear, actionable error in the Jobs page error row.
+                    var hint = errBody.Contains("limit: 0")
+                        ? "Your API key has 0 free-tier quota. " +
+                          "Get a key from https://aistudio.google.com/apikey (NOT Cloud Console) " +
+                          "or enable billing on your Google Cloud project."
+                        : "Gemini rate limit hit. Reduce Count or wait before re-queuing.";
+
+                    _log.LogError(
+                        "Gemini 429 after {Max} attempts for model {Model}. Hint: {Hint}",
+                        MaxRetries, ModelName, hint);
+                    throw new HttpRequestException($"Gemini 429 rate limit — {hint}");
+                }
+
+                var delaySec = ParseRetryDelaySecs(errBody);
+                _log.LogWarning(
+                    "Gemini 429 (attempt {Attempt}/{Max}, model {Model}) — waiting {Delay}s…",
+                    attempt, MaxRetries, ModelName, delaySec);
+
+                await Task.Delay(TimeSpan.FromSeconds(delaySec), ct);
+                continue; // retry
+            }
+
+            // ── Other HTTP error ───────────────────────────────────────────────
+            if (!response.IsSuccessStatusCode)
+            {
+                var errBody = await response.Content.ReadAsStringAsync(ct);
+                _log.LogError("Gemini API error {Status}: {Body}", response.StatusCode, errBody);
+                throw new HttpRequestException(
+                    $"Gemini API returned {(int)response.StatusCode}: {errBody}");
+            }
+
+            // ── Success ────────────────────────────────────────────────────────
+            var json = await response.Content.ReadAsStringAsync(ct);
+            var root = JsonNode.Parse(json)!;
+
+            var text = root["candidates"]?[0]?["content"]?["parts"]?[0]?["text"]?.GetValue<string>()
+                       ?? throw new InvalidOperationException($"Unexpected Gemini response: {json}");
+
+            var usage        = root["usageMetadata"];
+            var promptTokens = usage?["promptTokenCount"]?.GetValue<int>()     ?? 0;
+            var outputTokens = usage?["candidatesTokenCount"]?.GetValue<int>() ?? 0;
+
+            return new LlmCompletion(text, promptTokens, outputTokens, ModelName);
         }
-        catch (Exception ex)
+
+        // Should never be reached (loop always returns or throws).
+        throw new InvalidOperationException("Gemini request failed after all retries.");
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Parses "Please retry in 58.59s." or "retry in 58s" from the error body.
+    /// Falls back to 65 s if the pattern is not found.
+    /// </summary>
+    private static double ParseRetryDelaySecs(string errBody)
+    {
+        var m = Regex.Match(errBody, @"retry in (\d+\.?\d*)s",
+                            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (m.Success &&
+            double.TryParse(m.Groups[1].Value,
+                            System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            out var secs))
         {
-            _log.LogError(ex, "Gemini HTTP request failed for model {Model}", ModelName);
-            throw;
+            return Math.Min(secs + 2, 120); // +2 s buffer, cap at 2 min
         }
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var errBody = await response.Content.ReadAsStringAsync(ct);
-            _log.LogError("Gemini API error {Status}: {Body}", response.StatusCode, errBody);
-            throw new HttpRequestException(
-                $"Gemini API returned {(int)response.StatusCode}: {errBody}");
-        }
-
-        var json = await response.Content.ReadAsStringAsync(ct);
-        var root = JsonNode.Parse(json)!;
-
-        // Extract generated text
-        var text = root["candidates"]?[0]?["content"]?["parts"]?[0]?["text"]?.GetValue<string>()
-                   ?? throw new InvalidOperationException($"Unexpected Gemini response: {json}");
-
-        // Extract token counts (may be absent for some model variants)
-        var usage         = root["usageMetadata"];
-        var promptTokens  = usage?["promptTokenCount"]?.GetValue<int>()    ?? 0;
-        var outputTokens  = usage?["candidatesTokenCount"]?.GetValue<int>() ?? 0;
-
-        return new LlmCompletion(text, promptTokens, outputTokens, ModelName);
+        return 65;
     }
 }
