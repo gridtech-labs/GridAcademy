@@ -9,7 +9,7 @@ namespace GridAcademy.Modules.AiGeneration.Infrastructure.Llm;
 
 /// <summary>
 /// Calls Google Gemini generateContent REST API.
-/// Default model: gemini-2.0-flash-lite (configurable via Ai:Gemini:GenerationModel).
+/// Default model: gemini-2.5-flash (stable, June 2025 — 65 536 output tokens).
 ///
 /// IMPORTANT — API key source:
 ///   Use a key from https://aistudio.google.com/apikey (AI Studio), NOT from
@@ -44,10 +44,10 @@ public sealed class GeminiLlmProvider : ILLMProvider
         _apiKey   = cfg["Ai:Gemini:ApiKey"] ?? "";
         _baseUrl  = cfg["Ai:Gemini:BaseUrl"] ?? "https://generativelanguage.googleapis.com/v1beta";
 
-        // Default: gemini-2.0-flash-lite — designed for free-tier / low-cost usage.
-        // gemini-1.5-flash is deprecated (404). gemini-2.0-flash needs billing (429 limit=0).
+        // Default: gemini-2.5-flash — current stable flagship (June 2025).
+        // 65 536 output token limit handles large question batches without truncation.
         // Override via Railway Variable: Ai__Gemini__GenerationModel
-        ModelName = cfg["Ai:Gemini:GenerationModel"] ?? "gemini-2.0-flash-lite";
+        ModelName = cfg["Ai:Gemini:GenerationModel"] ?? "gemini-2.5-flash";
 
         // NOTE: do NOT throw here — constructor exceptions prevent Hangfire from
         // resolving the job, so generation_jobs.status stays "Queued" forever.
@@ -83,7 +83,7 @@ public sealed class GeminiLlmProvider : ILLMProvider
             generationConfig = new
             {
                 temperature      = 0.7,
-                maxOutputTokens  = 4096,
+                maxOutputTokens  = 16384,  // gemini-2.5-flash supports up to 65536
                 responseMimeType = "application/json"
             }
         };
