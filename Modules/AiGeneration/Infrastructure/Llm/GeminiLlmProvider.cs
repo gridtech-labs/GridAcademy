@@ -44,10 +44,10 @@ public sealed class GeminiLlmProvider : ILLMProvider
         _apiKey   = cfg["Ai:Gemini:ApiKey"] ?? "";
         _baseUrl  = cfg["Ai:Gemini:BaseUrl"] ?? "https://generativelanguage.googleapis.com/v1beta";
 
-        // Default: gemini-2.5-flash — current stable flagship (June 2025).
-        // 65 536 output token limit handles large question batches without truncation.
+        // Default: gemini-2.0-flash — no thinking mode, fast, billing-compatible.
+        // gemini-2.5-flash has thinking=true which causes 5-15 min latency per call.
         // Override via Railway Variable: Ai__Gemini__GenerationModel
-        ModelName = cfg["Ai:Gemini:GenerationModel"] ?? "gemini-2.5-flash";
+        ModelName = cfg["Ai:Gemini:GenerationModel"] ?? "gemini-2.0-flash";
 
         // NOTE: do NOT throw here — constructor exceptions prevent Hangfire from
         // resolving the job, so generation_jobs.status stays "Queued" forever.
@@ -83,12 +83,10 @@ public sealed class GeminiLlmProvider : ILLMProvider
             generationConfig = new
             {
                 temperature      = 0.7,
-                maxOutputTokens  = 16384,   // gemini-2.5-flash supports up to 65536
-                responseMimeType = "application/json",
-                // Disable thinking — gemini-2.5-flash has thinking=true by default.
-                // For MCQ generation the thinking trace adds 5–15 min of latency
-                // with no quality benefit. thinkingBudget=0 gives instant responses.
-                thinkingConfig   = new { thinkingBudget = 0 }
+                maxOutputTokens  = 8192,    // gemini-2.0-flash output limit
+                responseMimeType = "application/json"
+                // No thinkingConfig — gemini-2.0-flash has no thinking mode.
+                // If switching to gemini-2.5-flash, add: thinkingConfig = new { thinkingBudget = 0 }
             }
         };
 

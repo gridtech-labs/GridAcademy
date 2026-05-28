@@ -56,8 +56,16 @@ public sealed class LlmUsageTracker
         }
         catch (Exception ex)
         {
-            // Non-fatal — never block generation over a tracking failure
-            _log.LogWarning(ex, "Failed to persist LLM usage stats.");
+            // Non-fatal — never block generation over a tracking failure.
+            // IMPORTANT: detach the entity from the change tracker so it doesn't
+            // contaminate the next SaveChangesAsync call (e.g. for QuestionDrafts).
+            // Without this, EF Core retries the failed insert in the next transaction
+            // and rolls back the QuestionDraft saves too — questions are lost even
+            // though Gemini already processed and billed the request.
+            try { _db.Entry(row).State = Microsoft.EntityFrameworkCore.EntityState.Detached; }
+            catch { /* ignore detach errors */ }
+
+            _log.LogWarning(ex, "Failed to persist LLM usage stats (detached from tracker).");
         }
     }
 
