@@ -1,0 +1,195 @@
+@page
+@using GridAcademy.Data.Entities.Assessment
+@model GridAcademy.Pages.Admin.Reports.StudentActivity.DetailModel
+@{
+    ViewData["Title"] = "Student Report";
+    var s = Model.Student!;
+}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h5 class="fw-bold mb-1"><i class="bi bi-person-vcard me-2 text-primary"></i>@s.StudentName</h5>
+        <p class="text-muted small mb-0">
+            <span class="me-3"><i class="bi bi-envelope me-1"></i>@s.Email</span>
+            @if (!string.IsNullOrEmpty(s.Phone))
+            {
+                <span class="me-3"><i class="bi bi-telephone me-1"></i>@s.Phone</span>
+            }
+            <span class="badge bg-secondary">@s.Role</span>
+            @if (!s.IsActive)
+            {
+                <span class="badge bg-secondary-subtle text-secondary border">Inactive</span>
+            }
+        </p>
+    </div>
+    <a asp-page="./Index" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to list
+    </a>
+</div>
+
+<!-- Stat cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-2">
+        <div class="card shadow-sm h-100"><div class="card-body py-3">
+            <div class="text-muted small mb-1">Total Attempts</div>
+            <div class="fw-bold fs-4 text-primary">@s.TotalAttempts</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="card shadow-sm h-100"><div class="card-body py-3">
+            <div class="text-muted small mb-1">Completed</div>
+            <div class="fw-bold fs-4">@s.CompletedAttempts</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="card shadow-sm h-100"><div class="card-body py-3">
+            <div class="text-muted small mb-1">Passed</div>
+            <div class="fw-bold fs-4 text-success">@s.PassedCount</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="card shadow-sm h-100"><div class="card-body py-3">
+            <div class="text-muted small mb-1">Failed</div>
+            <div class="fw-bold fs-4 text-danger">@s.FailedCount</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="card shadow-sm h-100"><div class="card-body py-3">
+            <div class="text-muted small mb-1">Average %</div>
+            <div class="fw-bold fs-4">@(s.AveragePercentage.HasValue ? s.AveragePercentage.Value.ToString("0.#") + "%" : "—")</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="card shadow-sm h-100"><div class="card-body py-3">
+            <div class="text-muted small mb-1">Best %</div>
+            <div class="fw-bold fs-4 text-success">@(s.BestPercentage.HasValue ? s.BestPercentage.Value.ToString("0.#") + "%" : "—")</div>
+        </div></div>
+    </div>
+</div>
+
+<!-- Attempts table -->
+<div class="card shadow-sm">
+    <div class="card-header bg-white fw-semibold py-2">
+        <i class="bi bi-list-check me-1"></i>Attempted Tests
+    </div>
+    <div class="card-body p-0">
+        @if (s.Attempts.Count == 0)
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-inbox text-muted" style="font-size:2.5rem;opacity:0.4"></i>
+                <p class="text-muted mt-3 mb-0">This student has not attempted any tests yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Test</th>
+                            <th class="text-center">#</th>
+                            <th>Status</th>
+                            <th>Started</th>
+                            <th>Submitted</th>
+                            <th class="text-center">Duration</th>
+                            <th class="text-center">Score</th>
+                            <th class="text-center">%</th>
+                            <th class="text-center">Result</th>
+                            <th class="text-center">⚑</th>
+                            <th class="text-end">Detail</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var a in s.Attempts)
+                        {
+                            var isComplete = a.Status == AttemptStatus.Submitted || a.Status == AttemptStatus.TimedOut;
+                            <tr>
+                                <td class="fw-semibold">@a.TestTitle</td>
+                                <td class="text-center text-muted small">@a.AttemptNumber</td>
+                                <td>
+                                    @switch (a.Status)
+                                    {
+                                        case AttemptStatus.Submitted:
+                                            <span class="badge bg-success">Submitted</span>
+                                            break;
+                                        case AttemptStatus.TimedOut:
+                                            <span class="badge bg-warning text-dark">Timed Out</span>
+                                            break;
+                                        case AttemptStatus.InProgress:
+                                            <span class="badge bg-info">In Progress</span>
+                                            break;
+                                        default:
+                                            <span class="badge bg-secondary">Abandoned</span>
+                                            break;
+                                    }
+                                </td>
+                                <td class="text-muted small">@a.StartedAt.ToString("MMM d, yyyy HH:mm")</td>
+                                <td class="text-muted small">
+                                    @(a.SubmittedAt.HasValue ? a.SubmittedAt.Value.ToString("MMM d, yyyy HH:mm") : "—")
+                                </td>
+                                <td class="text-center text-muted small">
+                                    @{
+                                        var mins = a.DurationSecondsUsed / 60;
+                                        var secs = a.DurationSecondsUsed % 60;
+                                    }
+                                    @(a.DurationSecondsUsed > 0 ? $"{mins}m {secs}s" : "—")
+                                </td>
+                                <td class="text-center small">
+                                    @if (a.TotalMarksObtained.HasValue && a.TotalMarksPossible.HasValue)
+                                    {
+                                        @($"{a.TotalMarksObtained.Value:0.##} / {a.TotalMarksPossible.Value:0.##}")
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="text-center fw-semibold">
+                                    @(a.Percentage.HasValue ? a.Percentage.Value.ToString("0.#") + "%" : "—")
+                                </td>
+                                <td class="text-center">
+                                    @if (a.IsPassed == true)
+                                    {
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">Pass</span>
+                                    }
+                                    else if (a.IsPassed == false)
+                                    {
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Fail</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @if (a.ViolationCount > 0)
+                                    {
+                                        <span class="badge bg-danger" title="Proctoring violations">@a.ViolationCount</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">0</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    @if (isComplete)
+                                    {
+                                        <a asp-page="/Admin/Content/Tests/AttemptDetail" asp-route-attemptId="@a.AttemptId"
+                                           class="btn btn-sm btn-outline-primary" title="Question-level breakdown">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">—</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

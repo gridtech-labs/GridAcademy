@@ -1,0 +1,128 @@
+@page
+@model GridAcademy.Pages.Admin.Reports.StudentActivity.IndexModel
+@{
+    ViewData["Title"] = "Student Activity Report";
+}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h5 class="fw-bold mb-1"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Student Activity Report</h5>
+        <p class="text-muted small mb-0">@Model.Students.TotalCount student(s) with recorded test activity</p>
+    </div>
+</div>
+
+<!-- Search -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body py-3">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-12 col-md-6">
+                <label class="form-label small fw-semibold mb-1">Search Student</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" name="search" value="@Model.Search"
+                           class="form-control" placeholder="Name, email or mobile…" autofocus />
+                </div>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-primary">Search</button>
+                <a asp-page="./Index" class="btn btn-sm btn-outline-secondary ms-1">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Table -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        @if (Model.Students.Items.Count == 0)
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-clipboard-data text-muted" style="font-size:2.5rem;opacity:0.4"></i>
+                <p class="text-muted mt-3 mb-0">No student activity found. Try adjusting the search.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Student</th>
+                            <th>Email</th>
+                            <th>Mobile</th>
+                            <th class="text-center">Attempts</th>
+                            <th class="text-center">Completed</th>
+                            <th class="text-center">Passed</th>
+                            <th class="text-center">Avg %</th>
+                            <th class="text-center">Best %</th>
+                            <th>Last Activity</th>
+                            <th class="text-end">Report</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in Model.Students.Items)
+                        {
+                            <tr>
+                                <td class="fw-semibold">@s.StudentName</td>
+                                <td class="text-muted small">@s.Email</td>
+                                <td class="text-muted small">
+                                    @if (!string.IsNullOrEmpty(s.Phone))
+                                    {
+                                        <span class="font-monospace">@s.Phone</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted fst-italic">—</span>
+                                    }
+                                </td>
+                                <td class="text-center">@s.TotalAttempts</td>
+                                <td class="text-center">@s.CompletedAttempts</td>
+                                <td class="text-center">
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">@s.PassedCount</span>
+                                </td>
+                                <td class="text-center">
+                                    @(s.AveragePercentage.HasValue ? s.AveragePercentage.Value.ToString("0.#") + "%" : "—")
+                                </td>
+                                <td class="text-center fw-semibold">
+                                    @(s.BestPercentage.HasValue ? s.BestPercentage.Value.ToString("0.#") + "%" : "—")
+                                </td>
+                                <td class="text-muted small">@s.LastActivityAt.ToString("MMM d, yyyy HH:mm")</td>
+                                <td class="text-end">
+                                    <a asp-page="./Detail" asp-route-studentId="@s.StudentId"
+                                       class="btn btn-sm btn-outline-primary" title="View full report">
+                                        <i class="bi bi-eye me-1"></i>View
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            @if (Model.Students.TotalPages > 1)
+            {
+                <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
+                    <small class="text-muted">
+                        Showing @((Model.Students.Page - 1) * Model.Students.PageSize + 1)–@(Math.Min(Model.Students.Page * Model.Students.PageSize, Model.Students.TotalCount))
+                        of @Model.Students.TotalCount
+                    </small>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0">
+                            @for (var i = 1; i <= Model.Students.TotalPages; i++)
+                            {
+                                <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                    <a class="page-link"
+                                       asp-page="./Index"
+                                       asp-route-search="@Model.Search"
+                                       asp-route-currentPage="@i">@i</a>
+                                </li>
+                            }
+                        </ul>
+                    </nav>
+                </div>
+            }
+        }
+    </div>
+</div>

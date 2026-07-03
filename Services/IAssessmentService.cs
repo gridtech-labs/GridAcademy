@@ -1,3 +1,4 @@
+using GridAcademy.Common;
 using GridAcademy.DTOs.Assessment;
 
 namespace GridAcademy.Services;
@@ -79,4 +80,19 @@ public interface IAssessmentService
     /// Does not validate student ownership.
     /// </summary>
     Task<AttemptResultDto> GetAttemptDetailAsync(Guid attemptId);
+
+    // ── Student Activity Report (admin) ───────────────────────────────────
+
+    /// <summary>
+    /// Returns a paged, searchable list of students who have attempted at least
+    /// one test, with aggregated stats. Search matches name, email or phone.
+    /// </summary>
+    Task<PagedResult<StudentActivitySummaryDto>> GetStudentActivityAsync(
+        string? search, int page, int pageSize);
+
+    /// <summary>
+    /// Returns the full activity detail (profile + every attempt) for one student.
+    /// Returns null when the student does not exist.
+    /// </summary>
+    Task<StudentActivityDetailDto?> GetStudentActivityDetailAsync(Guid studentId);
 }

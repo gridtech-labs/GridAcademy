@@ -1,4 +1,5 @@
 using System.Text.Json;
+using GridAcademy.Common;
 using GridAcademy.Data;
 using GridAcademy.Data.Entities.Assessment;
 using GridAcademy.Data.Entities.Content;
@@ -779,6 +780,120 @@ public class AssessmentService : IAssessmentService
     {
         // Admin path: no student ownership check
         return await BuildResultDtoAsync(attemptId, studentId: Guid.Empty, adminMode: true);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // STUDENT ACTIVITY REPORT (admin)
+    // ════════════════════════════════════════════════════════════════════════
+
+    public async Task<PagedResult<StudentActivitySummaryDto>> GetStudentActivityAsync(
+        string? search, int page, int pageSize)
+    {
+        if (page     < 1) page     = 1;
+        if (pageSize < 1) pageSize = 15;
+
+        // Join attempts to their student so we can search by name/email/phone
+        // and aggregate per student in a single grouped query.
+        var joined = from a in _db.TestAttempts.AsNoTracking()
+                     join u in _db.Users.AsNoTracking() on a.StudentId equals u.Id
+                     select new { a, u };
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.Trim();
+            joined = joined.Where(x =>
+                x.u.FirstName.Contains(s) ||
+                x.u.LastName.Contains(s) ||
+                x.u.Email.Contains(s) ||
+                (x.u.Phone != null && x.u.Phone.Contains(s)));
+        }
+
+        var grouped = joined
+            .GroupBy(x => new { x.a.StudentId, x.u.FirstName, x.u.LastName, x.u.Email, x.u.Phone })
+            .Select(g => new StudentActivitySummaryDto
+            {
+                StudentId         = g.Key.StudentId,
+                StudentName       = (g.Key.FirstName + " " + g.Key.LastName).Trim(),
+                Email             = g.Key.Email,
+                Phone             = g.Key.Phone,
+                TotalAttempts     = g.Count(),
+                CompletedAttempts = g.Count(x => x.a.Status == AttemptStatus.Submitted
+                                              || x.a.Status == AttemptStatus.TimedOut),
+                PassedCount       = g.Count(x => x.a.IsPassed == true),
+                AveragePercentage = g.Where(x => x.a.Percentage != null)
+                                     .Average(x => (decimal?)x.a.Percentage),
+                BestPercentage    = g.Max(x => x.a.Percentage),
+                LastActivityAt    = g.Max(x => x.a.StartedAt)
+            });
+
+        var total = await grouped.CountAsync();
+
+        var items = await grouped
+            .OrderByDescending(x => x.LastActivityAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedResult<StudentActivitySummaryDto>
+        {
+            Items      = items,
+            TotalCount = total,
+            Page       = page,
+            PageSize   = pageSize
+        };
+    }
+
+    public async Task<StudentActivityDetailDto?> GetStudentActivityDetailAsync(Guid studentId)
+    {
+        var user = await _db.Users.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == studentId);
+        if (user is null) return null;
+
+        var attempts = await _db.TestAttempts.AsNoTracking()
+            .Include(a => a.Assignment)
+                .ThenInclude(a => a.Test)
+            .Where(a => a.StudentId == studentId)
+            .OrderByDescending(a => a.StartedAt)
+            .ToListAsync();
+
+        var rows = attempts.Select(a => new StudentAttemptRowDto
+        {
+            AttemptId          = a.Id,
+            TestTitle          = a.Assignment?.Test?.Title ?? "(deleted test)",
+            AttemptNumber      = a.AttemptNumber,
+            Status             = a.Status,
+            StartedAt          = a.StartedAt,
+            SubmittedAt        = a.SubmittedAt,
+            DurationSecondsUsed= a.DurationSecondsUsed,
+            TotalMarksObtained = a.TotalMarksObtained,
+            TotalMarksPossible = a.TotalMarksPossible,
+            Percentage         = a.Percentage,
+            IsPassed           = a.IsPassed,
+            ViolationCount     = CountViolations(a.ViolationLog)
+        }).ToList();
+
+        var completed = rows.Where(r => r.Status == AttemptStatus.Submitted
+                                     || r.Status == AttemptStatus.TimedOut).ToList();
+        var withPct   = completed.Where(r => r.Percentage.HasValue).Select(r => r.Percentage!.Value).ToList();
+
+        return new StudentActivityDetailDto
+        {
+            StudentId         = user.Id,
+            StudentName       = user.FullName,
+            Email             = user.Email,
+            Phone             = user.Phone,
+            Role              = user.Role,
+            IsActive          = user.IsActive,
+            JoinedAt          = user.CreatedAt,
+            LastLoginAt       = user.LastLoginAt,
+            TotalAttempts     = rows.Count,
+            CompletedAttempts = completed.Count,
+            PassedCount       = completed.Count(r => r.IsPassed == true),
+            FailedCount       = completed.Count(r => r.IsPassed == false),
+            AveragePercentage = withPct.Count > 0 ? Math.Round(withPct.Average(), 2) : null,
+            BestPercentage    = withPct.Count > 0 ? withPct.Max() : null,
+            Attempts          = rows
+        };
     }
 
     public async Task<MyPerformanceDto> GetMyPerformanceAsync(Guid studentId)
