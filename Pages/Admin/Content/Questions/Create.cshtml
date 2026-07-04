@@ -20,8 +20,11 @@
     .math-editor-wrap { border:1px solid #dee2e6; border-radius:.375rem; overflow:hidden; }
     .math-editor-wrap .ql-toolbar.ql-snow  { border:none; border-bottom:1px solid #dee2e6; background:#f8f9fa; border-radius:0; }
     .math-editor-wrap .ql-container.ql-snow { border:none; font-size:.925rem; }
-    .math-editor-wrap .ql-editor            { min-height:110px; }
-    .math-editor-wrap.ql-mini .ql-editor    { min-height:56px; }
+    /* Editors auto-grow with content and can be dragged taller via the bottom-right handle. */
+    .math-editor-wrap .ql-editor            { min-height:130px; resize:vertical; overflow-y:auto; }
+    .math-editor-wrap.ql-mini .ql-editor    { min-height:90px; }
+    /* Give rendered KaTeX formulas vertical breathing room so tall fractions/roots aren't clipped. */
+    .math-editor-wrap .ql-editor .ql-formula { display:inline-block; padding:2px 0; line-height:1.6; }
     .opt-letter { display:inline-block; width:26px; height:26px; line-height:26px;
                   text-align:center; border-radius:50%; background:#6c757d;
                   color:#fff; font-weight:700; font-size:.8rem; flex-shrink:0; }
@@ -63,6 +66,7 @@
         </h4>
         <p class="text-muted small mb-0">
             Fill in all required fields. Use the <kbd>ƒ</kbd> button in any toolbar to insert a LaTeX formula.
+            Drag the bottom-right corner of any editor box to make it taller.
         </p>
     </div>
     @if (Model.TestId.HasValue)
