@@ -5,10 +5,12 @@
     ViewData["Title"] = Model.IsEdit ? "Edit Question" : "Add Question";
     var optRows = new[]
     {
-        new { Letter = "A", Name = "Form.OptionA", ChkName = "Form.CorrectA", Val = Model.Form.OptionA, Chk = Model.Form.CorrectA },
-        new { Letter = "B", Name = "Form.OptionB", ChkName = "Form.CorrectB", Val = Model.Form.OptionB, Chk = Model.Form.CorrectB },
-        new { Letter = "C", Name = "Form.OptionC", ChkName = "Form.CorrectC", Val = Model.Form.OptionC, Chk = Model.Form.CorrectC },
-        new { Letter = "D", Name = "Form.OptionD", ChkName = "Form.CorrectD", Val = Model.Form.OptionD, Chk = Model.Form.CorrectD },
+        new { Letter = "A", Name = "Form.OptionA", ChkName = "Form.CorrectA", Val = Model.Form.OptionA, Chk = Model.Form.CorrectA, Optional = false },
+        new { Letter = "B", Name = "Form.OptionB", ChkName = "Form.CorrectB", Val = Model.Form.OptionB, Chk = Model.Form.CorrectB, Optional = false },
+        new { Letter = "C", Name = "Form.OptionC", ChkName = "Form.CorrectC", Val = Model.Form.OptionC, Chk = Model.Form.CorrectC, Optional = false },
+        new { Letter = "D", Name = "Form.OptionD", ChkName = "Form.CorrectD", Val = Model.Form.OptionD, Chk = Model.Form.CorrectD, Optional = false },
+        // Option E is optional — leave blank for 4-option questions; it only renders when filled.
+        new { Letter = "E", Name = "Form.OptionE", ChkName = "Form.CorrectE", Val = Model.Form.OptionE, Chk = Model.Form.CorrectE, Optional = true },
     };
     var qtype = (int)Model.Form.QuestionType;
 }
@@ -182,6 +184,10 @@
                                 </div>
                             </div>
                             <div class="flex-grow-1">
+                                @if (opt.Optional)
+                                {
+                                    <div class="small text-muted mb-1"><i class="bi bi-info-circle me-1"></i>Optional — leave blank for 4-option questions.</div>
+                                }
                                 <input type="hidden" id="Form_Option@(opt.Letter)" name="@opt.Name" value="@opt.Val" />
                                 <div class="math-editor-wrap ql-mini"><div id="editor-opt@(opt.Letter)"></div></div>
                             </div>
@@ -645,6 +651,7 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
     const qOptB      = mkEditor('editor-optB',       miniToolbar, 'Option B…');
     const qOptC      = mkEditor('editor-optC',       miniToolbar, 'Option C…');
     const qOptD      = mkEditor('editor-optD',       miniToolbar, 'Option D…');
+    const qOptE      = mkEditor('editor-optE',       miniToolbar, 'Option E (optional)…');
     const qAssertion = mkEditor('editor-assertion',  miniToolbar, 'Assertion (A) statement…');
     const qReason    = mkEditor('editor-reason',     miniToolbar, 'Reason (R) statement…');
 
@@ -661,6 +668,7 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
     loadHtml(qOptB,      'Form_OptionB');
     loadHtml(qOptC,      'Form_OptionC');
     loadHtml(qOptD,      'Form_OptionD');
+    loadHtml(qOptE,      'Form_OptionE');
     loadHtml(qAssertion, 'Form_AssertionText');
     loadHtml(qReason,    'Form_ReasonText');
     // qPassage is loaded lazily in applyType(8)
@@ -670,7 +678,7 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
     function trackActive(ed) {
         ed.on('selection-change', r => { if (r) activeEditor = ed; });
     }
-    [qText, qSolution, qOptA, qOptB, qOptC, qOptD, qAssertion, qReason].forEach(trackActive);
+    [qText, qSolution, qOptA, qOptB, qOptC, qOptD, qOptE, qAssertion, qReason].forEach(trackActive);
 
     function insertFormula(latex) {
         const range = activeEditor.getSelection() || { index: Math.max(0, activeEditor.getLength() - 1) };
@@ -712,6 +720,7 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
     setupImageUpload(qOptB);
     setupImageUpload(qOptC);
     setupImageUpload(qOptD);
+    setupImageUpload(qOptE);
     setupImageUpload(qAssertion);
     setupImageUpload(qReason);
     // qPassage image upload is wired in applyType(8) after lazy init
@@ -1078,6 +1087,7 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
             syncField(qOptB, 'Form_OptionB');
             syncField(qOptC, 'Form_OptionC');
             syncField(qOptD, 'Form_OptionD');
+            syncField(qOptE, 'Form_OptionE');
         }
         if (v === 7) {   // AssertionReason
             syncField(qAssertion, 'Form_AssertionText');
@@ -1113,7 +1123,7 @@ if (typeof jQuery !== 'undefined' && jQuery.validator) {
 
         // MCQ / MSQ — require at least one option with text
         if (v === 1 || v === 2) {
-            const optIds = ['Form_OptionA','Form_OptionB','Form_OptionC','Form_OptionD'];
+            const optIds = ['Form_OptionA','Form_OptionB','Form_OptionC','Form_OptionD','Form_OptionE'];
             const hasOpts = optIds.some(function(id) {
                 const el = document.getElementById(id);
                 return el && (el.value || '').trim();

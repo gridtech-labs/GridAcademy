@@ -66,15 +66,17 @@ public class CreateModel : PageModel
         public QuestionStatus Status      { get; set; } = QuestionStatus.Published;
         public string?      SelectedTagIds    { get; set; }
 
-        // ── MCQ / MSQ: fixed options A–D ──────────────────────────────────────
+        // ── MCQ / MSQ: options A–E (E is optional — only saved if filled) ─────
         public string? OptionA  { get; set; }
         public string? OptionB  { get; set; }
         public string? OptionC  { get; set; }
         public string? OptionD  { get; set; }
+        public string? OptionE  { get; set; }
         public bool    CorrectA { get; set; }
         public bool    CorrectB { get; set; }
         public bool    CorrectC { get; set; }
         public bool    CorrectD { get; set; }
+        public bool    CorrectE { get; set; }
 
         // ── NAT ───────────────────────────────────────────────────────────────
         public decimal? NumericalAnswer    { get; set; }
@@ -142,10 +144,12 @@ public class CreateModel : PageModel
                 OptionB  = q.Options.FirstOrDefault(o => o.Label == 'B')?.Text ?? "",
                 OptionC  = q.Options.FirstOrDefault(o => o.Label == 'C')?.Text ?? "",
                 OptionD  = q.Options.FirstOrDefault(o => o.Label == 'D')?.Text ?? "",
+                OptionE  = q.Options.FirstOrDefault(o => o.Label == 'E')?.Text ?? "",
                 CorrectA = q.Options.FirstOrDefault(o => o.Label == 'A')?.IsCorrect ?? false,
                 CorrectB = q.Options.FirstOrDefault(o => o.Label == 'B')?.IsCorrect ?? false,
                 CorrectC = q.Options.FirstOrDefault(o => o.Label == 'C')?.IsCorrect ?? false,
                 CorrectD = q.Options.FirstOrDefault(o => o.Label == 'D')?.IsCorrect ?? false,
+                CorrectE = q.Options.FirstOrDefault(o => o.Label == 'E')?.IsCorrect ?? false,
 
                 // True/False
                 TfTrueIsCorrect = q.Options.FirstOrDefault(o => o.Label == 'T')?.IsCorrect ?? true,
@@ -201,7 +205,7 @@ public class CreateModel : PageModel
         foreach (var key in new[]
         {
             "Form.Text",
-            "Form.OptionA","Form.OptionB","Form.OptionC","Form.OptionD",
+            "Form.OptionA","Form.OptionB","Form.OptionC","Form.OptionD","Form.OptionE",
             "Form.SelectedTagIds","Form.BlanksJson","Form.MatchJson",
             "Form.AssertionText","Form.ReasonText",
             "Form.PassageTextContent","Form.SubQuestionsJson",
@@ -376,6 +380,8 @@ public class CreateModel : PageModel
                 if (!string.IsNullOrWhiteSpace(Form.OptionB)) req.Options.Add(new() { Label = 'B', Text = Form.OptionB, IsCorrect = Form.CorrectB });
                 if (!string.IsNullOrWhiteSpace(Form.OptionC)) req.Options.Add(new() { Label = 'C', Text = Form.OptionC, IsCorrect = Form.CorrectC });
                 if (!string.IsNullOrWhiteSpace(Form.OptionD)) req.Options.Add(new() { Label = 'D', Text = Form.OptionD, IsCorrect = Form.CorrectD });
+                // Option E is optional — only persisted when the admin fills it in.
+                if (!string.IsNullOrWhiteSpace(Form.OptionE)) req.Options.Add(new() { Label = 'E', Text = Form.OptionE, IsCorrect = Form.CorrectE });
                 break;
 
             case QuestionType.NAT:
