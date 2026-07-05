@@ -63,7 +63,10 @@ public sealed class GenerationService
         _enableSelfVerification = cfg.GetValue<bool>("Ai:Generation:EnableSelfVerification", true);
         _enableMathRecompute    = cfg.GetValue<bool>("Ai:Generation:EnableMathRecompute", true);
         _enableDuplicateCheck   = cfg.GetValue<bool>("Ai:Generation:EnableDuplicateCheck", true);
-        _maxPerBatch            = cfg.GetValue<int> ("Ai:Generation:MaxQuestionsPerBatch", 20);
+        // Keep batches small so the JSON array fits within the model's output-token
+        // limit (gemini-2.0-flash = 8192). Larger batches truncate mid-JSON → parse fail.
+        // Larger Count values still work — the pipeline loops over multiple batches.
+        _maxPerBatch            = cfg.GetValue<int> ("Ai:Generation:MaxQuestionsPerBatch", 5);
     }
 
     /// <summary>

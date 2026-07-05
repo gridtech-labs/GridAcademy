@@ -184,11 +184,14 @@ public sealed class GeminiLlmProvider : ILLMProvider
             var json = await response.Content.ReadAsStringAsync(ct);
             var root = JsonNode.Parse(json)!;
 
+            var candidate    = root["candidates"]?[0];
+            var finishReason = candidate?["finishReason"]?.GetValue<string>();
+
             // Gemini 2.5+ thinking models return multiple parts:
             //   parts[0] = thinking trace  (has "thought": true)  ← skip this
             //   parts[1] = actual response (no "thought" field)   ← use this
             // With thinkingBudget=0 there is only one part, but we search defensively.
-            var parts = root["candidates"]?[0]?["content"]?["parts"]?.AsArray();
+            var parts = candidate?["content"]?["parts"]?.AsArray();
             string? text = null;
             if (parts != null)
             {
@@ -199,8 +202,30 @@ public sealed class GeminiLlmProvider : ILLMProvider
                     if (text != null) break;
                 }
             }
+
             if (text == null)
-                throw new InvalidOperationException($"No text part found in Gemini response: {json[..Math.Min(500, json.Length)]}");
+            {
+                // Give an actionable message based on why generation stopped.
+                var reasonHint = finishReason switch
+                {
+                    "MAX_TOKENS" => "the model hit the output-token limit before returning any text. " +
+                                    "Reduce the batch size (Ai:Generation:MaxQuestionsPerBatch).",
+                    "SAFETY"     => "the response was blocked by Gemini safety filters. Try a different topic/prompt.",
+                    "RECITATION" => "the response was blocked for recitation (copyright). Rephrase the prompt.",
+                    "PROHIBITED_CONTENT" => "the response was blocked as prohibited content.",
+                    null         => "no candidates were returned.",
+                    _            => $"finishReason = {finishReason}."
+                };
+                _log.LogError("Gemini returned no usable text ({Reason}). Body: {Body}",
+                    reasonHint, json[..Math.Min(600, json.Length)]);
+                throw new InvalidOperationException($"Gemini returned no question text — {reasonHint}");
+            }
+
+            // Truncated mid-JSON — the array will not parse. Fail with a clear cause.
+            if (finishReason == "MAX_TOKENS")
+                _log.LogWarning(
+                    "Gemini response was truncated (MAX_TOKENS) for model {Model}. " +
+                    "Consider lowering Ai:Generation:MaxQuestionsPerBatch.", ModelName);
 
             var usage        = root["usageMetadata"];
             var promptTokens = usage?["promptTokenCount"]?.GetValue<int>()     ?? 0;
