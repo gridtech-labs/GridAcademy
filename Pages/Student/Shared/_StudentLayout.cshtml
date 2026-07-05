@@ -16,11 +16,11 @@
     <link rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
 
-    <!-- KaTeX (for math rendering) -->
+    <!-- KaTeX (for math rendering) — MUST match the version used by the admin
+         Quill editor (0.16.11) that generates the stored formula HTML, otherwise
+         the CSS won't match the markup and the MathML fallback leaks through. -->
     <link rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css"
-          integrity="sha384-wcIxkf4k558AjM3Yz3BBFQUbk/zgIYC2R0QpeeYb+TwlBVMrlgLqwRjRtGZiK7ww"
-          crossorigin="anonymous" />
+          href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
 
     <!-- Student Portal CSS -->
     <link rel="stylesheet" href="~/css/student.css" asp-append-version="true" />
@@ -166,13 +166,9 @@ else
     }
 </script>
 
-<!-- KaTeX JS -->
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"
-        integrity="sha384-hIoBPJpTUs74ddyc4bFZSM1TVlQDA60VBbJS0oA934VSz82sBx1X7kSx2ATBDIyd"
-        crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"
-        integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk"
-        crossorigin="anonymous"></script>
+<!-- KaTeX JS (0.16.11 — matches the CSS + admin editor version above) -->
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         renderMathInElement(document.body, {

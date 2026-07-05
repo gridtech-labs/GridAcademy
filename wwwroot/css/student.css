@@ -333,6 +333,38 @@ body {
     font-size: .97rem;
     line-height: 1.6;
     color: var(--gray-800);
+    min-width: 0;            /* allow flex child to shrink so long formulas wrap/scroll */
+    overflow-x: auto;        /* wide formulas scroll inside the option, never break page */
+    overflow-y: hidden;
+    max-width: 100%;
+}
+
+/* ── KaTeX safety net ───────────────────────────────────────────
+   Belt-and-suspenders in case the KaTeX stylesheet is slow/blocked:
+   keep the MathML fallback hidden so it never leaks as duplicate text
+   (e.g. "3154π 77"), and keep rendered formulas from stretching the
+   page width on mobile. */
+.katex-mathml {
+    position: absolute !important;
+    clip: rect(1px, 1px, 1px, 1px) !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    border: 0 !important;
+}
+.question-text,
+.passage-text {
+    overflow-x: auto;
+    max-width: 100%;
+}
+.question-text .katex,
+.option-text .katex,
+.passage-text .katex { white-space: normal; }
+.katex-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 2px 0;
 }
 
 /* Result view: correct / wrong states */
@@ -1402,17 +1434,28 @@ body {
     line-height: 1.7;
     word-break: break-word;
     overflow-wrap: break-word;
+    max-width: 100%;
+    overflow-x: auto;        /* contain any wide pasted content instead of overflowing the page */
 }
+/* Admin-authored HTML is unpredictable — cap every child to the container width
+   so nothing (wide tables, images, nowrap spans, fixed-px blocks) pushes the
+   page wider than the mobile viewport and clips the text. */
+.instructions-html * { max-width: 100%; }
+.instructions-html img { height: auto; }
+.instructions-html table { display: block; width: 100%; overflow-x: auto; }
+.instructions-html pre { white-space: pre-wrap; word-break: break-word; }
 .instructions-html ul,
 .instructions-html ol { padding-left: 1.25rem; margin-bottom: .5rem; }
 .instructions-html li { margin-bottom: .4rem; }
 .instructions-html ol ol,
 .instructions-html ul ul { padding-left: 1.1rem; margin-top: .25rem; }
 
-/* Palette colour-badge rows inside instructions */
+/* Palette colour-badge rows inside instructions.
+   Allow the (often long) description text to wrap on narrow screens instead
+   of overflowing the viewport — the coloured box stays inline, text flows below. */
 .instructions-html li[style*="display:flex"] {
     align-items: center !important;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     line-height: 1.5;
 }
 
