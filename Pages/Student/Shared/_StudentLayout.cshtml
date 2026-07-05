@@ -16,11 +16,12 @@
     <link rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
 
-    <!-- KaTeX (for math rendering) — MUST match the version used by the admin
-         Quill editor (0.16.11) that generates the stored formula HTML, otherwise
-         the CSS won't match the markup and the MathML fallback leaks through. -->
-    <link rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+    <!-- KaTeX (for math rendering) — SELF-HOSTED 0.16.11 (same version as the
+         admin Quill editor that generates the stored formula HTML). Served from
+         our own origin so it can't be blocked by a CDN/proxy (the student site is
+         fronted by Vercel) — the CDN version silently failed to apply, causing the
+         MathML fallback to leak as duplicate text and the sqrt to stretch. -->
+    <link rel="stylesheet" href="~/lib/katex/katex.min.css" asp-append-version="true" />
 
     <!-- Student Portal CSS -->
     <link rel="stylesheet" href="~/css/student.css" asp-append-version="true" />
@@ -166,9 +167,9 @@ else
     }
 </script>
 
-<!-- KaTeX JS (0.16.11 — matches the CSS + admin editor version above) -->
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<!-- KaTeX JS (self-hosted 0.16.11 — matches the CSS + admin editor version above) -->
+<script src="~/lib/katex/katex.min.js" asp-append-version="true"></script>
+<script src="~/lib/katex/auto-render.min.js" asp-append-version="true"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         renderMathInElement(document.body, {
