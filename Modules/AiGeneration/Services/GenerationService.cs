@@ -203,9 +203,15 @@ public sealed class GenerationService
         }
 
         // ── Persist draft ─────────────────────────────────────────────────────
-        var optionsJson       = JsonSerializer.Serialize(q.Options,        _jsonOpts);
+        // Serialize with the SAME snake_case keys the readers expect (ReviewService,
+        // Review page ParseOptions, and DraftConverter all read "label"/"text"/
+        // "is_correct"). Serializing the PascalCase record directly produced
+        // {"Label","Text","IsCorrect"}, so option text was silently lost.
+        var optionsJson       = JsonSerializer.Serialize(
+            q.Options.Select(o => new { label = o.Label, text = o.Text, is_correct = o.IsCorrect }));
         var calcStepsJson     = q.CalculationSteps is { Count: > 0 }
-            ? JsonSerializer.Serialize(q.CalculationSteps, _jsonOpts)
+            ? JsonSerializer.Serialize(
+                q.CalculationSteps.Select(s => new { op = s.Op, operands = s.Operands, result = s.Result }))
             : null;
         var flagsJson         = flags.Count > 0
             ? JsonSerializer.Serialize(flags, _jsonOpts)

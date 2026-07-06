@@ -974,7 +974,21 @@ public static class DbSeeder
         // logs show exactly which statement (if any) fails in production.
         static async Task TryExec(AppDbContext db, string sql)
         {
-            try { await db.Database.ExecuteSqlRawAsync(sql); }
+            // IMPORTANT: use raw ADO.NET, NOT ExecuteSqlRawAsync. EF Core treats the
+            // SQL as a composite format string, so a literal '{}' (e.g. the jsonb
+            // default  flags_json ... DEFAULT '{}') is parsed as a {N} placeholder and
+            // throws FormatException — which previously aborted the question_drafts
+            // CREATE TABLE and left generation broken (42P01: question_drafts missing).
+            // A raw DbCommand does no format parsing and is safe for any braces.
+            try
+            {
+                var conn = db.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                    await conn.OpenAsync();
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = sql;
+                await cmd.ExecuteNonQueryAsync();
+            }
             catch (Exception ex)
             {
                 var snippet = sql.Trim();

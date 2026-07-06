@@ -44,10 +44,11 @@ public sealed class GeminiLlmProvider : ILLMProvider
         _apiKey   = cfg["Ai:Gemini:ApiKey"] ?? "";
         _baseUrl  = cfg["Ai:Gemini:BaseUrl"] ?? "https://generativelanguage.googleapis.com/v1beta";
 
-        // Default: gemini-2.0-flash — no thinking mode, fast, billing-compatible.
-        // gemini-2.5-flash has thinking=true which causes 5-15 min latency per call.
-        // Override via Railway Variable: Ai__Gemini__GenerationModel
-        ModelName = cfg["Ai:Gemini:GenerationModel"] ?? "gemini-2.0-flash";
+        // Default: gemini-2.5-flash — verified to work with AI Studio keys
+        // (gemini-2.0-flash 404s for many keys). Thinking is disabled per-request
+        // (thinkingBudget=0) so it stays fast. Override via Railway Variable:
+        // Ai__Gemini__GenerationModel
+        ModelName = cfg["Ai:Gemini:GenerationModel"] ?? "gemini-2.5-flash";
 
         // NOTE: do NOT throw here — constructor exceptions prevent Hangfire from
         // resolving the job, so generation_jobs.status stays "Queued" forever.
@@ -71,6 +72,21 @@ public sealed class GeminiLlmProvider : ILLMProvider
 
         var url = $"{_baseUrl}/models/{ModelName}:generateContent?key={_apiKey}";
 
+        // Build generationConfig as a dictionary so thinkingConfig can be added
+        // conditionally (only thinking-capable models accept it).
+        var generationConfig = new Dictionary<string, object?>
+        {
+            ["temperature"]      = 0.7,
+            ["maxOutputTokens"]  = 16384,   // headroom; gemini-2.5-flash allows up to 65536
+            ["responseMimeType"] = "application/json"
+        };
+
+        // gemini-2.5+/3.x "flash" models have thinking ON by default, which adds
+        // 5–15 min of latency per call. Disable it. Older/lite models that don't
+        // support thinking would reject this field, so only send it when relevant.
+        if (SupportsThinking(ModelName))
+            generationConfig["thinkingConfig"] = new { thinkingBudget = 0 };
+
         var bodyObj = new
         {
             contents = new[]
@@ -80,14 +96,7 @@ public sealed class GeminiLlmProvider : ILLMProvider
                     parts = new[] { new { text = prompt } }
                 }
             },
-            generationConfig = new
-            {
-                temperature      = 0.7,
-                maxOutputTokens  = 8192,    // gemini-2.0-flash output limit
-                responseMimeType = "application/json"
-                // No thinkingConfig — gemini-2.0-flash has no thinking mode.
-                // If switching to gemini-2.5-flash, add: thinkingConfig = new { thinkingBudget = 0 }
-            }
+            generationConfig
         };
 
         var bodyJson = JsonSerializer.Serialize(bodyObj, _json);
@@ -239,6 +248,18 @@ public sealed class GeminiLlmProvider : ILLMProvider
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// True for Gemini models that have "thinking" enabled by default (2.5+, 3.x).
+    /// These need thinkingBudget=0 to respond quickly; older models reject the field.
+    /// </summary>
+    private static bool SupportsThinking(string model)
+    {
+        var m = model.ToLowerInvariant();
+        if (m.Contains("flash-latest") || m.Contains("pro-latest")) return true;
+        // gemini-2.5-*, gemini-3-*, gemini-3.1-*, gemini-3.5-* …
+        return m.Contains("gemini-2.5") || m.Contains("gemini-3");
+    }
 
     /// <summary>
     /// Parses "Please retry in 58.59s." or "retry in 58s" from the error body.

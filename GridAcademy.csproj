@@ -7,6 +7,9 @@
     <!-- Enables XML comments for Swagger -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
+    <!-- Local dev secrets (e.g. Ai:Gemini:ApiKey). Keys live outside the repo:
+         dotnet user-secrets set "Ai:Gemini:ApiKey" "your-key" -->
+    <UserSecretsId>gridacademy-local-secrets</UserSecretsId>
   </PropertyGroup>
 
   <!-- Exclude the standalone diagnostic tools subfolder from this project's compilation -->
