@@ -24,7 +24,10 @@
         </a>
         @if (Model.JobId.HasValue && Model.StatusTab == 1 && Model.PendingCount > 0)
         {
-            <form method="post" asp-page-handler="BulkReject">
+            <form method="post" asp-page-handler="BulkReject"
+                  asp-route-JobId="@Model.JobId" asp-route-StatusTab="@Model.StatusTab" asp-route-PageNum="@Model.PageNum"
+                  asp-route-FilterSubjectId="@Model.FilterSubjectId" asp-route-FilterDifficulty="@Model.FilterDifficulty"
+                  asp-route-FilterLanguage="@Model.FilterLanguage" asp-route-FlaggedOnly="@Model.FlaggedOnly">
                 <input type="hidden" name="jobId" value="@Model.JobId" />
                 <button type="submit" class="btn btn-sm btn-outline-danger"
                         onclick="return confirm('Reject ALL pending drafts in this job?')">
@@ -48,23 +51,83 @@
 <ul class="nav nav-tabs mb-3">
     <li class="nav-item">
         <a class="nav-link @(Model.StatusTab == 1 ? "active" : "")"
-           asp-page="Index" asp-route-StatusTab="1" asp-route-jobId="@Model.JobId">
+           asp-page="Index" asp-route-StatusTab="1" asp-route-JobId="@Model.JobId"
+           asp-route-FilterSubjectId="@Model.FilterSubjectId" asp-route-FilterDifficulty="@Model.FilterDifficulty"
+           asp-route-FilterLanguage="@Model.FilterLanguage" asp-route-FlaggedOnly="@Model.FlaggedOnly">
             Pending <span class="badge bg-warning text-dark ms-1">@Model.PendingCount</span>
         </a>
     </li>
     <li class="nav-item">
         <a class="nav-link @(Model.StatusTab == 2 ? "active" : "")"
-           asp-page="Index" asp-route-StatusTab="2" asp-route-jobId="@Model.JobId">
+           asp-page="Index" asp-route-StatusTab="2" asp-route-JobId="@Model.JobId"
+           asp-route-FilterSubjectId="@Model.FilterSubjectId" asp-route-FilterDifficulty="@Model.FilterDifficulty"
+           asp-route-FilterLanguage="@Model.FilterLanguage" asp-route-FlaggedOnly="@Model.FlaggedOnly">
             Approved <span class="badge bg-success ms-1">@Model.ApprovedCount</span>
         </a>
     </li>
     <li class="nav-item">
         <a class="nav-link @(Model.StatusTab == 3 ? "active" : "")"
-           asp-page="Index" asp-route-StatusTab="3" asp-route-jobId="@Model.JobId">
+           asp-page="Index" asp-route-StatusTab="3" asp-route-JobId="@Model.JobId"
+           asp-route-FilterSubjectId="@Model.FilterSubjectId" asp-route-FilterDifficulty="@Model.FilterDifficulty"
+           asp-route-FilterLanguage="@Model.FilterLanguage" asp-route-FlaggedOnly="@Model.FlaggedOnly">
             Rejected <span class="badge bg-secondary ms-1">@Model.RejectedCount</span>
         </a>
     </li>
 </ul>
+
+<!-- Filter bar -->
+<form method="get" class="card card-body py-2 mb-3 shadow-sm">
+    <input type="hidden" name="StatusTab" value="@Model.StatusTab" />
+    <div class="row g-2 align-items-end">
+        <div class="col-6 col-md-3">
+            <label class="form-label small fw-semibold mb-1">Job (batch)</label>
+            <select name="JobId" class="form-select form-select-sm">
+                <option value="">All jobs</option>
+                @foreach (var j in Model.JobOptions)
+                {
+                    <option value="@j.Id" selected="@(Model.JobId == j.Id)">@j.Label</option>
+                }
+            </select>
+        </div>
+        <div class="col-6 col-md-3">
+            <label class="form-label small fw-semibold mb-1">Subject</label>
+            <select name="FilterSubjectId" class="form-select form-select-sm">
+                <option value="">All subjects</option>
+                @foreach (var s in Model.SubjectOptions)
+                {
+                    <option value="@s.Id" selected="@(Model.FilterSubjectId == s.Id)">@s.Name</option>
+                }
+            </select>
+        </div>
+        <div class="col-4 col-md-2">
+            <label class="form-label small fw-semibold mb-1">Difficulty</label>
+            <select name="FilterDifficulty" class="form-select form-select-sm">
+                <option value="">Any</option>
+                <option value="easy"   selected="@(Model.FilterDifficulty == "easy")">Easy</option>
+                <option value="medium" selected="@(Model.FilterDifficulty == "medium")">Medium</option>
+                <option value="hard"   selected="@(Model.FilterDifficulty == "hard")">Hard</option>
+            </select>
+        </div>
+        <div class="col-4 col-md-2">
+            <label class="form-label small fw-semibold mb-1">Language</label>
+            <select name="FilterLanguage" class="form-select form-select-sm">
+                <option value="">Any</option>
+                <option value="en" selected="@(Model.FilterLanguage == "en")">English</option>
+                <option value="hi" selected="@(Model.FilterLanguage == "hi")">Hindi</option>
+            </select>
+        </div>
+        <div class="col-4 col-md-2 d-flex align-items-center gap-2 pt-2">
+            <div class="form-check mb-0">
+                <input class="form-check-input" type="checkbox" name="FlaggedOnly" value="true" id="flaggedOnly" @(Model.FlaggedOnly ? "checked" : "") />
+                <label class="form-check-label small" for="flaggedOnly">⚑ Flagged</label>
+            </div>
+        </div>
+        <div class="col-12 col-md-auto">
+            <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Filter</button>
+            <a asp-page="Index" asp-route-StatusTab="@Model.StatusTab" class="btn btn-sm btn-outline-secondary ms-1">Clear</a>
+        </div>
+    </div>
+</form>
 
 @if (!Model.Drafts.Any())
 {
@@ -142,7 +205,10 @@ else
                     @if (d.Status == GridAcademy.Modules.AiGeneration.Domain.Entities.DraftStatus.PendingReview)
                     {
                         <div class="d-flex gap-2 flex-wrap">
-                            <form method="post" asp-page-handler="Approve" style="display:inline">
+                            <form method="post" asp-page-handler="Approve" style="display:inline"
+                                  asp-route-JobId="@Model.JobId" asp-route-StatusTab="@Model.StatusTab" asp-route-PageNum="@Model.PageNum"
+                                  asp-route-FilterSubjectId="@Model.FilterSubjectId" asp-route-FilterDifficulty="@Model.FilterDifficulty"
+                                  asp-route-FilterLanguage="@Model.FilterLanguage" asp-route-FlaggedOnly="@Model.FlaggedOnly">
                                 <input type="hidden" name="draftId" value="@d.Id" />
                                 <button type="submit" class="btn btn-success btn-sm">
                                     <i class="bi bi-check-lg me-1"></i>Approve
@@ -169,7 +235,10 @@ else
                             <h6 class="modal-title">Reject Draft #@d.Id</h6>
                             <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
                         </div>
-                        <form method="post" asp-page-handler="Reject">
+                        <form method="post" asp-page-handler="Reject"
+                              asp-route-JobId="@Model.JobId" asp-route-StatusTab="@Model.StatusTab" asp-route-PageNum="@Model.PageNum"
+                              asp-route-FilterSubjectId="@Model.FilterSubjectId" asp-route-FilterDifficulty="@Model.FilterDifficulty"
+                              asp-route-FilterLanguage="@Model.FilterLanguage" asp-route-FlaggedOnly="@Model.FlaggedOnly">
                             <div class="modal-body">
                                 <input type="hidden" name="draftId" value="@d.Id" />
                                 <label class="form-label small">Reason</label>
@@ -193,7 +262,10 @@ else
                             <h6 class="modal-title">Edit &amp; Approve Draft #@d.Id</h6>
                             <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
                         </div>
-                        <form method="post" asp-page-handler="EditApprove">
+                        <form method="post" asp-page-handler="EditApprove"
+                              asp-route-JobId="@Model.JobId" asp-route-StatusTab="@Model.StatusTab" asp-route-PageNum="@Model.PageNum"
+                              asp-route-FilterSubjectId="@Model.FilterSubjectId" asp-route-FilterDifficulty="@Model.FilterDifficulty"
+                              asp-route-FilterLanguage="@Model.FilterLanguage" asp-route-FlaggedOnly="@Model.FlaggedOnly">
                             <input type="hidden" name="EditDraftId" value="@d.Id" />
                             <div class="modal-body">
                                 <div class="mb-3">
@@ -268,8 +340,12 @@ else
                 <li class="page-item @(p == Model.PageNum ? "active" : "")">
                     <a class="page-link" asp-page="Index"
                        asp-route-StatusTab="@Model.StatusTab"
-                       asp-route-jobId="@Model.JobId"
-                       asp-route-pageNum="@p">@p</a>
+                       asp-route-JobId="@Model.JobId"
+                       asp-route-FilterSubjectId="@Model.FilterSubjectId"
+                       asp-route-FilterDifficulty="@Model.FilterDifficulty"
+                       asp-route-FilterLanguage="@Model.FilterLanguage"
+                       asp-route-FlaggedOnly="@Model.FlaggedOnly"
+                       asp-route-PageNum="@p">@p</a>
                 </li>
             }
         </ul>

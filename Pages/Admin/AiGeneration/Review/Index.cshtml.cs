@@ -22,10 +22,26 @@ public class IndexModel : PageModel
     }
 
     // ── Filters ────────────────────────────────────────────────────────────
-    [BindProperty(SupportsGet = true)] public int?   JobId      { get; set; }
-    [BindProperty(SupportsGet = true)] public int    StatusTab  { get; set; } = 1; // 1=Pending,2=Approved,3=Rejected
-    [BindProperty(SupportsGet = true)] public int    PageNum    { get; set; } = 1;
+    [BindProperty(SupportsGet = true)] public int?    JobId            { get; set; }
+    [BindProperty(SupportsGet = true)] public int     StatusTab        { get; set; } = 1; // 1=Pending,2=Approved,3=Rejected
+    [BindProperty(SupportsGet = true)] public int     PageNum          { get; set; } = 1;
+    [BindProperty(SupportsGet = true)] public int?    FilterSubjectId  { get; set; }
+    [BindProperty(SupportsGet = true)] public string? FilterDifficulty { get; set; } // easy | medium | hard
+    [BindProperty(SupportsGet = true)] public string? FilterLanguage   { get; set; } // en | hi
+    [BindProperty(SupportsGet = true)] public bool    FlaggedOnly      { get; set; }
     private const int PageSize = 10;
+
+    /// <summary>Route values that must ride along on every tab / action / page link.</summary>
+    private object FilterRoute(int? statusTab = null, int? pageNum = null) => new
+    {
+        JobId,
+        StatusTab = statusTab ?? StatusTab,
+        PageNum   = pageNum   ?? PageNum,
+        FilterSubjectId,
+        FilterDifficulty,
+        FilterLanguage,
+        FlaggedOnly
+    };
 
     public int TotalCount  { get; private set; }
     public List<DraftRow> Drafts { get; private set; } = [];
@@ -35,6 +51,7 @@ public class IndexModel : PageModel
     public List<(int Id, string Name)> SubjectOptions   { get; private set; } = [];
     public List<(int Id, string Name)> TopicOptions     { get; private set; } = [];
     public List<(int Id, string Name)> DifficultyOptions { get; private set; } = [];
+    public List<(int Id, string Label)> JobOptions      { get; private set; } = [];
     public int PendingCount  { get; private set; }
     public int ApprovedCount { get; private set; }
     public int RejectedCount { get; private set; }
@@ -56,15 +73,28 @@ public class IndexModel : PageModel
         {
             await LoadReferenceDataAsync();
 
-            var query = _db.QuestionDrafts.AsQueryable();
-            if (JobId.HasValue) query = query.Where(d => d.GenerationJobId == JobId.Value);
+            // Base query = all non-status filters. Applied to both the tab counts
+            // and the visible list so the numbers match what's shown.
+            var baseQuery = _db.QuestionDrafts.AsQueryable();
+            if (JobId.HasValue)
+                baseQuery = baseQuery.Where(d => d.GenerationJobId == JobId.Value);
+            if (FilterSubjectId.HasValue)
+                baseQuery = baseQuery.Where(d => d.SubjectId == FilterSubjectId.Value);
+            if (!string.IsNullOrEmpty(FilterDifficulty))
+                baseQuery = baseQuery.Where(d => d.DifficultyEstimate == FilterDifficulty);
+            if (!string.IsNullOrEmpty(FilterLanguage))
+                baseQuery = baseQuery.Where(d => d.Language == FilterLanguage);
+            if (FlaggedOnly)
+                baseQuery = baseQuery.Where(d => d.FlagsJson != null && d.FlagsJson != "{}" && d.FlagsJson != "");
+
+            PendingCount  = await baseQuery.CountAsync(d => d.Status == DraftStatus.PendingReview);
+            ApprovedCount = await baseQuery.CountAsync(d => d.Status == DraftStatus.Approved || d.Status == DraftStatus.EditedApproved);
+            RejectedCount = await baseQuery.CountAsync(d => d.Status == DraftStatus.Rejected);
 
             var statusEnum = (DraftStatus)StatusTab;
-            query = query.Where(d => d.Status == statusEnum);
-
-            PendingCount  = await _db.QuestionDrafts.CountAsync(d => d.Status == DraftStatus.PendingReview);
-            ApprovedCount = await _db.QuestionDrafts.CountAsync(d => d.Status == DraftStatus.Approved || d.Status == DraftStatus.EditedApproved);
-            RejectedCount = await _db.QuestionDrafts.CountAsync(d => d.Status == DraftStatus.Rejected);
+            var query = statusEnum == DraftStatus.Approved
+                ? baseQuery.Where(d => d.Status == DraftStatus.Approved || d.Status == DraftStatus.EditedApproved)
+                : baseQuery.Where(d => d.Status == statusEnum);
 
             TotalCount = await query.CountAsync();
             var raw = await query
@@ -103,7 +133,7 @@ public class IndexModel : PageModel
             TempData["Success"] = $"Draft #{draftId} approved and published.";
         }
         catch (Exception ex) { TempData["Error"] = ex.Message; }
-        return RedirectToPage(new { JobId, StatusTab, PageNum });
+        return RedirectToPage(FilterRoute());
     }
 
     // ── Reject ─────────────────────────────────────────────────────────────
@@ -115,7 +145,7 @@ public class IndexModel : PageModel
             TempData["Success"] = $"Draft #{draftId} rejected.";
         }
         catch (Exception ex) { TempData["Error"] = ex.Message; }
-        return RedirectToPage(new { JobId, StatusTab, PageNum });
+        return RedirectToPage(FilterRoute());
     }
 
     // ── Edit + Approve ─────────────────────────────────────────────────────
@@ -131,7 +161,7 @@ public class IndexModel : PageModel
             TempData["Success"] = $"Draft #{EditDraftId} edited and approved.";
         }
         catch (Exception ex) { TempData["Error"] = ex.Message; }
-        return RedirectToPage(new { JobId, StatusTab, PageNum });
+        return RedirectToPage(FilterRoute());
     }
 
     // ── Bulk Reject Job ────────────────────────────────────────────────────
@@ -143,7 +173,7 @@ public class IndexModel : PageModel
             TempData["Success"] = $"All pending drafts for job #{jobId} rejected.";
         }
         catch (Exception ex) { TempData["Error"] = ex.Message; }
-        return RedirectToPage(new { JobId, StatusTab, PageNum });
+        return RedirectToPage(FilterRoute());
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
@@ -172,6 +202,15 @@ public class IndexModel : PageModel
             .Select(d => new { d.Id, d.Name })
             .ToListAsync())
             .Select(d => (d.Id, d.Name)).ToList();
+
+        // Recent generation jobs — for the "Job" filter dropdown.
+        JobOptions = (await _db.GenerationJobs
+            .OrderByDescending(j => j.Id)
+            .Take(50)
+            .Select(j => new { j.Id, j.Difficulty, j.Language, j.Count })
+            .ToListAsync())
+            .Select(j => (j.Id, $"Job #{j.Id} · {j.Difficulty} · {j.Language} · {j.Count}q"))
+            .ToList();
     }
 
     // ── View model ──────────────────────────────────────────────────────────
