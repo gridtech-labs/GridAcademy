@@ -35,7 +35,9 @@ public sealed class AnthropicLlmProvider : ILLMProvider
         ModelName = cfg["Ai:Anthropic:GenerationModel"]  ?? "claude-haiku-4-5-20251001";
     }
 
-    public async Task<LlmCompletion> CompleteAsync(string prompt, CancellationToken ct = default)
+    // responseSchemaJson is accepted for interface parity; Anthropic tool-use/JSON
+    // mode is not wired here, so it is ignored (the prompt still asks for JSON).
+    public async Task<LlmCompletion> CompleteAsync(string prompt, string? responseSchemaJson = null, CancellationToken ct = default)
     {
         var body = new
         {

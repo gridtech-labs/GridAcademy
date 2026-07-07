@@ -12,6 +12,12 @@ public interface ILLMProvider
     /// <summary>The model identifier currently active for generation.</summary>
     string ModelName { get; }
 
-    /// <summary>Send a prompt and get back a plain-text completion + token counts.</summary>
-    Task<LlmCompletion> CompleteAsync(string prompt, CancellationToken ct = default);
+    /// <summary>
+    /// Send a prompt and get back a plain-text completion + token counts.
+    /// When <paramref name="responseSchemaJson"/> is supplied (a JSON schema string),
+    /// providers that support structured output constrain the response to it — so the
+    /// model must return that exact shape (e.g. an array of question objects) rather
+    /// than free-form JSON. Providers without schema support ignore it.
+    /// </summary>
+    Task<LlmCompletion> CompleteAsync(string prompt, string? responseSchemaJson = null, CancellationToken ct = default);
 }

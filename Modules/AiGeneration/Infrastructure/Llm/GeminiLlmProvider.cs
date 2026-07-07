@@ -60,7 +60,7 @@ public sealed class GeminiLlmProvider : ILLMProvider
                 "Get a free key at https://aistudio.google.com/apikey");
     }
 
-    public async Task<LlmCompletion> CompleteAsync(string prompt, CancellationToken ct = default)
+    public async Task<LlmCompletion> CompleteAsync(string prompt, string? responseSchemaJson = null, CancellationToken ct = default)
     {
         // Validate here (not constructor) so Hangfire can resolve the service and
         // RunJobAsync can catch this and write status = Failed to the DB.
@@ -80,6 +80,14 @@ public sealed class GeminiLlmProvider : ILLMProvider
             ["maxOutputTokens"]  = 16384,   // headroom; gemini-2.5-flash allows up to 65536
             ["responseMimeType"] = "application/json"
         };
+
+        // Structured output: force the response into the given schema (e.g. an array
+        // of question objects) so the model cannot drift to other JSON shapes.
+        if (!string.IsNullOrWhiteSpace(responseSchemaJson))
+        {
+            try { generationConfig["responseSchema"] = JsonNode.Parse(responseSchemaJson); }
+            catch (Exception ex) { _log.LogWarning(ex, "Invalid responseSchema JSON — sending without it."); }
+        }
 
         // gemini-2.5+/3.x "flash" models have thinking ON by default, which adds
         // 5–15 min of latency per call. Disable it. Older/lite models that don't

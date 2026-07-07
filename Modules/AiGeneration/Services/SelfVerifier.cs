@@ -50,7 +50,7 @@ public sealed class SelfVerifier
         LlmCompletion completion;
         try
         {
-            completion = await _llm.CompleteAsync(prompt, ct);
+            completion = await _llm.CompleteAsync(prompt, responseSchemaJson: null, ct: ct);
             await _usage.RecordAsync(completion, ct);
         }
         catch (Exception ex)

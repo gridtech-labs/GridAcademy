@@ -41,6 +41,38 @@ public sealed class GenerationService
         PropertyNameCaseInsensitive = true
     };
 
+    // Structured-output schema: forces the LLM to return an ARRAY of question objects,
+    // so it cannot drift to unrelated JSON (e.g. exam/recruitment metadata) when the
+    // section's syllabus/topic text is ambiguous. (Gemini schema — uppercase types.)
+    private const string QuestionsResponseSchema = """
+        {
+          "type": "ARRAY",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "question_text": { "type": "STRING" },
+              "options": {
+                "type": "ARRAY",
+                "items": {
+                  "type": "OBJECT",
+                  "properties": {
+                    "label":      { "type": "STRING" },
+                    "text":       { "type": "STRING" },
+                    "is_correct": { "type": "BOOLEAN" }
+                  },
+                  "required": ["text", "is_correct"]
+                }
+              },
+              "correct_index":       { "type": "INTEGER" },
+              "explanation":         { "type": "STRING" },
+              "difficulty_estimate": { "type": "STRING" },
+              "estimated_seconds":   { "type": "INTEGER" }
+            },
+            "required": ["question_text", "options", "correct_index"]
+          }
+        }
+        """;
+
     public GenerationService(
         AppDbContext        db,
         ILLMProvider        llm,
@@ -131,7 +163,7 @@ public sealed class GenerationService
             LlmCompletion completion;
             try
             {
-                completion = await _llm.CompleteAsync(prompt, CancellationToken.None);
+                completion = await _llm.CompleteAsync(prompt, QuestionsResponseSchema, CancellationToken.None);
             }
             catch (Exception ex)
             {
