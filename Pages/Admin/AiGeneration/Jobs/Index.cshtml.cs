@@ -73,9 +73,9 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostEnqueueAsync()
     {
-        if (!SelectedExamPageId.HasValue || Count < 1)
+        if (!SelectedExamPageId.HasValue || !SelectedTestId.HasValue || Count < 1)
         {
-            TempData["Error"] = "Select an exam and a valid count.";
+            TempData["Error"] = "Select an exam, a target test, and a valid count.";
             return RedirectToPage();
         }
 

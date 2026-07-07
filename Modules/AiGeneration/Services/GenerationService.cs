@@ -259,38 +259,96 @@ public sealed class GenerationService
                 raw = raw[..^3];
         }
 
-        var arr = JsonNode.Parse(raw.Trim())?.AsArray()
-                  ?? throw new InvalidOperationException("LLM did not return a JSON array.");
+        var root = JsonNode.Parse(raw.Trim())
+                   ?? throw new InvalidOperationException("LLM returned empty or invalid JSON.");
+
+        // Resolve to an array of question objects, tolerating the shapes Gemini
+        // sometimes returns (esp. for math/arithmetic prompts):
+        //   [ {...}, {...} ]                      ← ideal
+        //   { "questions"|"data"|"items": [...] } ← wrapped in an object
+        //   { "question_text": ... }              ← a single question object
+        // Using `as JsonArray` (not .AsArray(), which THROWS on non-arrays).
+        JsonArray? arr = root as JsonArray;
+        if (arr is null && root is JsonObject obj)
+        {
+            arr = obj["questions"] as JsonArray
+               ?? obj["data"]      as JsonArray
+               ?? obj["items"]     as JsonArray;
+            if (arr is null && obj.ContainsKey("question_text"))
+                arr = new JsonArray(JsonNode.Parse(obj.ToJsonString())); // single question → wrap
+        }
+        if (arr is null)
+            throw new InvalidOperationException(
+                "LLM did not return a JSON array of questions. Response starts with: " +
+                raw[..Math.Min(200, raw.Length)]);
 
         var result = new List<GeneratedQuestion>();
         foreach (var item in arr)
         {
-            if (item is null) continue;
+            if (item is not JsonObject) continue;
+            try
+            {
+                int correctIndex = int.TryParse(item["correct_index"]?.ToString(), out var ci) ? ci : 0;
 
-            var opts = item["options"]?.AsArray()?
-                .Select(o => new GeneratedOption(
-                    o?["label"]?.GetValue<string>() ?? "",
-                    o?["text"]?.GetValue<string>()  ?? "",
-                    o?["is_correct"]?.GetValue<bool>() ?? false))
-                .ToList() ?? [];
+                // Options can arrive as objects ({label,text,is_correct}) OR as plain
+                // strings (common for math/arithmetic). Handle both, and if no per-option
+                // is_correct is given, derive the correct one from correct_index.
+                var opts = new List<GeneratedOption>();
+                if (item["options"] is JsonArray optArr)
+                {
+                    for (int i = 0; i < optArr.Count; i++)
+                    {
+                        var o = optArr[i];
+                        if (o is JsonObject oo)
+                        {
+                            var label = oo["label"]?.GetValue<string>();
+                            opts.Add(new GeneratedOption(
+                                string.IsNullOrEmpty(label) ? ((char)('A' + i)).ToString() : label,
+                                oo["text"]?.GetValue<string>() ?? "",
+                                (oo["is_correct"] as JsonValue)?.GetValue<bool>() ?? (i == correctIndex)));
+                        }
+                        else
+                        {
+                            // plain string / number option
+                            opts.Add(new GeneratedOption(
+                                ((char)('A' + i)).ToString(),
+                                o?.ToString() ?? "",
+                                i == correctIndex));
+                        }
+                    }
+                    // Safety net: if nothing was marked correct, mark the correct_index one.
+                    if (opts.Count > 0 && !opts.Any(x => x.IsCorrect) && correctIndex >= 0 && correctIndex < opts.Count)
+                        opts[correctIndex] = opts[correctIndex] with { IsCorrect = true };
+                }
 
-            var steps = item["calculation_steps"]?.AsArray()?
-                .Select(s => new CalculationStep(
-                    s?["op"]?.GetValue<string>() ?? "",
-                    s?["operands"]?.AsArray()?.Select(v => v!.GetValue<decimal>()).ToList() ?? [],
-                    s?["result"]?.GetValue<decimal>() ?? 0))
-                .ToList();
+                var steps = (item["calculation_steps"] as JsonArray)?
+                    .Select(s => new CalculationStep(
+                        s?["op"]?.GetValue<string>() ?? "",
+                        (s?["operands"] as JsonArray)?
+                            .Select(v => decimal.TryParse(v?.ToString(), out var d) ? d : 0m).ToList() ?? [],
+                        decimal.TryParse(s?["result"]?.ToString(), out var r) ? r : 0m))
+                    .ToList();
 
-            result.Add(new GeneratedQuestion(
-                item["question_text"]?.GetValue<string>() ?? "",
-                opts,
-                item["correct_index"]?.GetValue<int>() ?? 0,
-                item["explanation"]?.GetValue<string>(),
-                steps,
-                item["difficulty_estimate"]?.GetValue<string>(),
-                item["estimated_seconds"]?.GetValue<int>()
-            ));
+                int? estSeconds  = int.TryParse(item["estimated_seconds"]?.ToString(), out var es) ? es : null;
+
+                result.Add(new GeneratedQuestion(
+                    item["question_text"]?.GetValue<string>() ?? "",
+                    opts,
+                    correctIndex,
+                    item["explanation"]?.GetValue<string>(),
+                    steps,
+                    item["difficulty_estimate"]?.GetValue<string>(),
+                    estSeconds
+                ));
+            }
+            catch
+            {
+                // Skip a single malformed question rather than failing the whole batch.
+            }
         }
+
+        if (result.Count == 0)
+            throw new InvalidOperationException("LLM response parsed but contained no usable questions.");
 
         return result;
     }
