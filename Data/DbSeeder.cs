@@ -1251,6 +1251,10 @@ public static class DbSeeder
             CREATE INDEX IF NOT EXISTS ix_generation_jobs_created_at   ON generation_jobs (created_at DESC);
             """);
 
+        // Optional target Test — approved questions are mapped straight into it.
+        // Added later; ALTER IF NOT EXISTS keeps existing production tables in sync.
+        await TryExec(db, "ALTER TABLE generation_jobs ADD COLUMN IF NOT EXISTS test_id uuid;");
+
         await TryExec(db, """
             DO $$
             BEGIN

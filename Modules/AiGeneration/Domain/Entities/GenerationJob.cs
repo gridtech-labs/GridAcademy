@@ -10,6 +10,12 @@ public class GenerationJob
     public int? AiExamSectionId  { get; set; }
     public int? AiExamTopicId    { get; set; }
 
+    /// <summary>
+    /// Optional target Test. When set, approved questions from this job are
+    /// added directly to this Test (mapped via test_questions).
+    /// </summary>
+    public Guid? TestId          { get; set; }
+
     public string Difficulty     { get; set; } = "medium"; // easy | medium | hard
     public string Language       { get; set; } = "en";     // en | hi
     public int    Count          { get; set; } = 10;

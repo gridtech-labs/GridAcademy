@@ -28,9 +28,20 @@ public sealed class OrphanedJobCleanerJob
     {
         var cutoff = DateTime.UtcNow.AddHours(-2);
 
-        var orphaned = await _db.GenerationJobs
-            .Where(j => j.Status == GenerationJobStatus.Running && j.CreatedAt < cutoff)
-            .ToListAsync();
+        List<GenerationJob> orphaned;
+        try
+        {
+            orphaned = await _db.GenerationJobs
+                .Where(j => j.Status == GenerationJobStatus.Running && j.CreatedAt < cutoff)
+                .ToListAsync();
+        }
+        catch (Npgsql.PostgresException ex) when (ex.SqlState is "42P01" or "42703")
+        {
+            // AI tables/columns not created yet (first deploy — the background seeder
+            // runs shortly after startup). Skip this run; the next tick will succeed.
+            _log.LogInformation("OrphanedJobCleaner: schema not ready yet ({State}); skipping.", ex.SqlState);
+            return;
+        }
 
         if (orphaned.Count == 0) return;
 

@@ -185,6 +185,17 @@
                         }
                     </div>
                     <div class="mb-3">
+                        <label class="form-label fw-semibold">Add approved questions to Test <span class="text-muted small">(optional)</span></label>
+                        <select asp-for="SelectedTestId" class="form-select">
+                            <option value="">— Bank only (don't add to a test) —</option>
+                            @foreach (var t in Model.TestOptions)
+                            {
+                                <option value="@t.Id">@t.Title</option>
+                            }
+                        </select>
+                        <div class="form-text">When set, each question you <strong>Approve</strong> in Review is added straight into this test.</div>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Section (optional)</label>
                         <select asp-for="SelectedSectionId" class="form-select">
                             <option value="">— All sections —</option>

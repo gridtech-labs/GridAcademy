@@ -1247,6 +1247,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.ExamPageId).HasColumnName("exam_page_id");
             e.Property(x => x.AiExamSectionId).HasColumnName("ai_exam_section_id");
             e.Property(x => x.AiExamTopicId).HasColumnName("ai_exam_topic_id");
+            e.Property(x => x.TestId).HasColumnName("test_id");
             e.Property(x => x.Difficulty).HasColumnName("difficulty").HasMaxLength(20);
             e.Property(x => x.Language).HasColumnName("language").HasMaxLength(10);
             e.Property(x => x.Count).HasColumnName("count");

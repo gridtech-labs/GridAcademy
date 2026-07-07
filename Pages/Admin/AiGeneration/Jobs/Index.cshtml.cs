@@ -1,4 +1,5 @@
 using GridAcademy.Data;
+using GridAcademy.Data.Entities.Assessment;
 using GridAcademy.Modules.AiGeneration.Domain.Entities;
 using GridAcademy.Modules.AiGeneration.Jobs;
 using Hangfire;
@@ -31,6 +32,7 @@ public class IndexModel : PageModel
 
     // ── "New Job" form ─────────────────────────────────────────────────────
     [BindProperty] public Guid?  SelectedExamPageId    { get; set; }
+    [BindProperty] public Guid?  SelectedTestId        { get; set; }
     [BindProperty] public int?   SelectedSectionId     { get; set; }
     [BindProperty] public int?   SelectedTopicId       { get; set; }
     [BindProperty] public string Difficulty            { get; set; } = "medium";
@@ -40,6 +42,7 @@ public class IndexModel : PageModel
 
     // ── Reference lists ───────────────────────────────────────────────────
     public List<(Guid Id, string Title)>  ExamOptions    { get; private set; } = [];
+    public List<(Guid Id, string Title)>  TestOptions    { get; private set; } = [];
     public List<(int Id, string Name)>    SectionOptions { get; private set; } = [];
 
     public async Task OnGetAsync()
@@ -81,6 +84,7 @@ public class IndexModel : PageModel
         var job = new GenerationJob
         {
             ExamPageId       = SelectedExamPageId.Value,
+            TestId           = SelectedTestId,
             AiExamSectionId  = SelectedSectionId,
             AiExamTopicId    = SelectedTopicId,
             Difficulty       = Difficulty,
@@ -172,6 +176,15 @@ public class IndexModel : PageModel
             .Select(s => new { s.Id, s.SectionName })
             .ToListAsync())
             .Select(s => (s.Id, s.SectionName))
+            .ToList();
+
+        // Tests the admin can send approved questions into (exclude archived).
+        TestOptions = (await _db.Tests
+            .Where(t => t.Status != TestStatus.Archived)
+            .OrderBy(t => t.Title)
+            .Select(t => new { t.Id, t.Title })
+            .ToListAsync())
+            .Select(t => (t.Id, t.Title))
             .ToList();
     }
 

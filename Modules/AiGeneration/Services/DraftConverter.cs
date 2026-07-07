@@ -119,6 +119,38 @@ public sealed class DraftConverter
             });
         }
 
+        // ── Map into the target Test (if the job specified one) ────────────────
+        // Adds the approved question straight to the chosen Test, auto-assigned to
+        // its first section (mirrors "Add from Bank"), so it appears in the test
+        // immediately — no separate manual step.
+        var targetTestId = draft.GenerationJob?.TestId;
+        if (targetTestId.HasValue)
+        {
+            var already = await _db.TestQuestions
+                .AnyAsync(tq => tq.TestId == targetTestId.Value && tq.QuestionId == question.Id, ct);
+            if (!already)
+            {
+                var maxSort = await _db.TestQuestions
+                    .Where(tq => tq.TestId == targetTestId.Value)
+                    .MaxAsync(tq => (int?)tq.SortOrder, ct) ?? 0;
+                var firstSectionId = await _db.TestSections
+                    .Where(s => s.TestId == targetTestId.Value)
+                    .OrderBy(s => s.SortOrder).ThenBy(s => s.Id)
+                    .Select(s => (int?)s.Id)
+                    .FirstOrDefaultAsync(ct);
+                _db.TestQuestions.Add(new GridAcademy.Data.Entities.Assessment.TestQuestion
+                {
+                    TestId     = targetTestId.Value,
+                    QuestionId = question.Id,
+                    SectionId  = firstSectionId,
+                    SortOrder  = maxSort + 1,
+                    AddedAt    = DateTime.UtcNow
+                });
+                _log.LogInformation("Approved question {QuestionId} added to test {TestId} (section {SectionId}).",
+                    question.Id, targetTestId.Value, firstSectionId);
+            }
+        }
+
         // ── Update draft ───────────────────────────────────────────────────────
         draft.Status              = DraftStatus.Approved;
         draft.ReviewerId          = reviewerId;
