@@ -202,8 +202,31 @@
                             <div class="form-text">Each question you <strong>Approve</strong> in Review is added straight into this test.</div>
                         }
                     </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Subject <span class="text-danger">*</span></label>
+                            <select asp-for="SelectedSubjectId" id="jobSubject" class="form-select" required>
+                                <option value="">— Select subject —</option>
+                                @foreach (var s in Model.SubjectOptions)
+                                {
+                                    <option value="@s.Id">@s.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Topic <span class="text-muted small">(optional)</span></label>
+                            <select asp-for="SelectedTopicId" id="jobTopic" class="form-select">
+                                <option value="">— All topics in subject —</option>
+                                @foreach (var t in Model.TopicOptions)
+                                {
+                                    <option value="@t.Id" data-subject="@t.SubjectId">@t.Name</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-text mb-3">The AI generates questions for this <strong>Subject</strong> (and <strong>Topic</strong> if chosen). The Subject/Topic is stamped on every draft.</div>
                     <div class="mb-3">
-                        <label class="form-label">Section (optional)</label>
+                        <label class="form-label">AI Section (optional)</label>
                         <select asp-for="SelectedSectionId" class="form-select">
                             <option value="">— All sections —</option>
                             @foreach (var s in Model.SectionOptions)
@@ -250,3 +273,26 @@
 </div>
 
 <style>.btn-xs { padding: 1px 8px; font-size: .75rem; }</style>
+
+<script>
+    // Cascade: show only the Topics that belong to the selected Subject.
+    (function () {
+        var subjectSel = document.getElementById('jobSubject');
+        var topicSel   = document.getElementById('jobTopic');
+        if (!subjectSel || !topicSel) return;
+        var allTopics = Array.prototype.slice.call(topicSel.querySelectorAll('option[data-subject]'));
+
+        function refresh() {
+            var subj = subjectSel.value;
+            topicSel.value = '';                 // reset topic when subject changes
+            allTopics.forEach(function (o) {
+                var match = subj && o.getAttribute('data-subject') === subj;
+                o.hidden = !match;
+                o.disabled = !match;
+            });
+            topicSel.disabled = !subj;           // no subject → topic locked
+        }
+        subjectSel.addEventListener('change', refresh);
+        refresh();
+    })();
+</script>

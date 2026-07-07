@@ -1255,6 +1255,10 @@ public static class DbSeeder
         // Added later; ALTER IF NOT EXISTS keeps existing production tables in sync.
         await TryExec(db, "ALTER TABLE generation_jobs ADD COLUMN IF NOT EXISTS test_id uuid;");
 
+        // Master Subject / Topic the AI generates for (drive the prompt + stamp drafts).
+        await TryExec(db, "ALTER TABLE generation_jobs ADD COLUMN IF NOT EXISTS subject_id integer;");
+        await TryExec(db, "ALTER TABLE generation_jobs ADD COLUMN IF NOT EXISTS topic_id integer;");
+
         await TryExec(db, """
             DO $$
             BEGIN

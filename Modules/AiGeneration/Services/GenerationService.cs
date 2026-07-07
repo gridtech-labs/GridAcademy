@@ -252,8 +252,8 @@ public sealed class GenerationService
         _db.QuestionDrafts.Add(new QuestionDraft
         {
             GenerationJobId      = job.Id,
-            SubjectId            = job.AiExamSection?.SubjectId,
-            TopicId              = job.AiExamTopic?.TopicId,
+            SubjectId            = job.SubjectId ?? job.AiExamSection?.SubjectId,
+            TopicId              = job.TopicId ?? job.AiExamTopic?.TopicId,
             DifficultyLevelId    = null, // reviewer sets this
             Language             = job.Language,
             QuestionText         = q.QuestionText,

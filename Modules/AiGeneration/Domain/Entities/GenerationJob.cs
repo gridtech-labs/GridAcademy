@@ -16,6 +16,13 @@ public class GenerationJob
     /// </summary>
     public Guid? TestId          { get; set; }
 
+    /// <summary>Master Subject the AI should generate for (subjects.id). Drives the
+    /// prompt and is stamped on every draft so approval never lacks a subject.</summary>
+    public int?  SubjectId       { get; set; }
+
+    /// <summary>Master Topic under the chosen Subject (topics.id). Optional.</summary>
+    public int?  TopicId         { get; set; }
+
     public string Difficulty     { get; set; } = "medium"; // easy | medium | hard
     public string Language       { get; set; } = "en";     // en | hi
     public int    Count          { get; set; } = 10;

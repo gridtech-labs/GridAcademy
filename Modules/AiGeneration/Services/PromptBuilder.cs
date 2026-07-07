@@ -42,14 +42,32 @@ public sealed class PromptBuilder
             ? $"REFERENCE QUESTIONS (mimic style/difficulty, do NOT copy):\n{r}\n\n"
             : "";
 
-        var sectionName     = job.AiExamSection?.SectionName ?? "General";
-        var topicName       = topic?.TopicName ?? "General";
+        // Master Subject / Topic chosen on the job take priority; fall back to the
+        // AI-section name / AI-topic name for older jobs.
+        var subjectName = job.SubjectId.HasValue
+            ? await _db.Subjects.Where(x => x.Id == job.SubjectId.Value).Select(x => x.Name).FirstOrDefaultAsync(ct)
+              ?? job.AiExamSection?.SectionName ?? "General"
+            : job.AiExamSection?.SectionName ?? "General";
+
+        var topicName = job.TopicId.HasValue
+            ? await _db.Topics.Where(x => x.Id == job.TopicId.Value).Select(x => x.Name).FirstOrDefaultAsync(ct)
+              ?? topic?.TopicName ?? "General"
+            : topic?.TopicName ?? "General";
+
+        // The Exam conveys the STANDARD/LEVEL (e.g. "IIT JEE Advanced" vs "NEET UG"),
+        // so the model calibrates difficulty and style to that exam.
+        var examName = await _db.ExamPages
+            .Where(e => e.Id == job.ExamPageId).Select(e => e.Title).FirstOrDefaultAsync(ct)
+            ?? "a competitive exam";
+
         var difficulty      = job.Difficulty;
         var count           = job.Count;
         var language        = job.Language == "hi" ? "Hindi" : "English";
 
         return basePrompt
-            .Replace("{{SECTION}}", sectionName)
+            .Replace("{{EXAM}}", examName)
+            .Replace("{{SUBJECT}}", subjectName)
+            .Replace("{{SECTION}}", subjectName)   // legacy templates use {{SECTION}}
             .Replace("{{TOPIC}}", topicName)
             .Replace("{{DIFFICULTY}}", difficulty)
             .Replace("{{COUNT}}", count.ToString())
@@ -63,11 +81,14 @@ public sealed class PromptBuilder
         """
         You are an expert question setter for competitive exams.
 
-        Generate exactly {{COUNT}} high-quality multiple-choice questions for:
-        - Section:    {{SECTION}}
+        Generate exactly {{COUNT}} high-quality multiple-choice questions at the
+        standard, style and difficulty of this exam: {{EXAM}}.
+        - Subject:    {{SUBJECT}}
         - Topic:      {{TOPIC}}
         - Difficulty: {{DIFFICULTY}}
         - Language:   {{LANGUAGE}}
+
+        Match the depth and question pattern typical of {{EXAM}} for {{SUBJECT}}.
 
         {{SYLLABUS_BLOCK}}{{REFERENCE_BLOCK}}
 

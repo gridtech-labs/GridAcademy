@@ -33,17 +33,20 @@ public class IndexModel : PageModel
     // ── "New Job" form ─────────────────────────────────────────────────────
     [BindProperty] public Guid?  SelectedExamPageId    { get; set; }
     [BindProperty] public Guid?  SelectedTestId        { get; set; }
-    [BindProperty] public int?   SelectedSectionId     { get; set; }
+    [BindProperty] public int?   SelectedSubjectId     { get; set; }
     [BindProperty] public int?   SelectedTopicId       { get; set; }
+    [BindProperty] public int?   SelectedSectionId     { get; set; }
     [BindProperty] public string Difficulty            { get; set; } = "medium";
     [BindProperty] public string Language              { get; set; } = "en";
     [BindProperty] public int    Count                 { get; set; } = 10;
     [BindProperty] public string? Notes                { get; set; }
 
     // ── Reference lists ───────────────────────────────────────────────────
-    public List<(Guid Id, string Title)>  ExamOptions    { get; private set; } = [];
-    public List<(Guid Id, string Title)>  TestOptions    { get; private set; } = [];
-    public List<(int Id, string Name)>    SectionOptions { get; private set; } = [];
+    public List<(Guid Id, string Title)>       ExamOptions    { get; private set; } = [];
+    public List<(Guid Id, string Title)>       TestOptions    { get; private set; } = [];
+    public List<(int Id, string Name)>         SubjectOptions { get; private set; } = [];
+    public List<(int Id, string Name, int SubjectId)> TopicOptions { get; private set; } = [];
+    public List<(int Id, string Name)>         SectionOptions { get; private set; } = [];
 
     public async Task OnGetAsync()
     {
@@ -73,9 +76,9 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostEnqueueAsync()
     {
-        if (!SelectedExamPageId.HasValue || !SelectedTestId.HasValue || Count < 1)
+        if (!SelectedExamPageId.HasValue || !SelectedTestId.HasValue || !SelectedSubjectId.HasValue || Count < 1)
         {
-            TempData["Error"] = "Select an exam, a target test, and a valid count.";
+            TempData["Error"] = "Select an exam, a target test, a subject, and a valid count.";
             return RedirectToPage();
         }
 
@@ -85,8 +88,9 @@ public class IndexModel : PageModel
         {
             ExamPageId       = SelectedExamPageId.Value,
             TestId           = SelectedTestId,
+            SubjectId        = SelectedSubjectId,
+            TopicId          = SelectedTopicId,
             AiExamSectionId  = SelectedSectionId,
-            AiExamTopicId    = SelectedTopicId,
             Difficulty       = Difficulty,
             Language         = Language,
             Count            = Count,
@@ -185,6 +189,22 @@ public class IndexModel : PageModel
             .Select(t => new { t.Id, t.Title })
             .ToListAsync())
             .Select(t => (t.Id, t.Title))
+            .ToList();
+
+        // Master Subjects + Topics (Topic carries SubjectId so the UI can cascade).
+        SubjectOptions = (await _db.Subjects
+            .Where(s => s.IsActive)
+            .OrderBy(s => s.Name)
+            .Select(s => new { s.Id, s.Name })
+            .ToListAsync())
+            .Select(s => (s.Id, s.Name))
+            .ToList();
+
+        TopicOptions = (await _db.Topics
+            .OrderBy(t => t.Name)
+            .Select(t => new { t.Id, t.Name, t.SubjectId })
+            .ToListAsync())
+            .Select(t => (t.Id, t.Name, t.SubjectId))
             .ToList();
     }
 
