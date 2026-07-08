@@ -291,8 +291,34 @@ public sealed class GenerationService
                 raw = raw[..^3];
         }
 
-        var root = JsonNode.Parse(raw.Trim())
+        raw = raw.Trim();
+
+        JsonNode? root;
+        try
+        {
+            root = JsonNode.Parse(raw)
                    ?? throw new InvalidOperationException("LLM returned empty or invalid JSON.");
+        }
+        catch (JsonException)
+        {
+            // The response was cut off mid-array (e.g. Gemini hit MAX_TOKENS), so the
+            // JSON won't parse as a whole ("Expected end of string … reached end of
+            // data"). Recover every COMPLETE question object that arrived before the
+            // truncation point instead of discarding the entire batch.
+            var salvaged = SalvageObjects(raw);
+            if (salvaged.Count == 0)
+                throw new InvalidOperationException(
+                    "LLM returned truncated JSON and no complete questions could be " +
+                    "recovered. Lower the batch size (Count) and retry.");
+
+            var recovered = new JsonArray();
+            foreach (var objText in salvaged)
+            {
+                try { recovered.Add(JsonNode.Parse(objText)); }
+                catch { /* skip a malformed fragment */ }
+            }
+            root = recovered;
+        }
 
         // Resolve to an array of question objects, tolerating the shapes Gemini
         // sometimes returns (esp. for math/arithmetic prompts):
@@ -383,6 +409,55 @@ public sealed class GenerationService
             throw new InvalidOperationException("LLM response parsed but contained no usable questions.");
 
         return result;
+    }
+
+    /// <summary>
+    /// Extracts every COMPLETE top-level JSON object from a (possibly truncated)
+    /// string. Used to recover questions when the LLM response was cut off mid-array:
+    /// each balanced <c>{ … }</c> at brace-depth 0 is one question object; the final
+    /// unterminated object (if any) is dropped. String contents (with escapes) are
+    /// tracked so braces inside strings are ignored.
+    /// </summary>
+    private static List<string> SalvageObjects(string raw)
+    {
+        var objects = new List<string>();
+        int depth = 0, start = -1;
+        bool inString = false, escape = false;
+
+        for (int i = 0; i < raw.Length; i++)
+        {
+            char c = raw[i];
+            if (inString)
+            {
+                if (escape)        escape = false;
+                else if (c == '\\') escape = true;
+                else if (c == '"')  inString = false;
+                continue;
+            }
+
+            switch (c)
+            {
+                case '"':
+                    inString = true;
+                    break;
+                case '{':
+                    if (depth == 0) start = i;
+                    depth++;
+                    break;
+                case '}':
+                    if (depth > 0)
+                    {
+                        depth--;
+                        if (depth == 0 && start >= 0)
+                        {
+                            objects.Add(raw.Substring(start, i - start + 1));
+                            start = -1;
+                        }
+                    }
+                    break;
+            }
+        }
+        return objects;
     }
 
     private static GenerationJob CloneJobWithCount(GenerationJob job, int count)

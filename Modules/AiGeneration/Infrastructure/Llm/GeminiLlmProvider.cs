@@ -77,7 +77,10 @@ public sealed class GeminiLlmProvider : ILLMProvider
         var generationConfig = new Dictionary<string, object?>
         {
             ["temperature"]      = 0.7,
-            ["maxOutputTokens"]  = 16384,   // headroom; gemini-2.5-flash allows up to 65536
+            // Ceiling only — billed on tokens actually produced, so a high cap costs
+            // nothing extra but prevents the JSON array from being truncated mid-item
+            // (which caused "Expected end of string … reached end of data").
+            ["maxOutputTokens"]  = 32768,   // gemini-2.5-flash allows up to 65536
             ["responseMimeType"] = "application/json"
         };
 
