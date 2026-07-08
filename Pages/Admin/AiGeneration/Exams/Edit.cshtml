@@ -186,15 +186,34 @@
             </div>
             <div class="card-body">
                 <p class="text-muted small mb-2">
-                    Available placeholders: <code>&#123;&#123;SECTION&#125;&#125;</code>,
+                    Available placeholders: <code>&#123;&#123;EXAM&#125;&#125;</code>,
+                    <code>&#123;&#123;SUBJECT&#125;&#125;</code>,
+                    <code>&#123;&#123;SECTION&#125;&#125;</code>,
                     <code>&#123;&#123;TOPIC&#125;&#125;</code>,
                     <code>&#123;&#123;DIFFICULTY&#125;&#125;</code>,
                     <code>&#123;&#123;COUNT&#125;&#125;</code>,
                     <code>&#123;&#123;LANGUAGE&#125;&#125;</code>,
                     <code>&#123;&#123;SYLLABUS_BLOCK&#125;&#125;</code>,
                     <code>&#123;&#123;REFERENCE_BLOCK&#125;&#125;</code>.
-                    Leave blank to use the built-in default.
+                    Leave blank (or delete) to use the built-in default.
                 </p>
+                @if (Model.ActiveTemplate is not null)
+                {
+                    <div class="alert alert-warning py-2 small d-flex justify-content-between align-items-center">
+                        <span>
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            A custom prompt (v@(Model.ActiveTemplate.Version)) is active. If generated questions
+                            are off-topic (e.g. about eligibility or how to apply), delete it to restore the
+                            built-in subject/topic-driven default.
+                        </span>
+                        <form method="post" asp-page-handler="DeletePrompt" class="ms-2">
+                            <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap"
+                                    onclick="return confirm('Delete the custom prompt template and use the built-in default? This removes all saved versions for this exam.')">
+                                <i class="bi bi-trash me-1"></i>Delete &amp; Reset to Default
+                            </button>
+                        </form>
+                    </div>
+                }
                 <form method="post" asp-page-handler="SavePrompt">
                     <textarea asp-for="PromptText" class="form-control font-monospace small" rows="20"
                               placeholder="Leave blank to use built-in default…">@(Model.ActiveTemplate?.PromptText ?? "")</textarea>

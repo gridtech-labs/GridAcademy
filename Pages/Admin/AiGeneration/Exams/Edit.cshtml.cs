@@ -166,6 +166,30 @@ public class EditModel : PageModel
         return RedirectToPage(new { Id = Config.Id });
     }
 
+    // ── Delete prompt (reset to built-in default) ───────────────────────────
+    // Removes ALL saved prompt-template versions for this config, so generation
+    // falls back to the built-in default prompt (subject/topic/exam driven).
+    public async Task<IActionResult> OnPostDeletePromptAsync()
+    {
+        await EnsureConfigAsync();
+
+        var templates = await _db.GenerationPromptTemplates
+            .Where(t => t.AiExamConfigId == Config!.Id)
+            .ToListAsync();
+
+        if (templates.Count == 0)
+        {
+            TempData["Error"] = "No custom prompt template to delete.";
+            return RedirectToPage(new { Id = Config!.Id });
+        }
+
+        _db.GenerationPromptTemplates.RemoveRange(templates);
+        await _db.SaveChangesAsync();
+        TempData["Success"] = $"Deleted {templates.Count} prompt version(s). " +
+                              "Generation will now use the built-in default prompt.";
+        return RedirectToPage(new { Id = Config!.Id });
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────
 
     private async Task LoadAsync()
