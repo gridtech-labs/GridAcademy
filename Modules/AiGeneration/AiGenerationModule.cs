@@ -19,16 +19,17 @@ public static class AiGenerationModule
     {
         // ── HTTP clients ─────────────────────────────────────────────────────
         // Separate named HttpClient per provider so timeouts/retry policies differ.
-        services.AddHttpClient<GeminiLlmProvider>(c =>
-        {
-            // 90s — thinking is disabled (thinkingBudget=0) so responses are fast.
-            // Extra headroom for large batches or transient slowness.
-            c.Timeout = TimeSpan.FromSeconds(90);
-        });
+        // Generation can take a few minutes for larger batches (a 32k-token response
+        // streams slowly), so give a generous timeout. Configurable via
+        // Ai:Gemini:TimeoutSeconds (Railway: Ai__Gemini__TimeoutSeconds).
+        var geminiTimeout = TimeSpan.FromSeconds(
+            int.TryParse(cfg["Ai:Gemini:TimeoutSeconds"], out var gts) && gts > 0 ? gts : 300);
+
+        services.AddHttpClient<GeminiLlmProvider>(c => c.Timeout = geminiTimeout);
 
         services.AddHttpClient<AnthropicLlmProvider>(c =>
         {
-            c.Timeout = TimeSpan.FromSeconds(60);
+            c.Timeout = TimeSpan.FromSeconds(300);
         });
 
         services.AddHttpClient<GeminiEmbeddingsProvider>(c =>
@@ -37,15 +38,19 @@ public static class AiGenerationModule
         });
 
         // ── LLM provider (swap by config) ────────────────────────────────────
+        // NOTE: resolve the concrete provider through the container so it gets its
+        // typed HttpClient (with the configured timeout). A plain
+        // AddTransient<ILLMProvider, GeminiLlmProvider> would activate a SECOND
+        // instance with a default 100s HttpClient, ignoring the timeout above.
         var llmProviderName = cfg["Ai:LlmProvider"] ?? "gemini";
         if (llmProviderName.Equals("anthropic", StringComparison.OrdinalIgnoreCase))
         {
-            services.AddTransient<ILLMProvider, AnthropicLlmProvider>();
+            services.AddTransient<ILLMProvider>(sp => sp.GetRequiredService<AnthropicLlmProvider>());
         }
         else
         {
             // Default: Gemini
-            services.AddTransient<ILLMProvider, GeminiLlmProvider>();
+            services.AddTransient<ILLMProvider>(sp => sp.GetRequiredService<GeminiLlmProvider>());
         }
 
         // ── Embeddings provider ───────────────────────────────────────────────

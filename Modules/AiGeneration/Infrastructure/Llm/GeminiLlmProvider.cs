@@ -32,6 +32,9 @@ public sealed class GeminiLlmProvider : ILLMProvider
     // Max attempts for retryable errors (429 rate-limit, 503 overload).
     private const int MaxRetries = 5;
 
+    // Per-request timeout. Generation of a large batch can take a few minutes.
+    private readonly TimeSpan _requestTimeout;
+
     private static readonly JsonSerializerOptions _json = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -49,6 +52,14 @@ public sealed class GeminiLlmProvider : ILLMProvider
         // (thinkingBudget=0) so it stays fast. Override via Railway Variable:
         // Ai__Gemini__GenerationModel
         ModelName = cfg["Ai:Gemini:GenerationModel"] ?? "gemini-2.5-flash";
+
+        // Guarantee a generous timeout regardless of how this provider is resolved
+        // in DI (resolving via ILLMProvider could otherwise hand us a default 100s
+        // HttpClient). Setting Timeout on a not-yet-used client is safe; guard anyway.
+        _requestTimeout = TimeSpan.FromSeconds(
+            int.TryParse(cfg["Ai:Gemini:TimeoutSeconds"], out var t) && t > 0 ? t : 300);
+        try { _http.Timeout = _requestTimeout; }
+        catch (InvalidOperationException) { /* client already started — DI-configured timeout stands */ }
 
         // NOTE: do NOT throw here — constructor exceptions prevent Hangfire from
         // resolving the job, so generation_jobs.status stays "Queued" forever.
