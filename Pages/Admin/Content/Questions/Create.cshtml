@@ -113,6 +113,29 @@
         <!-- ══════════════════════════════════════════════════════════════════ -->
         <div class="col-12 col-xl-8">
 
+            <!-- ── Question Type selector (choose first — fields below adapt) ── -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-white fw-semibold py-3 d-flex align-items-center gap-2">
+                    Question Type <span class="badge bg-danger">Required</span>
+                </div>
+                <div class="card-body pb-3">
+                    <select asp-for="Form.QuestionType" id="qtypeSelect" class="form-select">
+                        <option value="1">MCQ — Single Correct · One correct option (A–D)</option>
+                        <option value="2">MSQ — Multi Correct · One or more correct options</option>
+                        <option value="3">NAT — Numerical · Integer or decimal answer</option>
+                        <option value="4">FIB — Fill in Blank · Use [BLANK_1] in text</option>
+                        <option value="5">T/F — True / False · Statement is True or False</option>
+                        <option value="6">MTF — Match Following · List I ↔ List II pairs</option>
+                        <option value="7">A&amp;R — Assert &amp; Reason · Assertion A + Reason R</option>
+                        <option value="8">PBQ — Passage Based · Questions on a paragraph</option>
+                        <option value="9">MMQ — Matrix Match · Row × Column grid</option>
+                    </select>
+                    <small class="text-muted d-block mt-2">
+                        <i class="bi bi-info-circle me-1"></i>Select the question type first — the fields below adapt to your choice.
+                    </small>
+                </div>
+            </div>
+
             <!-- ── Question Text (hidden for AR and PBQ) ──────────────────── -->
             <div class="card shadow-sm mb-3" id="questionTextCard">
                 <div class="card-header bg-white fw-semibold py-3 d-flex align-items-center gap-2">
@@ -140,24 +163,6 @@
                             <div class="math-editor-wrap ql-mini"><div id="editor-solution"></div></div>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- ── Question Type selector ─────────────────────────────────── -->
-            <div class="card shadow-sm mb-3">
-                <div class="card-header bg-white fw-semibold py-3">Question Type</div>
-                <div class="card-body pb-3">
-                    <select asp-for="Form.QuestionType" id="qtypeSelect" class="form-select">
-                        <option value="1">MCQ — Single Correct · One correct option (A–D)</option>
-                        <option value="2">MSQ — Multi Correct · One or more correct options</option>
-                        <option value="3">NAT — Numerical · Integer or decimal answer</option>
-                        <option value="4">FIB — Fill in Blank · Use [BLANK_1] in text</option>
-                        <option value="5">T/F — True / False · Statement is True or False</option>
-                        <option value="6">MTF — Match Following · List I ↔ List II pairs</option>
-                        <option value="7">A&amp;R — Assert &amp; Reason · Assertion A + Reason R</option>
-                        <option value="8">PBQ — Passage Based · Questions on a paragraph</option>
-                        <option value="9">MMQ — Matrix Match · Row × Column grid</option>
-                    </select>
                 </div>
             </div>
 
