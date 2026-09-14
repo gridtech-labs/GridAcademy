@@ -4,6 +4,13 @@ namespace GridAcademy.Data.Entities.Assessment;
 
 public class TestAssignment
 {
+    /// <summary>
+    /// <see cref="AvailableTo"/> value meaning "no end date" — used for exam tests,
+    /// where access (free, or a paid exam purchase) is lifetime. A real far-future
+    /// date rather than DateTime.MaxValue, which Npgsql maps to 'infinity'.
+    /// </summary>
+    public static readonly DateTime LifetimeAvailableTo = new(9999, 12, 31, 0, 0, 0, DateTimeKind.Utc);
+
     public Guid Id { get; set; } = Guid.NewGuid();
 
     public Guid TestId { get; set; }

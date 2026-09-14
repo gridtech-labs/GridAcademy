@@ -50,16 +50,26 @@ public class AssessmentController(IAssessmentService assessmentSvc, AppDbContext
 
         if (assignment == null)
         {
+            // Exam-test access (free, or a paid exam purchase) is lifetime — no end date.
             assignment = new TestAssignment
             {
                 TestId        = testId,
                 StudentId     = sid,
                 AvailableFrom = DateTime.UtcNow,
-                AvailableTo   = DateTime.UtcNow.AddYears(1),
+                AvailableTo   = TestAssignment.LifetimeAvailableTo,
                 MaxAttempts   = 99,
                 AssignedAt    = DateTime.UtcNow,
             };
             db.TestAssignments.Add(assignment);
+            await db.SaveChangesAsync();
+        }
+        else if (assignment.AssignedBy == null && assignment.GroupId == null
+                 && assignment.AvailableTo < TestAssignment.LifetimeAvailableTo)
+        {
+            // Self-service assignments created here before access became lifetime had a
+            // 1-year window, after which StartAttempt rejects them. Lift it. Assignments
+            // an admin/instructor created (AssignedBy or GroupId set) keep their window.
+            assignment.AvailableTo = TestAssignment.LifetimeAvailableTo;
             await db.SaveChangesAsync();
         }
 

@@ -1259,6 +1259,18 @@ public static class DbSeeder
         await TryExec(db, "ALTER TABLE generation_jobs ADD COLUMN IF NOT EXISTS subject_id integer;");
         await TryExec(db, "ALTER TABLE generation_jobs ADD COLUMN IF NOT EXISTS topic_id integer;");
 
+        // Exam-test access (free, or a paid exam purchase) is lifetime. Self-service
+        // assignments — created by /api/assessment/free-access, so no assigned_by and no
+        // group_id — used to get a 1-year window; lift the existing ones. Assignments an
+        // admin/instructor created keep their window. Idempotent.
+        await TryExec(db, """
+            UPDATE test_assignments
+               SET available_to = '9999-12-31 00:00:00+00'
+             WHERE assigned_by IS NULL
+               AND group_id IS NULL
+               AND available_to < '9999-12-31 00:00:00+00';
+            """);
+
         await TryExec(db, """
             DO $$
             BEGIN
