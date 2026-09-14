@@ -210,6 +210,25 @@ public class ExamService(AppDbContext db) : IExamService
         await db.SaveChangesAsync();
     }
 
+    /// <summary>
+    /// Bulk-sets the free/paid flag on every test mapped to this exam.
+    /// Used to fix a paid exam whose tests were mapped while it was still free
+    /// (changing an exam's price does not retro-update existing mappings).
+    /// </summary>
+    /// <returns>Number of mappings actually changed.</returns>
+    public async Task<int> SetAllTestsFreeAsync(Guid examId, bool isFree)
+    {
+        var entries = await db.ExamPageTests
+            .Where(t => t.ExamPageId == examId && t.IsFree != isFree)
+            .ToListAsync();
+
+        if (entries.Count == 0) return 0;
+
+        entries.ForEach(e => e.IsFree = isFree);
+        await db.SaveChangesAsync();
+        return entries.Count;
+    }
+
     public async Task<List<ExamTestDto>> GetMappedTestsAsync(Guid examId)
     {
         return await db.ExamPageTests

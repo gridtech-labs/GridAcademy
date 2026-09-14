@@ -57,4 +57,22 @@ public class TestsModel(IExamService svc, AppDbContext db) : PageModel
         catch (Exception ex) { TempData["Error"] = ex.Message; }
         return RedirectToPage(new { id = Id });
     }
+
+    /// <summary>
+    /// Marks every mapped test Paid (or Free) in one action. Fixes a paid exam whose
+    /// tests were mapped while it was still free — setting a price does not
+    /// retro-update existing mappings, so they keep showing "Take Free Test".
+    /// </summary>
+    public async Task<IActionResult> OnPostSetAllAccessAsync(bool isFree)
+    {
+        try
+        {
+            var changed = await svc.SetAllTestsFreeAsync(Id, isFree);
+            TempData["Success"] = changed == 0
+                ? $"No changes — all tests were already {(isFree ? "Free" : "Paid")}."
+                : $"{changed} test(s) marked as {(isFree ? "Free" : "Paid")}.";
+        }
+        catch (Exception ex) { TempData["Error"] = ex.Message; }
+        return RedirectToPage(new { id = Id });
+    }
 }

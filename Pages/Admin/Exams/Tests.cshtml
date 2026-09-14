@@ -35,6 +35,8 @@
 
 @if (isPaidExam)
 {
+    var freeCount = Model.Mapped.Count(m => m.IsFree);
+
     <div class="alert alert-warning d-flex gap-2 align-items-center py-2 mb-3 small">
         <i class="bi bi-lock-fill"></i>
         <div>
@@ -43,6 +45,31 @@
             Click the <strong>Paid ↕</strong> badge on any test to mark it as a free preview.
         </div>
     </div>
+
+    @* Setting a price does not retro-update tests mapped while the exam was free,
+       so they keep showing "Take Free Test" on the public site. Flag it and offer a
+       one-click fix rather than making the admin toggle each test by hand. *@
+    @if (freeCount > 0)
+    {
+        <div class="alert alert-danger d-flex gap-2 align-items-start py-2 mb-3 small">
+            <i class="bi bi-exclamation-octagon-fill mt-1"></i>
+            <div class="flex-grow-1">
+                <strong>@freeCount of @Model.Mapped.Count test(s) are still marked Free on this paid exam.</strong>
+                <div class="mt-1">
+                    Students see <em>“Take Free Test”</em> instead of the ₹@Model.Exam!.PriceInr buy button,
+                    and can start these tests without paying. This usually happens when the tests were
+                    added while the exam was still free — setting a price does not change existing tests.
+                </div>
+            </div>
+            <form method="post" asp-page-handler="SetAllAccess" class="ms-2">
+                <input type="hidden" name="isFree" value="false" />
+                <button type="submit" class="btn btn-sm btn-danger text-nowrap"
+                        onclick="return confirm('Mark all @freeCount free test(s) as Paid? Students will then need to purchase this exam to take them.')">
+                    <i class="bi bi-lock me-1"></i>Mark all as Paid
+                </button>
+            </form>
+        </div>
+    }
 }
 
 <div class="row g-4">
