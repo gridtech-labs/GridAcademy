@@ -30,19 +30,44 @@ public class AssessmentController(IAssessmentService assessmentSvc, AppDbContext
     [HttpPost("free-access/{testId:guid}")]
     public async Task<IActionResult> GetFreeAccess(Guid testId)
     {
+        var sid = UserId;
+
+        // An admin/instructor explicitly assigned this test to the student → always allowed.
+        var adminAssigned = await db.TestAssignments.AnyAsync(a =>
+            a.TestId == testId && a.StudentId == sid && (a.AssignedBy != null || a.GroupId != null));
+
         // Check 1: test is marked free on ANY exam page (regardless of page draft/publish status)
         var isFreeOnExamPage = await db.ExamPageTests
             .AnyAsync(t => t.TestId == testId && t.IsFree);
 
-        // Check 2: fallback — test itself is Published (standalone test not tied to an exam page)
-        var isStandalonePublished = !isFreeOnExamPage && await db.Tests
+        // Check 2: test is sold as part of a PAID exam. The price is exam-level — one
+        // purchase unlocks every paid test in the exam — so require an active purchase
+        // of one of those exams. Without this, a paid test fell through to the
+        // "standalone published" fallback below and could be started without paying.
+        var paidExamIds = await db.ExamPageTests
+            .Where(t => t.TestId == testId && !t.IsFree && t.ExamPage.PriceInr > 0)
+            .Select(t => t.ExamPageId)
+            .ToListAsync();
+
+        if (!adminAssigned && !isFreeOnExamPage && paidExamIds.Count > 0)
+        {
+            var now  = DateTime.UtcNow;
+            var owns = await db.ExamAccesses.AnyAsync(a =>
+                a.StudentId == sid && paidExamIds.Contains(a.ExamPageId) && a.IsActive
+                && (a.ExpiresAt == null || a.ExpiresAt > now));
+
+            if (!owns)
+                return StatusCode(403, ApiResponse.Fail(
+                    "This test is part of a paid exam. Buy the exam to unlock all of its tests."));
+        }
+
+        // Check 3: fallback — test itself is Published (standalone test not sold on a paid exam)
+        var isStandalonePublished = !isFreeOnExamPage && paidExamIds.Count == 0 && await db.Tests
             .AnyAsync(t => t.Id == testId
                 && t.Status == GridAcademy.Data.Entities.Assessment.TestStatus.Published);
 
-        if (!isFreeOnExamPage && !isStandalonePublished)
+        if (!adminAssigned && !isFreeOnExamPage && paidExamIds.Count == 0 && !isStandalonePublished)
             return NotFound(ApiResponse.Fail("This test is not available for free access."));
-
-        var sid = UserId;
 
         var assignment = await db.TestAssignments
             .Include(a => a.Attempts)
