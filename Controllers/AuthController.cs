@@ -29,6 +29,24 @@ public class AuthController : ControllerBase
         _jwt  = jwt;
     }
 
+    /// <summary>
+    /// Roles that may never sign in through passwordless quick-access — they hold
+    /// privileged access and always have a real password.
+    /// </summary>
+    private static readonly string[] StaffRoles =
+        ["Admin", "SuperAdmin", "Instructor", "Provider"];
+
+    /// <summary>
+    /// Digits only, last 10 — so "+91 98765 43210", "09876543210" and "9876543210"
+    /// all compare equal.
+    /// </summary>
+    private static string NormalizeMobile(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "";
+        var digits = new string(value.Where(char.IsDigit).ToArray());
+        return digits.Length > 10 ? digits[^10..] : digits;
+    }
+
     // ── Email + Password Login ────────────────────────────────────────────────
 
     /// <summary>
@@ -172,12 +190,28 @@ public class AuthController : ControllerBase
         }
         else
         {
-            // Update phone if not set yet
-            if (string.IsNullOrEmpty(user.Phone))
-                user.Phone = mobile;
+            // SECURITY: this endpoint is passwordless, so knowing an email address must
+            // never be enough to sign in to somebody else's account.
+
+            // 1. Staff accounts are off-limits here — they sign in with their password.
+            //    Without this, anyone could enter admin@… and receive an admin token.
+            if (StaffRoles.Contains(user.Role, StringComparer.OrdinalIgnoreCase))
+                return Unauthorized(ApiResponse.Fail(
+                    "This email is registered as a staff account. Please sign in with your password."));
 
             if (!user.IsActive)
                 return BadRequest(ApiResponse.Fail("Your account has been deactivated. Please contact support."));
+
+            // 2. The mobile number must match the one held on the account. Accounts
+            //    created before a number was captured are bound to the one given here,
+            //    so existing students are not locked out.
+            var storedMobile = NormalizeMobile(user.Phone);
+            if (storedMobile.Length == 0)
+                user.Phone = mobile;
+            else if (storedMobile != NormalizeMobile(mobile))
+                return Unauthorized(ApiResponse.Fail(
+                    "An account already exists for this email. Enter the mobile number registered " +
+                    "with it, or sign in with your password."));
         }
 
         user.LastLoginAt = DateTime.UtcNow;
