@@ -60,11 +60,14 @@ public class ImportService : IImportService
         result.TotalRows = rows.Count;
         int rowNum = 2; // header is row 1
 
-        // Pre-load existing question texts for duplicate detection
+        // Pre-load existing question texts for duplicate detection. The bank can already
+        // hold identical texts (e.g. repeated AI-generated items), so group first — a plain
+        // ToDictionary threw "same key has already been added" and aborted the whole import.
         var existingTexts = (await _db.Questions.AsNoTracking()
                 .Select(q => new { q.Id, q.Text })
                 .ToListAsync())
-            .ToDictionary(q => q.Text.Trim(), q => q.Id, StringComparer.OrdinalIgnoreCase);
+            .GroupBy(q => q.Text.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
         var duplicateIds = new List<Guid>();
 
         foreach (var row in rows)
@@ -144,11 +147,13 @@ public class ImportService : IImportService
         result.TotalRows = rows.Count;
         int rowNum = 2;
 
-        // Pre-load existing question texts for duplicate detection
+        // Pre-load existing question texts for duplicate detection (grouped — the bank can
+        // already contain identical texts, which made ToDictionary throw and abort the import).
         var existingTextsExcel = (await _db.Questions.AsNoTracking()
                 .Select(q => new { q.Id, q.Text })
                 .ToListAsync())
-            .ToDictionary(q => q.Text.Trim(), q => q.Id, StringComparer.OrdinalIgnoreCase);
+            .GroupBy(q => q.Text.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
         var duplicateIdsExcel = new List<Guid>();
 
         foreach (var row in rows)
@@ -962,8 +967,12 @@ public class ImportService : IImportService
         var subject = m.Subjects.FirstOrDefault(x => x.Name.Equals(row.SubjectName?.Trim(), StringComparison.OrdinalIgnoreCase));
         if (subject == null) { errors.Add(new ImportRowError { Row = rowNum, Field = "SubjectName", Message = $"'{row.SubjectName}' not found" }); }
 
-        var topic = m.Topics.FirstOrDefault(x => x.Name.Equals(row.TopicName?.Trim(), StringComparison.OrdinalIgnoreCase));
-        if (topic == null) { errors.Add(new ImportRowError { Row = rowNum, Field = "TopicName", Message = $"'{row.TopicName}' not found" }); }
+        // The topic must belong to this row's subject. Topic names can repeat across subjects
+        // (e.g. "Thermodynamics" in Physics and Chemistry), so matching on name alone could
+        // silently file a question under another subject's topic.
+        var topic = subject == null ? null : m.Topics.FirstOrDefault(x =>
+            x.SubjectId == subject.Id && x.Name.Equals(row.TopicName?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (topic == null && subject != null) { errors.Add(new ImportRowError { Row = rowNum, Field = "TopicName", Message = $"'{row.TopicName}' not found under subject '{subject.Name}'" }); }
 
         var diff = m.DifficultyLevels.FirstOrDefault(x => x.Name.Equals(row.DifficultyLevel?.Trim(), StringComparison.OrdinalIgnoreCase));
         if (diff == null) { errors.Add(new ImportRowError { Row = rowNum, Field = "DifficultyLevel", Message = $"'{row.DifficultyLevel}' not found" }); }

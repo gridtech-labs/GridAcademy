@@ -301,6 +301,77 @@ public static class DbSeeder
         }
         if (topicsAdded) { await db.SaveChangesAsync(); logger.LogInformation("RRB ALP topics seeded."); }
 
+        // ── JEE Main chapter topics (NTA syllabus) ───────────────────────────────
+        // Chapter-level topics under Physics / Chemistry / Mathematics so AI generation,
+        // Excel import (TopicName) and chapter-wise tests can target a single chapter.
+        // Idempotent: matched on subject + name (case-insensitive); a subject that does
+        // not exist is skipped with a warning rather than failing startup.
+        var jeeSubjectIds = (await db.Subjects.Select(s => new { s.Name, s.Id }).ToListAsync())
+            .ToDictionary(s => s.Name, s => s.Id, StringComparer.OrdinalIgnoreCase);
+        var jeeExistingTopics = (await db.Topics.Select(t => new { t.Name, t.SubjectId }).ToListAsync())
+            .Select(t => $"{t.SubjectId}:{t.Name}")
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var jeeChapters = new (string Subject, string[] Chapters)[]
+        {
+            ("Physics", new[]
+            {
+                "Units and Dimensions", "Mathematics in Physics", "Motion in One Dimension",
+                "Motion in Two Dimensions", "Laws of Motion", "Work, Power and Energy",
+                "Centre of Mass and Collisions", "Rotational Motion", "Gravitation",
+                "Mechanical Properties of Solids", "Mechanical Properties of Fluids",
+                "Thermal Properties of Matter", "Thermodynamics", "Kinetic Theory of Gases",
+                "Oscillations", "Waves and Sound", "Electrostatics", "Capacitance",
+                "Current Electricity", "Magnetic Effects of Current", "Magnetic Properties of Matter",
+                "Electromagnetic Induction", "Alternating Current", "Electromagnetic Waves",
+                "Ray Optics", "Wave Optics", "Dual Nature of Matter and Radiation", "Atomic Physics",
+                "Nuclear Physics", "Semiconductor Electronics", "Experimental Physics",
+            }),
+            ("Chemistry", new[]
+            {
+                "Some Basic Concepts of Chemistry", "Structure of Atom",
+                "Classification of Elements and Periodicity", "Chemical Bonding and Molecular Structure",
+                "Chemical Thermodynamics", "Chemical Equilibrium", "Ionic Equilibrium", "Redox Reactions",
+                "p-Block Elements (Group 13 and 14)", "General Organic Chemistry", "Hydrocarbons",
+                "Solutions", "Electrochemistry", "Chemical Kinetics", "p-Block Elements (Group 15 to 18)",
+                "d- and f-Block Elements", "Coordination Compounds", "Haloalkanes and Haloarenes",
+                "Alcohols, Phenols and Ethers", "Aldehydes and Ketones", "Carboxylic Acids and Derivatives",
+                "Amines", "Biomolecules", "Practical Chemistry",
+            }),
+            ("Mathematics", new[]
+            {
+                "Basic Mathematics", "Sets and Relations", "Functions", "Quadratic Equations",
+                "Complex Numbers", "Permutations and Combinations", "Sequences and Series",
+                "Binomial Theorem", "Trigonometric Ratios and Identities", "Trigonometric Equations",
+                "Inverse Trigonometric Functions", "Straight Lines", "Circles", "Parabola", "Ellipse",
+                "Hyperbola", "Limits", "Continuity and Differentiability", "Differentiation",
+                "Application of Derivatives", "Indefinite Integration", "Definite Integration",
+                "Area Under Curves", "Differential Equations", "Matrices", "Determinants",
+                "Vector Algebra", "Three Dimensional Geometry", "Probability", "Statistics",
+            }),
+        };
+
+        int jeeTopicsAdded = 0;
+        foreach (var (subjectName, chapters) in jeeChapters)
+        {
+            if (!jeeSubjectIds.TryGetValue(subjectName, out var sid))
+            {
+                logger.LogWarning("JEE chapter topics: subject '{Subject}' not found — skipped.", subjectName);
+                continue;
+            }
+            for (int i = 0; i < chapters.Length; i++)
+            {
+                if (!jeeExistingTopics.Add($"{sid}:{chapters[i]}")) continue; // already present
+                db.Topics.Add(new Topic { Name = chapters[i], SubjectId = sid, SortOrder = 100 + i });
+                jeeTopicsAdded++;
+            }
+        }
+        if (jeeTopicsAdded > 0)
+        {
+            await db.SaveChangesAsync();
+            logger.LogInformation("JEE Main chapter topics seeded: {Count}.", jeeTopicsAdded);
+        }
+
         // RRB ALP exam type
         if (!await db.ExamTypes.AnyAsync(e => e.Name == "RRB ALP"))
         {
