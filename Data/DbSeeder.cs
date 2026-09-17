@@ -78,6 +78,14 @@ public static class DbSeeder
         try { await MigrateVlCategoriesToExamMastersAsync(db); }
         catch (Exception ex) { logger.LogError(ex, "MigrateVlCategoriesToExamMastersAsync failed"); }
 
+        // ── JEE Main chapter topics ───────────────────────────────────────
+        // Runs here, isolated, BEFORE the master-data seeding below: that section is not
+        // wrapped, so any exception in it aborts everything after it — which would silently
+        // skip these topics while the site keeps running. Called again at the end of this
+        // method for brand-new databases, where the subjects are only created below.
+        try { await SeedJeeChapterTopicsAsync(db, logger); }
+        catch (Exception ex) { logger.LogError(ex, "SeedJeeChapterTopicsAsync failed"); }
+
         // ── Users ─────────────────────────────────────────────────────────
         const string adminEmail      = "admin@gridacademy.com";
         const string instructorEmail = "instructor@gridacademy.com";
@@ -278,7 +286,11 @@ public static class DbSeeder
         if (subjectsAdded) { await db.SaveChangesAsync(); logger.LogInformation("RRB ALP subjects seeded."); }
 
         // New topics (keyed by subject name → topic)
-        var allSubjectMap = await db.Subjects.ToDictionaryAsync(s => s.Name, s => s.Id);
+        // Grouped: a duplicated subject name must not throw here — this runs on every startup
+        // and an exception would abort all of the seeding that follows.
+        var allSubjectMap = (await db.Subjects.Select(s => new { s.Name, s.Id }).ToListAsync())
+            .GroupBy(s => s.Name)
+            .ToDictionary(g => g.Key, g => g.Min(s => s.Id));
         var existingTopicPairs = await db.Topics.Select(t => new { t.Name, t.SubjectId }).ToListAsync();
         var rrbTopics = new (string Subject, string Name, int Order)[]
         {
@@ -300,77 +312,6 @@ public static class DbSeeder
             topicsAdded = true;
         }
         if (topicsAdded) { await db.SaveChangesAsync(); logger.LogInformation("RRB ALP topics seeded."); }
-
-        // ── JEE Main chapter topics (NTA syllabus) ───────────────────────────────
-        // Chapter-level topics under Physics / Chemistry / Mathematics so AI generation,
-        // Excel import (TopicName) and chapter-wise tests can target a single chapter.
-        // Idempotent: matched on subject + name (case-insensitive); a subject that does
-        // not exist is skipped with a warning rather than failing startup.
-        var jeeSubjectIds = (await db.Subjects.Select(s => new { s.Name, s.Id }).ToListAsync())
-            .ToDictionary(s => s.Name, s => s.Id, StringComparer.OrdinalIgnoreCase);
-        var jeeExistingTopics = (await db.Topics.Select(t => new { t.Name, t.SubjectId }).ToListAsync())
-            .Select(t => $"{t.SubjectId}:{t.Name}")
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        var jeeChapters = new (string Subject, string[] Chapters)[]
-        {
-            ("Physics", new[]
-            {
-                "Units and Dimensions", "Mathematics in Physics", "Motion in One Dimension",
-                "Motion in Two Dimensions", "Laws of Motion", "Work, Power and Energy",
-                "Centre of Mass and Collisions", "Rotational Motion", "Gravitation",
-                "Mechanical Properties of Solids", "Mechanical Properties of Fluids",
-                "Thermal Properties of Matter", "Thermodynamics", "Kinetic Theory of Gases",
-                "Oscillations", "Waves and Sound", "Electrostatics", "Capacitance",
-                "Current Electricity", "Magnetic Effects of Current", "Magnetic Properties of Matter",
-                "Electromagnetic Induction", "Alternating Current", "Electromagnetic Waves",
-                "Ray Optics", "Wave Optics", "Dual Nature of Matter and Radiation", "Atomic Physics",
-                "Nuclear Physics", "Semiconductor Electronics", "Experimental Physics",
-            }),
-            ("Chemistry", new[]
-            {
-                "Some Basic Concepts of Chemistry", "Structure of Atom",
-                "Classification of Elements and Periodicity", "Chemical Bonding and Molecular Structure",
-                "Chemical Thermodynamics", "Chemical Equilibrium", "Ionic Equilibrium", "Redox Reactions",
-                "p-Block Elements (Group 13 and 14)", "General Organic Chemistry", "Hydrocarbons",
-                "Solutions", "Electrochemistry", "Chemical Kinetics", "p-Block Elements (Group 15 to 18)",
-                "d- and f-Block Elements", "Coordination Compounds", "Haloalkanes and Haloarenes",
-                "Alcohols, Phenols and Ethers", "Aldehydes and Ketones", "Carboxylic Acids and Derivatives",
-                "Amines", "Biomolecules", "Practical Chemistry",
-            }),
-            ("Mathematics", new[]
-            {
-                "Basic Mathematics", "Sets and Relations", "Functions", "Quadratic Equations",
-                "Complex Numbers", "Permutations and Combinations", "Sequences and Series",
-                "Binomial Theorem", "Trigonometric Ratios and Identities", "Trigonometric Equations",
-                "Inverse Trigonometric Functions", "Straight Lines", "Circles", "Parabola", "Ellipse",
-                "Hyperbola", "Limits", "Continuity and Differentiability", "Differentiation",
-                "Application of Derivatives", "Indefinite Integration", "Definite Integration",
-                "Area Under Curves", "Differential Equations", "Matrices", "Determinants",
-                "Vector Algebra", "Three Dimensional Geometry", "Probability", "Statistics",
-            }),
-        };
-
-        int jeeTopicsAdded = 0;
-        foreach (var (subjectName, chapters) in jeeChapters)
-        {
-            if (!jeeSubjectIds.TryGetValue(subjectName, out var sid))
-            {
-                logger.LogWarning("JEE chapter topics: subject '{Subject}' not found — skipped.", subjectName);
-                continue;
-            }
-            for (int i = 0; i < chapters.Length; i++)
-            {
-                if (!jeeExistingTopics.Add($"{sid}:{chapters[i]}")) continue; // already present
-                db.Topics.Add(new Topic { Name = chapters[i], SubjectId = sid, SortOrder = 100 + i });
-                jeeTopicsAdded++;
-            }
-        }
-        if (jeeTopicsAdded > 0)
-        {
-            await db.SaveChangesAsync();
-            logger.LogInformation("JEE Main chapter topics seeded: {Count}.", jeeTopicsAdded);
-        }
 
         // RRB ALP exam type
         if (!await db.ExamTypes.AnyAsync(e => e.Name == "RRB ALP"))
@@ -412,6 +353,97 @@ public static class DbSeeder
             await db.SaveChangesAsync();
             logger.LogInformation("Default VL domain seeded.");
         }
+
+        // Again at the end: on a brand-new database the subjects only exist from here on.
+        try { await SeedJeeChapterTopicsAsync(db, logger); }
+        catch (Exception ex) { logger.LogError(ex, "SeedJeeChapterTopicsAsync failed"); }
+    }
+
+    // ── JEE Main chapter topics (NTA syllabus) ───────────────────────────────
+    // Chapter-level topics under Physics / Chemistry / Mathematics so AI generation, Excel
+    // import (TopicName) and chapter-wise tests can target a single chapter.
+    private static readonly (string Subject, string[] Chapters)[] JeeMainChapters =
+    {
+        ("Physics", new[]
+        {
+            "Units and Dimensions", "Mathematics in Physics", "Motion in One Dimension",
+            "Motion in Two Dimensions", "Laws of Motion", "Work, Power and Energy",
+            "Centre of Mass and Collisions", "Rotational Motion", "Gravitation",
+            "Mechanical Properties of Solids", "Mechanical Properties of Fluids",
+            "Thermal Properties of Matter", "Thermodynamics", "Kinetic Theory of Gases",
+            "Oscillations", "Waves and Sound", "Electrostatics", "Capacitance",
+            "Current Electricity", "Magnetic Effects of Current", "Magnetic Properties of Matter",
+            "Electromagnetic Induction", "Alternating Current", "Electromagnetic Waves",
+            "Ray Optics", "Wave Optics", "Dual Nature of Matter and Radiation", "Atomic Physics",
+            "Nuclear Physics", "Semiconductor Electronics", "Experimental Physics",
+        }),
+        ("Chemistry", new[]
+        {
+            "Some Basic Concepts of Chemistry", "Structure of Atom",
+            "Classification of Elements and Periodicity", "Chemical Bonding and Molecular Structure",
+            "Chemical Thermodynamics", "Chemical Equilibrium", "Ionic Equilibrium", "Redox Reactions",
+            "p-Block Elements (Group 13 and 14)", "General Organic Chemistry", "Hydrocarbons",
+            "Solutions", "Electrochemistry", "Chemical Kinetics", "p-Block Elements (Group 15 to 18)",
+            "d- and f-Block Elements", "Coordination Compounds", "Haloalkanes and Haloarenes",
+            "Alcohols, Phenols and Ethers", "Aldehydes and Ketones", "Carboxylic Acids and Derivatives",
+            "Amines", "Biomolecules", "Practical Chemistry",
+        }),
+        ("Mathematics", new[]
+        {
+            "Basic Mathematics", "Sets and Relations", "Functions", "Quadratic Equations",
+            "Complex Numbers", "Permutations and Combinations", "Sequences and Series",
+            "Binomial Theorem", "Trigonometric Ratios and Identities", "Trigonometric Equations",
+            "Inverse Trigonometric Functions", "Straight Lines", "Circles", "Parabola", "Ellipse",
+            "Hyperbola", "Limits", "Continuity and Differentiability", "Differentiation",
+            "Application of Derivatives", "Indefinite Integration", "Definite Integration",
+            "Area Under Curves", "Differential Equations", "Matrices", "Determinants",
+            "Vector Algebra", "Three Dimensional Geometry", "Probability", "Statistics",
+        }),
+    };
+
+    /// <summary>
+    /// Adds the JEE Main chapter list as Topics. Idempotent: matched on subject + name,
+    /// case-insensitive and whitespace-trimmed. If a subject name exists more than once,
+    /// the chapters are added under each copy so an import matches whichever one it picks.
+    /// Always logs its outcome so a deploy's result is visible in the Railway logs.
+    /// </summary>
+    private static async Task SeedJeeChapterTopicsAsync(AppDbContext db, ILogger logger)
+    {
+        var subjects = await db.Subjects.Select(s => new { s.Id, s.Name }).ToListAsync();
+        var existing = (await db.Topics.Select(t => new { t.Name, t.SubjectId }).ToListAsync())
+            .Select(t => $"{t.SubjectId}:{t.Name.Trim()}")
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        int added = 0, present = 0;
+        foreach (var (subjectName, chapters) in JeeMainChapters)
+        {
+            var subjectIds = subjects
+                .Where(s => s.Name.Trim().Equals(subjectName, StringComparison.OrdinalIgnoreCase))
+                .Select(s => s.Id)
+                .ToList();
+
+            if (subjectIds.Count == 0)
+            {
+                logger.LogWarning("JEE chapter topics: subject '{Subject}' not found — skipped.", subjectName);
+                continue;
+            }
+            if (subjectIds.Count > 1)
+                logger.LogWarning("JEE chapter topics: subject '{Subject}' exists {Count} times (ids {Ids}) — chapters added under each.",
+                    subjectName, subjectIds.Count, string.Join(", ", subjectIds));
+
+            foreach (var sid in subjectIds)
+            {
+                for (int i = 0; i < chapters.Length; i++)
+                {
+                    if (!existing.Add($"{sid}:{chapters[i]}")) { present++; continue; }
+                    db.Topics.Add(new Topic { Name = chapters[i], SubjectId = sid, SortOrder = 100 + i });
+                    added++;
+                }
+            }
+        }
+
+        if (added > 0) await db.SaveChangesAsync();
+        logger.LogInformation("JEE Main chapter topics: {Added} added, {Present} already present.", added, present);
     }
 
     private static async Task EnsureExamContentTablesAsync(AppDbContext db)

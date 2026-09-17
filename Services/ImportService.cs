@@ -980,8 +980,9 @@ public class ImportService : IImportService
         var comp = m.ComplexityLevels.FirstOrDefault(x => x.Name.Equals(row.ComplexityLevel?.Trim(), StringComparison.OrdinalIgnoreCase));
         if (comp == null) { errors.Add(new ImportRowError { Row = rowNum, Field = "ComplexityLevel", Message = $"'{row.ComplexityLevel}' not found" }); }
 
-        var exam = m.ExamTypes.FirstOrDefault(x => x.Name.Equals(row.ExamType?.Trim(), StringComparison.OrdinalIgnoreCase));
-        if (exam == null) { errors.Add(new ImportRowError { Row = rowNum, Field = "ExamType", Message = $"'{row.ExamType}' not found" }); }
+        // ExamType is not validated: Question has no exam-type field, so the value was never
+        // saved — yet a blank or unrecognised name used to reject every row. The column stays
+        // in the template for compatibility and is ignored.
 
         var marks = m.Marks.FirstOrDefault(x => x.Name.Equals(row.Marks?.Trim(), StringComparison.OrdinalIgnoreCase));
         if (marks == null) { errors.Add(new ImportRowError { Row = rowNum, Field = "Marks", Message = $"'{row.Marks}' not found" }); }
