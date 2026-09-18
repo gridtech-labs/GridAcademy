@@ -314,15 +314,31 @@ public class CreateModel : PageModel
         if (file is null || file.Length == 0)
             return new JsonResult(new { error = "No file received." }) { StatusCode = 400 };
 
-        var allowed = new[] { "image/jpeg", "image/png", "image/gif", "image/webp" };
+        // SVG is allowed for diagrams: it stays sharp at any zoom, is a few KB and can be
+        // re-edited later, unlike a cropped bitmap.
+        var allowed = new[] { "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml" };
         if (!allowed.Contains(file.ContentType.ToLowerInvariant()))
-            return new JsonResult(new { error = "Only JPEG, PNG, GIF and WebP images are accepted." }) { StatusCode = 400 };
+            return new JsonResult(new { error = "Only JPEG, PNG, GIF, WebP and SVG images are accepted." }) { StatusCode = 400 };
 
         if (file.Length > 5 * 1024 * 1024)
             return new JsonResult(new { error = "Image must be under 5 MB." }) { StatusCode = 400 };
 
         var url = await UploadHelper.SaveAsync(file, _env, "questions",
             [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"]);
+
+        // An SVG is XML and can carry script; strip anything active before it is ever served.
+        if (url.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                UploadHelper.SanitizeSvg(_env, url);
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(new { error = $"That SVG could not be read: {ex.Message}" }) { StatusCode = 400 };
+            }
+        }
+
         return new JsonResult(new { url });
     }
 

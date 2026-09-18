@@ -25,6 +25,69 @@ public static class UploadHelper
     }
 
     /// <summary>
+    /// Elements that can execute or fetch, stripped from uploaded SVG diagrams.
+    /// </summary>
+    private static readonly string[] UnsafeSvgElements =
+    [
+        "script", "foreignobject", "iframe", "embed", "object",
+        "handler", "set", "animate", "animatetransform", "animatemotion",
+    ];
+
+    /// <summary>
+    /// Removes anything active from an uploaded SVG (scripts, event handlers, external
+    /// references) and rewrites the file in place. SVG is XML, so a diagram exported from a
+    /// drawing tool survives untouched while an SVG carrying script does not.
+    /// Throws when the file is not valid XML — the caller should reject the upload.
+    /// </summary>
+    /// <param name="url">The URL returned by <see cref="SaveAsync"/>, e.g. /uploads/questions/x.svg</param>
+    public static void SanitizeSvg(IWebHostEnvironment env, string url)
+    {
+        var relative = url.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase)
+            ? url["/uploads/".Length..]
+            : url.TrimStart('/');
+        var path = Path.Combine(Root(env), relative.Replace('/', Path.DirectorySeparatorChar));
+        if (!File.Exists(path)) return;
+
+        System.Xml.Linq.XDocument doc;
+        try
+        {
+            // DTDs disabled: an uploaded file must not be able to pull in external entities.
+            var settings = new System.Xml.XmlReaderSettings
+            {
+                DtdProcessing = System.Xml.DtdProcessing.Prohibit,
+                XmlResolver   = null,
+            };
+            using var reader = System.Xml.XmlReader.Create(path, settings);
+            doc = System.Xml.Linq.XDocument.Load(reader);
+        }
+        catch
+        {
+            File.Delete(path);
+            throw new InvalidOperationException("the file is not valid SVG.");
+        }
+
+        foreach (var el in doc.Descendants()
+                     .Where(e => UnsafeSvgElements.Contains(e.Name.LocalName.ToLowerInvariant()))
+                     .ToList())
+            el.Remove();
+
+        foreach (var el in doc.Descendants())
+        {
+            var unsafeAttrs = el.Attributes().Where(a =>
+                    // onclick, onload, …
+                    a.Name.LocalName.StartsWith("on", StringComparison.OrdinalIgnoreCase)
+                    // links out of the document: javascript:, http(s):, data:
+                    || (a.Name.LocalName.Equals("href", StringComparison.OrdinalIgnoreCase)
+                        && !a.Value.TrimStart().StartsWith('#')))
+                .ToList();
+
+            foreach (var a in unsafeAttrs) a.Remove();
+        }
+
+        doc.Save(path);
+    }
+
+    /// <summary>
     /// Saves a file under <c>uploadsRoot/subfolder/</c> and returns the public URL
     /// path starting with <c>/uploads/</c>.
     /// </summary>

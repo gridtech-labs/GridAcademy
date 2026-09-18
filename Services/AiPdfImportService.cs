@@ -56,9 +56,18 @@ public class AiPdfImportService : IAiPdfImportService
 
     public bool IsAvailable => !string.IsNullOrWhiteSpace(_config["Ai:Gemini:ApiKey"]);
 
-    /// <summary>Added to questions that need a diagram the PDF holds only as an image.</summary>
-    private const string FigureNote =
-        "<p><em>[Figure required — add the diagram from the source PDF before publishing.]</em></p>";
+    /// <summary>
+    /// Added to questions that need a diagram the PDF holds only as an image. Carries the
+    /// model's description of that figure, so whoever draws it (SVG is ideal — it stays sharp
+    /// and can be edited later) never has to open the source PDF. Remove before publishing.
+    /// </summary>
+    private static string FigureNote(string? description) =>
+        "<p><em>[Figure required — " +
+        System.Net.WebUtility.HtmlEncode(
+            string.IsNullOrWhiteSpace(description)
+                ? "add the diagram from the source PDF before publishing."
+                : "draw and insert this diagram before publishing: " + description.Trim()) +
+        "]</em></p>";
 
     private const string Prompt = """
         You are extracting questions from an exam question-bank PDF so they can be loaded
@@ -84,6 +93,11 @@ public class AiPdfImportService : IAiPdfImportService
           as a plain number in a string (e.g. "8"). Empty string otherwise.
         - requires_figure: true when the question refers to a figure, diagram, circuit or graph
           that the document shows as a picture, or cannot be answered without seeing it.
+        - figure_description: when requires_figure is true, describe that figure precisely
+          enough for someone to redraw it without opening this document — every component and
+          its value, how they are connected, all labels, and for a graph the axes and shape.
+          For example: "5 V battery; 2 µF in series with a parallel pair of 4 µF and 4 µF;
+          charge asked on the 2 µF". Empty string when requires_figure is false.
         - difficulty: your own judgement — exactly "easy", "medium" or "hard".
         - solution: YOUR OWN concise worked solution, 2 to 6 lines, written from scratch in
           your own words. Do NOT copy, quote or paraphrase any solution text printed in the
@@ -112,11 +126,13 @@ public class AiPdfImportService : IAiPdfImportService
               "correct_index":    { "type": "INTEGER" },
               "numerical_answer": { "type": "STRING"  },
               "requires_figure":  { "type": "BOOLEAN" },
+              "figure_description": { "type": "STRING" },
               "difficulty":       { "type": "STRING"  },
               "solution":         { "type": "STRING"  }
             },
             "required": ["question_text","is_numerical","options","correct_index",
-                         "numerical_answer","requires_figure","difficulty","solution"]
+                         "numerical_answer","requires_figure","figure_description",
+                         "difficulty","solution"]
           }
         }
         """;
@@ -226,7 +242,7 @@ public class AiPdfImportService : IAiPdfImportService
 
             var entity = new Question
             {
-                Text              = q.RequiresFigure ? text + FigureNote : text,
+                Text              = q.RequiresFigure ? text + FigureNote(q.FigureDescription) : text,
                 Solution          = string.IsNullOrWhiteSpace(q.Solution) ? null : q.Solution.Trim(),
                 Subtopic          = string.IsNullOrWhiteSpace(q.SourceLabel) ? fileName : q.SourceLabel.Trim(),
                 QuestionType      = q.IsNumerical ? QuestionType.NAT : QuestionType.MCQ,
@@ -283,7 +299,9 @@ public class AiPdfImportService : IAiPdfImportService
 
             if (q.RequiresFigure)
                 result.Errors.Add(Err(number, "Figure",
-                    $"Needs the diagram added before publishing. ({Short(text)})"));
+                    string.IsNullOrWhiteSpace(q.FigureDescription)
+                        ? $"Needs a diagram before publishing. ({Short(text)})"
+                        : $"Needs a diagram — {q.FigureDescription.Trim()}"));
 
             _db.Questions.Add(entity);
             added.Add(entity);
@@ -460,6 +478,7 @@ public class AiPdfImportService : IAiPdfImportService
         public int            CorrectIndex    { get; init; } = -1;
         public string?        NumericalAnswer { get; init; }
         public bool           RequiresFigure  { get; init; }
+        public string?        FigureDescription { get; init; }
         public string?        Difficulty      { get; init; }
         public string?        Solution        { get; init; }
     }
@@ -499,6 +518,7 @@ public class AiPdfImportService : IAiPdfImportService
                     CorrectIndex    = int.TryParse(o["correct_index"]?.ToString(), out var ci) ? ci : -1,
                     NumericalAnswer = o["numerical_answer"]?.ToString(),
                     RequiresFigure  = o["requires_figure"]?.GetValue<bool>() ?? false,
+                    FigureDescription = o["figure_description"]?.GetValue<string>(),
                     Difficulty      = o["difficulty"]?.GetValue<string>(),
                     Solution        = o["solution"]?.GetValue<string>(),
                 });

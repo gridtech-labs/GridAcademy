@@ -459,7 +459,21 @@ _ = Task.Run(async () =>
 
 app.UseMiddleware<ExceptionMiddleware>();
 
-app.UseStaticFiles();   // Serve wwwroot (admin.css, samples, etc.)
+// Serve wwwroot (admin.css, samples, uploads in local dev, etc.). In development the
+// uploads folder lives under wwwroot, so this handler serves it first — it needs the same
+// SVG hardening as the uploads-specific handler registered below.
+app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse = SvgSafetyHeaders });
+
+static void SvgSafetyHeaders(Microsoft.AspNetCore.StaticFiles.StaticFileResponseContext ctx)
+{
+    if (!ctx.File.Name.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)) return;
+
+    // Uploaded SVGs are sanitised on upload and never execute when shown via <img>, but
+    // opening the file's URL directly renders it as a document — block script there too.
+    ctx.Context.Response.Headers["Content-Security-Policy"] =
+        "default-src 'none'; style-src 'unsafe-inline'; sandbox";
+    ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+}
 
 // Serve uploaded files — supports both wwwroot/uploads (local dev) AND
 // a Railway persistent volume mounted at /app/uploads (production).
@@ -480,6 +494,7 @@ app.UseStaticFiles();   // Serve wwwroot (admin.css, samples, etc.)
         {
             // Cache images for 7 days in browser / CDN
             ctx.Context.Response.Headers["Cache-Control"] = "public,max-age=604800";
+            SvgSafetyHeaders(ctx);
         }
     });
 
