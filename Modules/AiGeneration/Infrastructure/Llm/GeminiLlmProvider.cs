@@ -71,7 +71,22 @@ public sealed class GeminiLlmProvider : ILLMProvider
                 "Get a free key at https://aistudio.google.com/apikey");
     }
 
-    public async Task<LlmCompletion> CompleteAsync(string prompt, string? responseSchemaJson = null, CancellationToken ct = default)
+    public Task<LlmCompletion> CompleteAsync(
+        string prompt, string? responseSchemaJson = null, CancellationToken ct = default)
+        => SendAsync(prompt, null, null, responseSchemaJson, ct);
+
+    /// <summary>
+    /// Gemini reads the file itself (sent as inline_data), so a PDF's maths and figures
+    /// are understood rather than scraped as text. Limit: ~20 MB per request.
+    /// </summary>
+    public Task<LlmCompletion> CompleteWithFileAsync(
+        string prompt, byte[] fileBytes, string mimeType,
+        string? responseSchemaJson = null, CancellationToken ct = default)
+        => SendAsync(prompt, fileBytes, mimeType, responseSchemaJson, ct);
+
+    private async Task<LlmCompletion> SendAsync(
+        string prompt, byte[]? fileBytes, string? mimeType,
+        string? responseSchemaJson, CancellationToken ct)
     {
         // Validate here (not constructor) so Hangfire can resolve the service and
         // RunJobAsync can catch this and write status = Failed to the DB.
@@ -109,15 +124,19 @@ public sealed class GeminiLlmProvider : ILLMProvider
         if (SupportsThinking(ModelName))
             generationConfig["thinkingConfig"] = new { thinkingBudget = 0 };
 
+        // The file part must come before the prompt: Gemini answers questions about a
+        // document more reliably when the document is the first part of the turn.
+        var requestParts = fileBytes is { Length: > 0 }
+            ? new object[]
+              {
+                  new { inlineData = new { mimeType, data = Convert.ToBase64String(fileBytes) } },
+                  new { text = prompt },
+              }
+            : [new { text = prompt }];
+
         var bodyObj = new
         {
-            contents = new[]
-            {
-                new
-                {
-                    parts = new[] { new { text = prompt } }
-                }
-            },
+            contents = new[] { new { parts = requestParts } },
             generationConfig
         };
 

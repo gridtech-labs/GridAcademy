@@ -247,6 +247,7 @@ builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<IMasterService, MasterService>();
 builder.Services.AddScoped<IQuestionService, QuestionService>();
 builder.Services.AddScoped<IImportService, ImportService>();
+builder.Services.AddScoped<IAiPdfImportService, AiPdfImportService>();
 builder.Services.AddScoped<ITestService, TestService>();
 builder.Services.AddScoped<IAssessmentService, AssessmentService>();
 builder.Services.AddScoped<JwtHelper>();

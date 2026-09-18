@@ -20,4 +20,15 @@ public interface ILLMProvider
     /// than free-form JSON. Providers without schema support ignore it.
     /// </summary>
     Task<LlmCompletion> CompleteAsync(string prompt, string? responseSchemaJson = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// Send a prompt together with a file (e.g. a question-bank PDF) and get back a
+    /// completion. The model reads the document itself, so maths and figures that plain
+    /// text extraction mangles are understood. <paramref name="responseSchemaJson"/>
+    /// works as in <see cref="CompleteAsync"/>. Providers without file support throw
+    /// <see cref="NotSupportedException"/>.
+    /// </summary>
+    Task<LlmCompletion> CompleteWithFileAsync(
+        string prompt, byte[] fileBytes, string mimeType,
+        string? responseSchemaJson = null, CancellationToken ct = default);
 }

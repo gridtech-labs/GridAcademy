@@ -13,8 +13,14 @@ namespace GridAcademy.Controllers;
 [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin,Instructor")]
 public class ImportController : ControllerBase
 {
-    private readonly IImportService _svc;
-    public ImportController(IImportService svc) => _svc = svc;
+    private readonly IImportService      _svc;
+    private readonly IAiPdfImportService _aiPdf;
+
+    public ImportController(IImportService svc, IAiPdfImportService aiPdf)
+    {
+        _svc   = svc;
+        _aiPdf = aiPdf;
+    }
 
     private Guid? CurrentUserId =>
         Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id) ? id : null;
@@ -44,6 +50,31 @@ public class ImportController : ControllerBase
 
         using var stream = file.OpenReadStream();
         var result = await _svc.ImportExcelAsync(stream, CurrentUserId, testId);
+        return Ok(ApiResponse<object>.Ok(result));
+    }
+
+    /// <summary>
+    /// Import questions from a chapter-wise question-bank PDF, read by the LLM itself
+    /// (maths and figures included, answer key applied). Saved as Draft unless
+    /// <paramref name="publishImmediately"/> is set, so nothing reaches students unreviewed.
+    /// Scriptable for bulk chapter imports.
+    /// </summary>
+    [HttpPost("ai-pdf")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> ImportAiPdf(
+        IFormFile file,
+        [FromForm] int subjectId,
+        [FromForm] int topicId,
+        [FromForm] Guid? testId = null,
+        [FromForm] bool publishImmediately = false,
+        CancellationToken ct = default)
+    {
+        if (file == null || file.Length == 0) return BadRequest(ApiResponse.Fail("No file provided."));
+        if (file.Length > 20 * 1024 * 1024)   return BadRequest(ApiResponse.Fail("File exceeds 20 MB limit."));
+
+        using var stream = file.OpenReadStream();
+        var result = await _aiPdf.ImportAsync(stream, file.FileName,
+            new AiPdfImportOptions(subjectId, topicId, testId, CurrentUserId, publishImmediately), ct);
         return Ok(ApiResponse<object>.Ok(result));
     }
 

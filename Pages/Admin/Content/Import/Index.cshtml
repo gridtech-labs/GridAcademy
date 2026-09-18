@@ -127,6 +127,20 @@ else
         </button>
     </li>
     <li class="nav-item">
+        <button class="nav-link @(src == "aipdf" ? "active" : "")"
+                data-bs-toggle="tab" data-bs-target="#tab-aipdf" type="button">
+            <i class="bi bi-stars me-1"></i>AI PDF
+            @if (Model.AiPdfAvailable)
+            {
+                <span class="badge bg-success ms-1" style="font-size:.65rem">Ready</span>
+            }
+            else
+            {
+                <span class="badge bg-warning text-dark ms-1" style="font-size:.65rem">Setup needed</span>
+            }
+        </button>
+    </li>
+    <li class="nav-item">
         <button class="nav-link @(src == "rrbalp" ? "active" : "")"
                 data-bs-toggle="tab" data-bs-target="#tab-rrbalp" type="button">
             <i class="bi bi-train-front me-1"></i>RRB ALP
@@ -248,6 +262,125 @@ else
                         <i class="bi bi-cpu me-1"></i>Import with OCR
                     </button>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── AI PDF tab pane ────────────────────────────────────────────── -->
+    <div class="tab-pane fade @(src == "aipdf" ? "show active" : "")" id="tab-aipdf">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold py-3 d-flex align-items-center gap-2">
+                Chapter-wise PDF import (AI)
+                @if (Model.AiPdfAvailable)
+                {
+                    <span class="badge bg-success">Ready</span>
+                }
+                else
+                {
+                    <span class="badge bg-warning text-dark">No API key</span>
+                }
+            </div>
+            <div class="card-body">
+
+                @if (!Model.AiPdfAvailable)
+                {
+                    <div class="alert alert-warning small">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        No Gemini API key is configured. Set <code>Ai__Gemini__ApiKey</code>
+                        (Railway → Variables) and restart the app.
+                    </div>
+                }
+
+                <div class="alert alert-info small mb-3 d-flex gap-2 align-items-start">
+                    <i class="bi bi-lightbulb flex-shrink-0 mt-1"></i>
+                    <div>
+                        <strong>Use this for publisher question-bank PDFs</strong> (chapter-wise sets,
+                        previous-year papers) where the plain <em>PDF</em> tab returns broken formulas.
+                        The AI reads the pages itself — including the maths and the answer key printed
+                        at the end — and writes its own short solutions.
+                        <ul class="mb-0 mt-1 ps-3">
+                            <li>Questions are saved as <strong>Draft</strong>: students cannot see them
+                                until you publish each one.</li>
+                            <li>Questions that need a <strong>diagram</strong> are imported with a note —
+                                add the image in the question editor before publishing.</li>
+                            <li>Maths is written with Unicode symbols (ε₀A/d, 10⁻⁶) so it displays
+                                correctly in the app.</li>
+                            <li>Takes <strong>20–60 seconds</strong>. Always check the answers before publishing.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <form method="post" asp-page-handler="AiPdf" enctype="multipart/form-data"
+                      class="import-form @(!Model.AiPdfAvailable ? "opacity-50 pe-none" : "")"
+                      data-source="aipdf">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="TestId" class="testid-field"
+                           value="@(isTestContext ? Model.TestId.ToString() : "")" />
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Subject <span class="text-danger">*</span></label>
+                            <select name="subjectId" id="aiPdfSubject" class="form-select" required>
+                                <option value="">— Select subject —</option>
+                                @foreach (var s in Model.SubjectOptions)
+                                {
+                                    <option value="@s.Id">@s.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label fw-semibold">Chapter / Topic <span class="text-danger">*</span></label>
+                            <select name="topicId" id="aiPdfTopic" class="form-select" required>
+                                <option value="">— Select chapter —</option>
+                                @foreach (var t in Model.TopicOptions)
+                                {
+                                    <option value="@t.Id" data-subject="@t.SubjectId">@t.Name</option>
+                                }
+                            </select>
+                            <div class="form-text">e.g. Capacitance — lets you build chapter-wise tests later.</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Select PDF <span class="text-danger">*</span></label>
+                            <input type="file" name="file" class="form-control" accept=".pdf" required />
+                            <div class="form-text">Max 20 MB</div>
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="publishImmediately" value="true" id="aiPdfPublish" />
+                        <label class="form-check-label small" for="aiPdfPublish">
+                            Publish immediately (skip review) — not recommended; AI extraction needs checking
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary import-submit-btn"
+                            @(!Model.AiPdfAvailable ? "disabled" : "")
+                            onclick="if(!this.disabled){this.disabled=true;this.innerHTML='<span class=\'spinner-border spinner-border-sm me-2\'></span>Reading the PDF…';this.form.submit();}return false;">
+                        <i class="bi bi-stars me-1"></i>Read PDF with AI
+                    </button>
+                </form>
+
+                <script>
+                    // Chapter list follows the chosen subject
+                    (function () {
+                        var subj = document.getElementById('aiPdfSubject');
+                        var topic = document.getElementById('aiPdfTopic');
+                        if (!subj || !topic) return;
+                        function filter() {
+                            var v = subj.value;
+                            topic.querySelectorAll('option[data-subject]').forEach(function (o) {
+                                var show = v !== '' && o.dataset.subject === v;
+                                o.hidden = !show;
+                                o.disabled = !show;
+                            });
+                            var sel = topic.selectedOptions[0];
+                            if (sel && sel.hidden) topic.value = '';
+                            topic.disabled = v === '';
+                        }
+                        subj.addEventListener('change', filter);
+                        filter();
+                    })();
+                </script>
             </div>
         </div>
     </div>

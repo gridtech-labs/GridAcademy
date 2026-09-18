@@ -37,6 +37,14 @@ public sealed class AnthropicLlmProvider : ILLMProvider
 
     // responseSchemaJson is accepted for interface parity; Anthropic tool-use/JSON
     // mode is not wired here, so it is ignored (the prompt still asks for JSON).
+    /// <summary>Not implemented for Anthropic — PDF import runs on Gemini.</summary>
+    public Task<LlmCompletion> CompleteWithFileAsync(
+        string prompt, byte[] fileBytes, string mimeType,
+        string? responseSchemaJson = null, CancellationToken ct = default)
+        => throw new NotSupportedException(
+            "File input is not implemented for the Anthropic provider. " +
+            "Set Ai:LlmProvider to \"gemini\" to import questions from a PDF.");
+
     public async Task<LlmCompletion> CompleteAsync(string prompt, string? responseSchemaJson = null, CancellationToken ct = default)
     {
         var body = new

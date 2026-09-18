@@ -5,23 +5,36 @@ using GridAcademy.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 
 namespace GridAcademy.Pages.Admin.Content.Import;
 
 [Authorize(Roles = "Admin,Instructor")]
 public class IndexModel : PageModel
 {
-    private readonly IImportService  _import;
-    private readonly IMathpixService _mathpix;
+    private readonly IImportService       _import;
+    private readonly IMathpixService      _mathpix;
+    private readonly IAiPdfImportService  _aiPdf;
+    private readonly GridAcademy.Data.AppDbContext _db;
 
-    public IndexModel(IImportService import, IMathpixService mathpix)
+    public IndexModel(IImportService import, IMathpixService mathpix,
+                      IAiPdfImportService aiPdf, GridAcademy.Data.AppDbContext db)
     {
         _import  = import;
         _mathpix = mathpix;
+        _aiPdf   = aiPdf;
+        _db      = db;
     }
 
     /// <summary>True when Mathpix credentials are present in appsettings.json.</summary>
     public bool MathpixConfigured => _mathpix.IsConfigured;
+
+    /// <summary>True when a Gemini API key is configured (AI PDF import).</summary>
+    public bool AiPdfAvailable => _aiPdf.IsAvailable;
+
+    /// <summary>Subjects and chapters for the AI PDF import's classification selectors.</summary>
+    public List<(int Id, string Name)> SubjectOptions { get; set; } = [];
+    public List<(int Id, string Name, int SubjectId)> TopicOptions { get; set; } = [];
 
     public ImportResultDto? Result           { get; set; }
     public string?          ActiveSource     { get; set; }
@@ -37,11 +50,77 @@ public class IndexModel : PageModel
     /// <summary>All available tests for the "Map to Test" dropdown.</summary>
     public List<(Guid Id, string Title)> AvailableTests { get; set; } = [];
 
-    public async Task OnGetAsync()
+    public async Task OnGetAsync() => await LoadListsAsync();
+
+    private async Task LoadListsAsync()
     {
         AvailableTests = await _import.GetTestsForDropdownAsync();
         if (TestId.HasValue)
             ContextTestTitle = AvailableTests.FirstOrDefault(t => t.Id == TestId.Value).Title;
+
+        SubjectOptions = (await _db.Subjects.Where(s => s.IsActive).OrderBy(s => s.Name)
+                .Select(s => new { s.Id, s.Name }).ToListAsync())
+            .Select(s => (s.Id, s.Name)).ToList();
+
+        TopicOptions = (await _db.Topics.OrderBy(t => t.Name)
+                .Select(t => new { t.Id, t.Name, t.SubjectId }).ToListAsync())
+            .Select(t => (t.Id, t.Name, t.SubjectId)).ToList();
+    }
+
+    /// <summary>
+    /// AI PDF import — the model reads the PDF itself (maths and figures included) and the
+    /// questions are saved as Draft, so nothing reaches students until a human publishes them.
+    /// </summary>
+    public async Task<IActionResult> OnPostAiPdfAsync(
+        IFormFile? file, int subjectId, int? topicId, bool publishImmediately = false)
+    {
+        ActiveSource = "aipdf";
+        await LoadListsAsync();
+
+        if (file is null || file.Length == 0)
+        {
+            TempData["Error"] = "Please select a PDF to upload.";
+            return Page();
+        }
+        if (file.Length > 20 * 1024 * 1024)
+        {
+            TempData["Error"] = "File size must be under 20 MB.";
+            return Page();
+        }
+        if (subjectId <= 0)
+        {
+            TempData["Error"] = "Choose the subject these questions belong to.";
+            return Page();
+        }
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            Result = await _aiPdf.ImportAsync(stream, file.FileName,
+                new AiPdfImportOptions(subjectId, topicId, TestId, CurrentUserId, publishImmediately));
+
+            if (Result.Imported > 0)
+            {
+                var figures = Result.Errors.Count(e => e.Field == "Figure");
+                var msg = $"{Result.Imported} question(s) read from the PDF and saved as " +
+                          (publishImmediately ? "Published" : "Draft") + ".";
+                if (Result.MappedTestName is not null) msg += $" Added to \"{Result.MappedTestName}\".";
+                if (figures > 0)                       msg += $" {figures} need a diagram added.";
+                if (Result.Skipped > 0)                msg += $" {Result.Skipped} skipped — see below.";
+                if (!publishImmediately)               msg += " Review and publish them to make them live.";
+                TempData["Success"] = msg;
+            }
+            else
+            {
+                TempData["Error"] = "No questions were imported. Check the messages below.";
+            }
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = $"Import failed: {ex.Message}";
+        }
+
+        return Page();
     }
 
     /// <summary>Generate and stream an Excel (.xlsx) template file.</summary>
@@ -199,10 +278,8 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostUrlAsync(string? url, bool useOcr = false)
     {
-        ActiveSource   = "url";
-        AvailableTests = await _import.GetTestsForDropdownAsync();
-        if (TestId.HasValue)
-            ContextTestTitle = AvailableTests.FirstOrDefault(t => t.Id == TestId.Value).Title;
+        ActiveSource = "url";
+        await LoadListsAsync();
 
         if (string.IsNullOrWhiteSpace(url))
         {
@@ -242,10 +319,8 @@ public class IndexModel : PageModel
         Func<Stream, Task<ImportResultDto>> importFn,
         int maxMb = 10)
     {
-        ActiveSource   = source;
-        AvailableTests = await _import.GetTestsForDropdownAsync();
-        if (TestId.HasValue)
-            ContextTestTitle = AvailableTests.FirstOrDefault(t => t.Id == TestId.Value).Title;
+        ActiveSource = source;
+        await LoadListsAsync();
 
         if (file == null || file.Length == 0)
         {
