@@ -364,26 +364,39 @@ public static class DbSeeder
     }
 
     /// <summary>
-    /// Makes sure every test carries the standard instructions.
+    /// Makes sure every test carries the current standard instructions.
     ///
-    /// Fills in tests that have none (those created outside the admin form never got any), and
-    /// replaces copies of the older default that still contain an unreplaced "[Duration]"
-    /// placeholder — students were reading "Total duration of this test is [Duration] min."
-    /// Tests with their own instructions are left untouched. Idempotent.
+    /// Updates a test when it has no instructions (those created outside the admin form never
+    /// got any), when it still carries the old "[Duration]" placeholder, or when it holds an
+    /// earlier version of this default — so changing the wording in DefaultTestInstructions
+    /// rolls out on the next deploy without touching tests by hand.
+    ///
+    /// Instructions an admin has written or edited are left untouched: they carry neither the
+    /// marker (Quill strips HTML comments on save) nor the original phrasing. Idempotent —
+    /// rows already holding the current text are skipped.
     /// </summary>
     private static async Task BackfillTestInstructionsAsync(AppDbContext db, ILogger logger)
     {
-        var candidates = await db.Tests
-            .Where(t => t.Instructions == null
-                     || t.Instructions.Trim() == ""
-                     || t.Instructions == "<p><br></p>"
-                     || t.Instructions.Contains(GridAcademy.Helpers.DefaultTestInstructions.LegacyPlaceholder))
-            .ToListAsync();
+        var current = GridAcademy.Helpers.DefaultTestInstructions.Html;
+        var marker  = GridAcademy.Helpers.DefaultTestInstructions.MarkerPrefix;
+        var v1      = GridAcademy.Helpers.DefaultTestInstructions.V1Phrase;
+        var legacy  = GridAcademy.Helpers.DefaultTestInstructions.LegacyPlaceholder;
+
+        var candidates = (await db.Tests
+                .Where(t => t.Instructions == null
+                         || t.Instructions.Trim() == ""
+                         || t.Instructions == "<p><br></p>"
+                         || t.Instructions.Contains(legacy)
+                         || t.Instructions.Contains(marker)
+                         || t.Instructions.Contains(v1))
+                .ToListAsync())
+            .Where(t => t.Instructions != current)     // already up to date → nothing to do
+            .ToList();
 
         if (candidates.Count == 0) return;
 
         foreach (var test in candidates)
-            test.Instructions = GridAcademy.Helpers.DefaultTestInstructions.Html;
+            test.Instructions = current;
 
         await db.SaveChangesAsync();
         logger.LogInformation("Default instructions applied to {Count} test(s).", candidates.Count);
