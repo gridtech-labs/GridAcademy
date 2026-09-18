@@ -76,7 +76,11 @@ public class TestService : ITestService
         var test = new Test
         {
             Title                 = request.Title,
-            Instructions          = request.Instructions,
+            // Every test gets the standard instructions unless the caller supplied its own —
+            // tests created outside the admin form (API, imports) used to end up with none.
+            Instructions          = string.IsNullOrWhiteSpace(request.Instructions)
+                                        ? GridAcademy.Helpers.DefaultTestInstructions.Html
+                                        : request.Instructions,
             DurationMinutes       = request.DurationMinutes,
             PassingPercent        = request.PassingPercent,
             NegativeMarkingEnabled = request.NegativeMarkingEnabled,
@@ -100,7 +104,9 @@ public class TestService : ITestService
             ?? throw new KeyNotFoundException($"Test {id} not found.");
 
         test.Title                 = request.Title;
-        test.Instructions          = request.Instructions;
+        test.Instructions          = string.IsNullOrWhiteSpace(request.Instructions)
+                                        ? GridAcademy.Helpers.DefaultTestInstructions.Html
+                                        : request.Instructions;
         test.DurationMinutes       = request.DurationMinutes;
         test.PassingPercent        = request.PassingPercent;
         test.NegativeMarkingEnabled = request.NegativeMarkingEnabled;

@@ -86,6 +86,10 @@ public static class DbSeeder
         try { await SeedJeeChapterTopicsAsync(db, logger); }
         catch (Exception ex) { logger.LogError(ex, "SeedJeeChapterTopicsAsync failed"); }
 
+        // ── Default test instructions ─────────────────────────────────────
+        try { await BackfillTestInstructionsAsync(db, logger); }
+        catch (Exception ex) { logger.LogError(ex, "BackfillTestInstructionsAsync failed"); }
+
         // ── Users ─────────────────────────────────────────────────────────
         const string adminEmail      = "admin@gridacademy.com";
         const string instructorEmail = "instructor@gridacademy.com";
@@ -357,6 +361,32 @@ public static class DbSeeder
         // Again at the end: on a brand-new database the subjects only exist from here on.
         try { await SeedJeeChapterTopicsAsync(db, logger); }
         catch (Exception ex) { logger.LogError(ex, "SeedJeeChapterTopicsAsync failed"); }
+    }
+
+    /// <summary>
+    /// Makes sure every test carries the standard instructions.
+    ///
+    /// Fills in tests that have none (those created outside the admin form never got any), and
+    /// replaces copies of the older default that still contain an unreplaced "[Duration]"
+    /// placeholder — students were reading "Total duration of this test is [Duration] min."
+    /// Tests with their own instructions are left untouched. Idempotent.
+    /// </summary>
+    private static async Task BackfillTestInstructionsAsync(AppDbContext db, ILogger logger)
+    {
+        var candidates = await db.Tests
+            .Where(t => t.Instructions == null
+                     || t.Instructions.Trim() == ""
+                     || t.Instructions == "<p><br></p>"
+                     || t.Instructions.Contains(GridAcademy.Helpers.DefaultTestInstructions.LegacyPlaceholder))
+            .ToListAsync();
+
+        if (candidates.Count == 0) return;
+
+        foreach (var test in candidates)
+            test.Instructions = GridAcademy.Helpers.DefaultTestInstructions.Html;
+
+        await db.SaveChangesAsync();
+        logger.LogInformation("Default instructions applied to {Count} test(s).", candidates.Count);
     }
 
     // ── JEE Main chapter topics (NTA syllabus) ───────────────────────────────
