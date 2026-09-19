@@ -78,6 +78,48 @@ public class ImportController : ControllerBase
         return Ok(ApiResponse<object>.Ok(result));
     }
 
+    /// <summary>
+    /// Dry run for a PYQ book: reports the chapters found, their page ranges and how many answers
+    /// were read from the answer key — without importing anything or calling the model. Run this
+    /// before a full import to confirm the book was understood.
+    /// </summary>
+    [HttpPost("pyq-preview")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(300 * 1024 * 1024)]
+    public async Task<IActionResult> PyqPreview(IFormFile file, CancellationToken ct)
+    {
+        if (file == null || file.Length == 0) return BadRequest(ApiResponse.Fail("No file provided."));
+
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+
+        var info = Services.PyqBook.PyqBookStructure.Read(ms.ToArray());
+
+        var summary = info.Chapters.Select(c => new
+        {
+            c.Number,
+            c.Title,
+            Answers    = c.Answers.Count,
+            HighestQNo = c.Answers.Count > 0 ? c.Answers.Keys.Max() : 0,
+            // Missing numbers below the highest: a sign the key was misread for that chapter.
+            Gaps       = c.Answers.Count > 0
+                ? Enumerable.Range(1, c.Answers.Keys.Max()).Count(q => !c.Answers.ContainsKey(q))
+                : 0,
+        }).ToList();
+
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            info.PageCount,
+            info.PagesWithText,
+            info.AnswerKeyStartPage,
+            QuestionPages = info.AnswerKeyStartPage - 1,
+            Chapters      = summary.Count,
+            TotalAnswers  = summary.Sum(s => s.Answers),
+            TotalGaps     = summary.Sum(s => s.Gaps),
+            Detail        = summary,
+        }));
+    }
+
     /// <summary>Import questions by parsing a JEE/NEET-pattern PDF.</summary>
     [HttpPost("pdf")]
     [Consumes("multipart/form-data")]
