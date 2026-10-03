@@ -70,8 +70,10 @@ public class PyqBookImportService : IPyqBookImportService
           subject matter.
         - subtopic: the nearest sub-heading above the question, e.g. "Conductance and
           Conductivity". "" if there is none.
-        - category: "Concept Builder", "Must Do" or "Advanced" if the question sits under one of
-          those headings, else "".
+        - category: the section heading this question sits under — "Concept Builder", "Must Do" or
+          "Advanced". The heading is printed once and applies to every question after it, so for a
+          question with no heading directly above it, give the most recent heading on these pages.
+          Return "" only when no such heading appears on these pages at all.
         - question_text: the complete question as plain text. Write mathematics with Unicode
           symbols, NOT LaTeX: ² ³ ₀ ₁ ₂ √ × ÷ π ε μ Ω ° ≈ ≤ ≥ ∫ Σ Δ → ⇌, and fractions inline as
           (a)/(b). Do not include the question number or the marks.
@@ -174,7 +176,8 @@ public class PyqBookImportService : IPyqBookImportService
         var added        = new List<Question>();
         var imageOptions = 0;
         var unmatched    = 0;
-        string? currentChapter = null;          // carried across pages that show no header
+        string? currentChapter  = null;         // carried across pages that show no header
+        string? currentCategory = null;         // ditto for Concept Builder / Must Do / Advanced
 
         foreach (var (chunkFrom, chunkTo) in chunks)
         {
@@ -221,8 +224,19 @@ public class PyqBookImportService : IPyqBookImportService
                 if (!string.IsNullOrWhiteSpace(q.ChapterTitle))
                 {
                     var reported = MatchChapter(book.Chapters, q.ChapterTitle);
-                    if (reported is not null) currentChapter = reported.Title;
+                    if (reported is not null && reported.Title != currentChapter)
+                    {
+                        currentChapter  = reported.Title;
+                        currentCategory = null;     // a new chapter restarts at its first heading
+                    }
                 }
+
+                // The book prints "Concept Builder" / "Must Do" / "Advanced" once, and it applies
+                // to every question until the next heading — often pages later. Without carrying
+                // it forward, questions away from a heading all defaulted to Medium: of the first
+                // 1,290 imported, 1,126 came out Medium.
+                var reportedCategory = NormaliseCategory(q.Category);
+                if (reportedCategory is not null) currentCategory = reportedCategory;
 
                 var text = (q.QuestionText ?? "").Trim();
                 if (text.Length < 10) { result.Skipped++; continue; }
@@ -257,7 +271,7 @@ public class PyqBookImportService : IPyqBookImportService
                     Status            = options.PublishImmediately ? QuestionStatus.Published : QuestionStatus.Draft,
                     SubjectId         = subject.Id,
                     TopicId           = topic.Id,
-                    DifficultyLevelId = masters.Difficulty(q.Category).Id,
+                    DifficultyLevelId = masters.Difficulty(currentCategory).Id,
                     ComplexityLevelId = masters.Complexity.Id,
                     MarksId           = masters.Marks.Id,
                     NegativeMarksId   = masters.NegativeMarks.Id,
@@ -351,6 +365,19 @@ public class PyqBookImportService : IPyqBookImportService
             });
 
         return true;
+    }
+
+    /// <summary>
+    /// Recognises the book's three section headings, ignoring anything else the model reports so
+    /// a stray value cannot overwrite the section currently in force.
+    /// </summary>
+    private static string? NormaliseCategory(string? raw)
+    {
+        var c = (raw ?? "").ToLowerInvariant();
+        if (c.Contains("concept"))  return "Concept Builder";
+        if (c.Contains("must"))     return "Must Do";
+        if (c.Contains("advanced")) return "Advanced";
+        return null;
     }
 
     /// <summary>Matches the chapter the model reported to a chapter in the answer key.</summary>
