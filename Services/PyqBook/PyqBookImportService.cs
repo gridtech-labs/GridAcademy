@@ -277,15 +277,17 @@ public class PyqBookImportService : IPyqBookImportService
                 result.Imported++;
             }
 
+            // Save after every chunk. A whole book is ~240 chunks over several hours; saving only
+            // at the end means an interruption throws away everything read so far, and makes the
+            // run impossible to resume from where it stopped.
+            await _db.SaveChangesAsync(ct);
+
             _logger.LogInformation("PYQ import: {File} pages {From}-{To} → {Count} question(s) so far.",
                 fileName, chunkFrom, chunkTo, result.Imported);
         }
 
-        if (added.Count > 0)
-        {
-            await _db.SaveChangesAsync(ct);
-            if (options.TestId.HasValue) await MapToTestAsync(added.Select(a => a.Id), options.TestId.Value, result, ct);
-        }
+        if (added.Count > 0 && options.TestId.HasValue)
+            await MapToTestAsync(added.Select(a => a.Id), options.TestId.Value, result, ct);
 
         if (imageOptions > 0)
             result.Errors.Add(Err(0, "ImageOptions",
