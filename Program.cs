@@ -248,6 +248,8 @@ builder.Services.AddScoped<IMasterService, MasterService>();
 builder.Services.AddScoped<IQuestionService, QuestionService>();
 builder.Services.AddScoped<IImportService, ImportService>();
 builder.Services.AddScoped<IAiPdfImportService, AiPdfImportService>();
+builder.Services.AddScoped<GridAcademy.Services.PyqBook.IPyqBookImportService,
+                           GridAcademy.Services.PyqBook.PyqBookImportService>();
 builder.Services.AddScoped<ITestService, TestService>();
 builder.Services.AddScoped<IAssessmentService, AssessmentService>();
 builder.Services.AddScoped<JwtHelper>();

@@ -15,11 +15,14 @@ public class ImportController : ControllerBase
 {
     private readonly IImportService      _svc;
     private readonly IAiPdfImportService _aiPdf;
+    private readonly Services.PyqBook.IPyqBookImportService _pyq;
 
-    public ImportController(IImportService svc, IAiPdfImportService aiPdf)
+    public ImportController(IImportService svc, IAiPdfImportService aiPdf,
+                            Services.PyqBook.IPyqBookImportService pyq)
     {
         _svc   = svc;
         _aiPdf = aiPdf;
+        _pyq   = pyq;
     }
 
     private Guid? CurrentUserId =>
@@ -118,6 +121,36 @@ public class ImportController : ControllerBase
             TotalGaps     = summary.Sum(s => s.Gaps),
             Detail        = summary,
         }));
+    }
+
+    /// <summary>
+    /// Imports questions from a chapter-wise PYQ book. Answers come from the book's own answer
+    /// key (parsed in code), so the file must include the answer-key pages. Everything is saved
+    /// as Draft. Use <paramref name="maxChunks"/> to trial a few pages before a full run.
+    /// </summary>
+    [HttpPost("pyq")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(300 * 1024 * 1024)]
+    public async Task<IActionResult> ImportPyq(
+        IFormFile file,
+        [FromForm] int subjectId,
+        [FromForm] int fromPage = 1,
+        [FromForm] int toPage = 0,
+        [FromForm] int pagesPerChunk = 2,
+        [FromForm] int maxChunks = 0,
+        [FromForm] Guid? testId = null,
+        [FromForm] bool publishImmediately = false,
+        CancellationToken ct = default)
+    {
+        if (file == null || file.Length == 0) return BadRequest(ApiResponse.Fail("No file provided."));
+
+        using var stream = file.OpenReadStream();
+        var result = await _pyq.ImportAsync(stream, file.FileName,
+            new Services.PyqBook.PyqImportOptions(
+                subjectId, fromPage, toPage, testId, CurrentUserId,
+                pagesPerChunk, maxChunks, publishImmediately), ct);
+
+        return Ok(ApiResponse<object>.Ok(result));
     }
 
     /// <summary>Import questions by parsing a JEE/NEET-pattern PDF.</summary>
