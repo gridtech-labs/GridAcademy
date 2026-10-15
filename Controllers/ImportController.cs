@@ -127,6 +127,8 @@ public class ImportController : ControllerBase
     /// Imports questions from a chapter-wise PYQ book. Answers come from the book's own answer
     /// key (parsed in code), so the file must include the answer-key pages. Everything is saved
     /// as Draft. Use <paramref name="maxChunks"/> to trial a few pages before a full run.
+    /// When the pages cover exactly one chapter, pass its answer-key number as
+    /// <paramref name="chapter"/> — the chapter also selects which answer key applies.
     /// </summary>
     [HttpPost("pyq")]
     [Consumes("multipart/form-data")]
@@ -140,6 +142,7 @@ public class ImportController : ControllerBase
         [FromForm] int maxChunks = 0,
         [FromForm] Guid? testId = null,
         [FromForm] bool publishImmediately = false,
+        [FromForm] int chapter = 0,
         CancellationToken ct = default)
     {
         if (file == null || file.Length == 0) return BadRequest(ApiResponse.Fail("No file provided."));
@@ -148,7 +151,7 @@ public class ImportController : ControllerBase
         var result = await _pyq.ImportAsync(stream, file.FileName,
             new Services.PyqBook.PyqImportOptions(
                 subjectId, fromPage, toPage, testId, CurrentUserId,
-                pagesPerChunk, maxChunks, publishImmediately), ct);
+                pagesPerChunk, maxChunks, publishImmediately, chapter), ct);
 
         return Ok(ApiResponse<object>.Ok(result));
     }

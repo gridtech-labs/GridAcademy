@@ -18,7 +18,8 @@ public record PyqImportOptions(
     Guid? ImportedBy          = null,
     int   PagesPerChunk       = 2,
     int   MaxChunks           = 0,      // 0 = no limit; a small value keeps a trial cheap
-    bool  PublishImmediately  = false);
+    bool  PublishImmediately  = false,
+    int   Chapter             = 0);     // answer-key chapter number when the pages are one chapter; 0 = model reports it
 
 public interface IPyqBookImportService
 {
@@ -32,8 +33,12 @@ public interface IPyqBookImportService
 /// Division of labour — deliberately, the model is only asked for what a machine cannot read:
 ///
 ///   answers    → parsed from the book's answer key in code (exact; see PyqBookStructure)
-///   chapter    → reported by the model, which sees the "CHAPTER n" divider drawn as graphics,
-///                and carried forward across pages that show no header
+///   chapter    → pinned by the caller when the pages cover one chapter (PyqImportOptions.Chapter).
+///                Otherwise reported by the model, which sees the "CHAPTER n" divider drawn as
+///                graphics, and carried forward across pages that show no header. Pin it whenever
+///                possible: the chapter also selects the answer key, and in Organic Chemistry the
+///                model filed 16% of questions under General Organic Chemistry or the previous
+///                chapter — taking their answers from the wrong key.
 ///   difficulty → the book's own Concept Builder / Must Do / Advanced grouping
 ///   text, options, sub-topic → read by the model from the page image
 ///
@@ -172,12 +177,24 @@ public class PyqBookImportService : IPyqBookImportService
             .Select(t => t.Trim())
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        PyqChapter? pinned = null;
+        if (options.Chapter > 0)
+        {
+            pinned = book.Chapters.FirstOrDefault(c => c.Number == options.Chapter);
+            if (pinned is null)
+            {
+                result.Errors.Add(Err(0, "Chapter",
+                    $"Chapter {options.Chapter} is not in this PDF's answer key."));
+                return result;
+            }
+        }
+
         var topicCache   = new Dictionary<string, Topic>(StringComparer.OrdinalIgnoreCase);
         var added        = new List<Question>();
         var imageOptions = 0;
         var unmatched    = 0;
-        string? currentChapter  = null;         // carried across pages that show no header
-        string? currentCategory = null;         // ditto for Concept Builder / Must Do / Advanced
+        string? currentChapter  = pinned?.Title;    // carried across pages that show no header
+        string? currentCategory = null;             // ditto for Concept Builder / Must Do / Advanced
 
         foreach (var (chunkFrom, chunkTo) in chunks)
         {
@@ -221,7 +238,7 @@ public class PyqBookImportService : IPyqBookImportService
                 // often print the unit ("Physical Chemistry") in the header instead of the
                 // chapter; taking that at face value loses every question until the next
                 // recognisable header.
-                if (!string.IsNullOrWhiteSpace(q.ChapterTitle))
+                if (pinned is null && !string.IsNullOrWhiteSpace(q.ChapterTitle))
                 {
                     var reported = MatchChapter(book.Chapters, q.ChapterTitle);
                     if (reported is not null && reported.Title != currentChapter)
@@ -440,6 +457,21 @@ public class PyqBookImportService : IPyqBookImportService
     }
 
     /// <summary>
+    /// Book chapter titles that name an NTA syllabus chapter differently, keyed by
+    /// <see cref="Normalise"/>d book title. Topics follow NTA naming (seeded in DbSeeder), so a
+    /// book title must land on its NTA topic rather than create a near-duplicate beside it.
+    /// Differences of punctuation or "&amp;" vs "and" need no entry — Normalise already absorbs
+    /// them ("d and f Block Elements" finds "d- and f-Block Elements").
+    /// </summary>
+    private static readonly Dictionary<string, string> NtaTopicAliases = new()
+    {
+        [Normalise("Thermodynamics (C)")]                                       = "Chemical Thermodynamics",
+        [Normalise("Classification of Elements and Periodicity in Properties")] = "Classification of Elements and Periodicity",
+        [Normalise("p Block Elements (Group 15, 16, 17 & 18)")]                 = "p-Block Elements (Group 15 to 18)",
+        [Normalise("Carboxylic Acid Derivatives")]                              = "Carboxylic Acids and Derivatives",
+    };
+
+    /// <summary>
     /// Finds the chapter's topic under this subject, creating it when missing — these books cover
     /// chapters outside the current syllabus list (States of Matter, Polymers, …).
     /// </summary>
@@ -448,15 +480,17 @@ public class PyqBookImportService : IPyqBookImportService
     {
         if (cache.TryGetValue(chapterTitle, out var cached)) return cached;
 
+        var name = NtaTopicAliases.GetValueOrDefault(Normalise(chapterTitle), chapterTitle);
+
         var existing = (await _db.Topics.Where(t => t.SubjectId == subject.Id).ToListAsync(ct))
-            .FirstOrDefault(t => Normalise(t.Name) == Normalise(chapterTitle));
+            .FirstOrDefault(t => Normalise(t.Name) == Normalise(name));
 
         if (existing is null)
         {
-            existing = new Topic { Name = chapterTitle, SubjectId = subject.Id, SortOrder = 200 };
+            existing = new Topic { Name = name, SubjectId = subject.Id, SortOrder = 200 };
             _db.Topics.Add(existing);
             await _db.SaveChangesAsync(ct);
-            _logger.LogInformation("PYQ import: created topic '{Topic}' under {Subject}.", chapterTitle, subject.Name);
+            _logger.LogInformation("PYQ import: created topic '{Topic}' under {Subject}.", name, subject.Name);
         }
 
         cache[chapterTitle] = existing;
